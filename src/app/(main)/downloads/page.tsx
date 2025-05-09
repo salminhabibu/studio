@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { DownloadCloudIcon, PlayCircleIcon, PauseCircleIcon, XCircleIcon, FolderOpenIcon, Trash2Icon, RefreshCwIcon, HistoryIcon, ListChecksIcon, ArrowUpDownIcon } from "lucide-react";
+import { DownloadCloudIcon, PlayCircleIcon, PauseCircleIcon, XCircleIcon, FolderOpenIcon, Trash2Icon, RefreshCwIcon, HistoryIcon, ListChecksIcon, ArrowUpDownIcon, FileTextIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -48,18 +48,18 @@ export default function DownloadsPage() {
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 gap-4 md:w-fit rounded-lg p-1.5 bg-muted">
-          <TabsTrigger value="active" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <DownloadCloudIcon className="mr-2 h-5 w-5" /> Active Downloads
+        <TabsList className="grid w-full grid-cols-2 gap-x-1.5 rounded-lg p-1.5 bg-muted">
+          <TabsTrigger value="active" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+            <DownloadCloudIcon className="h-5 w-5" /> Active Downloads
           </TabsTrigger>
-          <TabsTrigger value="history" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-            <HistoryIcon className="mr-2 h-5 w-5" /> Download History
+          <TabsTrigger value="history" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
+            <HistoryIcon className="h-5 w-5" /> Download History
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-8">
           <Card className="shadow-2xl border-border/40 overflow-hidden">
-            <CardHeader className="bg-card/50 p-6">
+            <CardHeader className="bg-card/50 p-6 border-b border-border/30">
               <CardTitle className="text-2xl font-semibold flex items-center">
                 <ListChecksIcon className="mr-3 h-6 w-6 text-primary" />
                 Active Queue
@@ -72,9 +72,12 @@ export default function DownloadsPage() {
                 {activeDownloads.map((download, index) => (
                   <div key={download.id} className="p-6 hover:bg-muted/30 transition-colors duration-150">
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="flex-grow min-w-0"> {/* Added min-w-0 for truncation */}
-                        <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1.5">
+                      <div className="flex-grow min-w-0"> 
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <FileTextIcon className="h-6 w-6 text-muted-foreground/80 flex-shrink-0" />
+                          <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground ml-9">
                           {getStatusBadge(download.status)}
                           <span className="hidden sm:inline">&bull;</span>
                           <span className="hidden sm:inline">{download.size}</span>
@@ -88,7 +91,7 @@ export default function DownloadsPage() {
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 mt-3 sm:mt-0">
+                      <div className="flex items-center gap-2 flex-shrink-0 mt-3 sm:mt-0 self-start sm:self-center">
                         {download.status === 'downloading' && (
                           <Button variant="ghost" size="icon" aria-label="Pause" className="hover:bg-yellow-500/10 text-yellow-400 hover:text-yellow-300">
                             <PauseCircleIcon className="h-6 w-6" />
@@ -104,7 +107,11 @@ export default function DownloadsPage() {
                         </Button>
                       </div>
                     </div>
-                    <Progress value={download.progress} className="mt-3 h-2.5 rounded-full" indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : 'bg-primary'} />
+                    <Progress 
+                      value={download.progress} 
+                      className="mt-4 h-2" 
+                      indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : 'bg-primary'} 
+                    />
                   </div>
                 ))}
                 </div>
@@ -120,9 +127,12 @@ export default function DownloadsPage() {
               )}
             </CardContent>
             {activeDownloads.length > 0 && (
-              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex justify-end gap-3">
-                <Button variant="outline">Pause All</Button>
-                <Button variant="destructive">Cancel All</Button>
+              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-3">
+                <p className="text-sm text-muted-foreground">Manage all active downloads.</p>
+                <div className="flex gap-3">
+                  <Button variant="outline">Pause All</Button>
+                  <Button variant="destructive">Cancel All</Button>
+                </div>
               </CardFooter>
             )}
           </Card>
@@ -130,7 +140,7 @@ export default function DownloadsPage() {
 
         <TabsContent value="history" className="mt-8">
           <Card className="shadow-2xl border-border/40 overflow-hidden">
-            <CardHeader className="bg-card/50 p-6">
+            <CardHeader className="bg-card/50 p-6 border-b border-border/30">
               <CardTitle className="text-2xl font-semibold flex items-center">
                 <HistoryIcon className="mr-3 h-6 w-6 text-primary" />
                 Download History
@@ -152,9 +162,12 @@ export default function DownloadsPage() {
                 {completedDownloads.map(download => (
                   <div key={download.id} className={`p-6 hover:bg-muted/30 transition-colors duration-150 ${download.status === 'failed' ? 'bg-destructive/5 hover:bg-destructive/10' : ''}`}>
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="flex-grow min-w-0"> {/* Added min-w-0 for truncation */}
-                        <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1.5">
+                       <div className="flex-grow min-w-0"> 
+                        <div className="flex items-center gap-3 mb-1.5">
+                          <FileTextIcon className="h-6 w-6 text-muted-foreground/80 flex-shrink-0" />
+                          <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground ml-9">
                            {getStatusBadge(download.status)}
                            <span className="hidden sm:inline">&bull;</span>
                            <span>{download.date}</span>
@@ -162,7 +175,7 @@ export default function DownloadsPage() {
                            <span>{download.size}</span>
                         </div>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0 mt-3 sm:mt-0">
+                      <div className="flex gap-2 flex-shrink-0 mt-3 sm:mt-0 self-start sm:self-center">
                         {download.status === 'completed' && (
                           <Button variant="ghost" size="icon" aria-label="Open folder" className="hover:bg-accent/10 text-accent hover:text-accent/80">
                             <FolderOpenIcon className="h-6 w-6" />
@@ -192,7 +205,8 @@ export default function DownloadsPage() {
               )}
             </CardContent>
              {completedDownloads.length > 0 && (
-              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex justify-end">
+              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-3">
+                 <p className="text-sm text-muted-foreground">Manage your download history.</p>
                 <Button variant="destructive">Clear History</Button>
               </CardFooter>
             )}
