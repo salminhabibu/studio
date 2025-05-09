@@ -21,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark"> {/* Apply dark class to html for consistency if components check for it, or rely on :root in CSS */}
+    <html lang="en" className="dark">
       <body className={`${poppins.variable} font-sans antialiased bg-background text-foreground`}>
         {children}
         <Toaster />
@@ -29,4 +29,3 @@ export default function RootLayout({
     </html>
   );
 }
-
