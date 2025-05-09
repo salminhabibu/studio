@@ -1,3 +1,5 @@
+
+'use client';
 // src/app/(main)/tv-series/[id]/page.tsx
 import { getTvSeriesDetails, getTvSeasonDetails, getFullImagePath } from "@/lib/tmdb";
 import type { TMDBTVSeries, TMDBSeason, TMDBEpisode } from "@/types/tmdb";
@@ -11,32 +13,44 @@ import Link from "next/link";
 import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSeasonButton";
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
+import { useEffect, useState } from "react";
 
 interface TvSeriesDetailsPageProps {
   params: { id: string };
 }
 
-// SeasonAccordionItem is an async Server Component.
-// It fetches its own data (episodes for a season) and renders Client Components
-// like DownloadSeasonButton and DownloadEpisodeButton. This is a valid pattern.
-async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | string; season: TMDBSeason }) {
-  let episodes: TMDBEpisode[] = [];
-  let error: string | null = null;
+// SeasonAccordionItem is now a client component to handle its own state and children client components
+function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesId: number | string; season: TMDBSeason, initialOpen?: boolean }) {
+  const [episodes, setEpisodes] = useState<TMDBEpisode[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isOpen, setIsOpen] = useState(initialOpen || false);
 
-  try {
-    // Only fetch episodes if there's an episode count, to avoid 404s on empty/special seasons
-    if (season.episode_count > 0) {
-      const seasonDetails = await getTvSeasonDetails(seriesId, season.season_number);
-      episodes = seasonDetails.episodes;
+  useEffect(() => {
+    async function fetchEpisodes() {
+      if (isOpen && season.episode_count > 0 && episodes.length === 0 && !isLoading) {
+        setIsLoading(true);
+        setError(null);
+        try {
+          const seasonDetails = await getTvSeasonDetails(seriesId, season.season_number);
+          setEpisodes(seasonDetails.episodes);
+        } catch (e) {
+          console.error(`Failed to fetch episodes for season ${season.season_number}:`, e);
+          setError("Could not load episodes for this season.");
+        } finally {
+          setIsLoading(false);
+        }
+      }
     }
-  } catch (e) {
-    console.error(`Failed to fetch episodes for season ${season.season_number}:`, e);
-    error = "Could not load episodes for this season.";
-  }
+    fetchEpisodes();
+  }, [isOpen, seriesId, season, episodes.length, isLoading]);
 
   return (
     <AccordionItem value={`season-${season.season_number}`} className="border-b border-border/30 last:border-b-0">
-      <AccordionTrigger className="py-4 px-3 sm:px-4 hover:bg-muted/30 transition-colors w-full text-left group data-[state=open]:bg-muted/20">
+      <AccordionTrigger 
+        className="py-4 px-3 sm:px-4 hover:bg-muted/30 transition-colors w-full text-left group data-[state=open]:bg-muted/20"
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div className="flex justify-between items-center w-full gap-2">
           <div className="flex items-center gap-3 min-w-0">
             {season.poster_path ? (
@@ -61,11 +75,12 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
       </AccordionTrigger>
       <AccordionContent className="bg-card/50">
         <div className="p-2 sm:p-3 space-y-2">
+          {isLoading && <p className="text-muted-foreground p-3 text-center text-sm">Loading episodes...</p>}
           {error && <p className="text-destructive p-4 text-center">{error}</p>}
-          {!error && episodes.length === 0 && season.episode_count > 0 && (
+          {!isLoading && !error && episodes.length === 0 && season.episode_count > 0 && (
             <p className="text-muted-foreground p-3 text-center text-sm">No episodes found for this season, or data is unavailable.</p>
           )}
-          {!error && episodes.map((episode) => (
+          {!isLoading && !error && episodes.map((episode) => (
             <Card key={episode.id} className="overflow-hidden shadow-sm bg-card hover:shadow-md transition-shadow duration-200">
               <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 {episode.still_path && (
@@ -101,15 +116,36 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
 }
 
 
-export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
-  let series: TMDBTVSeries | null = null;
-  let error: string | null = null;
+export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
+  const [series, setSeries] = useState<TMDBTVSeries | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  try {
-    series = await getTvSeriesDetails(params.id);
-  } catch (e) {
-    console.error(`Failed to fetch TV series details for ID ${params.id}:`, e);
-    error = "Could not load TV series details. Please try again later or check if the series ID is correct.";
+  useEffect(() => {
+    async function fetchData() {
+      setIsLoading(true);
+      try {
+        const seriesData = await getTvSeriesDetails(params.id);
+        setSeries(seriesData);
+      } catch (e) {
+        console.error(`Failed to fetch TV series details for ID ${params.id}:`, e);
+        setError("Could not load TV series details. Please try again later or check if the series ID is correct.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, [params.id]);
+  
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
+        <Tv2Icon className="w-24 h-24 text-primary animate-pulse mb-6" />
+        <h1 className="text-3xl font-bold mb-3">Loading Series Details...</h1>
+        <p className="text-muted-foreground max-w-md">Please wait while we fetch the information.</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -138,13 +174,10 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
     );
   }
   
-  // Filter out seasons with season_number 0 unless they actually have episodes (like specials)
-  // and then sort primarily by season number.
   const sortedSeasons = (series.seasons || [])
     .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0))
     .sort((a, b) => a.season_number - b.season_number);
 
-  // Determine the first valid season to open by default. Prefers season 1 or the lowest numbered season > 0.
   const firstAiringSeason = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0);
   const defaultAccordionValue = firstAiringSeason 
     ? `season-${firstAiringSeason.season_number}` 
@@ -191,10 +224,10 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                 sizes="(max-width: 767px) 100vw, (max-width: 1023px) 33vw, 25vw"
               />
             </div>
-             <CardContent className="p-3 sm:p-4">
+             <CardContent className="p-3 sm:p-4 space-y-3">
                 <DownloadAllSeasonsWithOptionsButton seriesId={series.id} seriesName={series.name} />
                 {series.homepage && (
-                <Button variant="outline" className="w-full mt-3 h-11 text-sm" asChild>
+                <Button variant="outline" className="w-full h-11 text-sm" asChild>
                   <Link href={series.homepage} target="_blank" rel="noopener noreferrer">
                     <ExternalLinkIcon className="mr-2 h-4 w-4" /> Visit Homepage
                   </Link>
@@ -237,7 +270,7 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                   <detail.icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="font-semibold">{detail.label}</p>
-                    <p className="text-muted-foreground">{detail.value}</p>
+                    <p className="text-muted-foreground">{String(detail.value)}</p>
                   </div>
                 </div>
               ))}
@@ -254,9 +287,14 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                 <CardDescription className="text-xs sm:text-sm">Browse and download episodes by season. Click a season to expand.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
-                <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
+                 <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
                   {sortedSeasons.map(season => (
-                    <SeasonAccordionItem key={season.id} seriesId={series!.id} season={season} />
+                    <SeasonAccordionItem 
+                        key={season.id} 
+                        seriesId={series!.id} 
+                        season={season} 
+                        initialOpen={defaultAccordionValue === `season-${season.season_number}`}
+                    />
                   ))}
                 </Accordion>
               </CardContent>
