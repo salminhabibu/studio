@@ -14,12 +14,9 @@ import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSe
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 import { useEffect, useState } from "react";
+import { useParams } from 'next/navigation';
 
-interface TvSeriesDetailsPageProps {
-  params: { id: string };
-}
-
-// SeasonAccordionItem is now a client component to handle its own state and children client components
+// SeasonAccordionItem remains a client component to handle its own state and children client components
 function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesId: number | string; season: TMDBSeason, initialOpen?: boolean }) {
   const [episodes, setEpisodes] = useState<TMDBEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -116,26 +113,36 @@ function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesId: numb
 }
 
 
-export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
+export default function TvSeriesDetailsPage() {
+  const routeParams = useParams();
+  const id = routeParams.id as string;
+
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function fetchData() {
+      if (!id) {
+        setIsLoading(false);
+        setError("Series ID not found in URL.");
+        return;
+      }
       setIsLoading(true);
       try {
-        const seriesData = await getTvSeriesDetails(params.id);
+        const seriesData = await getTvSeriesDetails(id);
         setSeries(seriesData);
       } catch (e) {
-        console.error(`Failed to fetch TV series details for ID ${params.id}:`, e);
+        console.error(`Failed to fetch TV series details for ID ${id}:`, e);
         setError("Could not load TV series details. Please try again later or check if the series ID is correct.");
       } finally {
         setIsLoading(false);
       }
     }
-    fetchData();
-  }, [params.id]);
+    if (id) {
+      fetchData();
+    }
+  }, [id]);
   
 
   if (isLoading) {
@@ -175,7 +182,7 @@ export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps
   }
   
   const sortedSeasons = (series.seasons || [])
-    .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0))
+    .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0)) // Filter out "Specials" if they have 0 episodes, or keep them if they do.
     .sort((a, b) => a.season_number - b.season_number);
 
   const firstAiringSeason = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0);
