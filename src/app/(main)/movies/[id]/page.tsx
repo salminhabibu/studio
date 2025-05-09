@@ -1,27 +1,67 @@
 // src/app/(main)/movies/[id]/page.tsx
+"use client";
+
 import { getMovieDetails, getFullImagePath } from "@/lib/tmdb";
-import type { TMDBMovie } from "@/types/tmdb";
+import type { TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDaysIcon, ClockIcon, DownloadIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CalendarDaysIcon, ClockIcon, DownloadIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, PlayCircleIcon } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
-interface MovieDetailsPageProps {
-  params: { id: string };
-}
+export default function MovieDetailsPage() {
+  const params = useParams<{ id: string }>();
+  const [movie, setMovie] = useState<TMDBMovie | null>(null);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-export default async function MovieDetailsPage({ params }: MovieDetailsPageProps) {
-  let movie: TMDBMovie | null = null;
-  let error: string | null = null;
+  useEffect(() => {
+    if (!params.id) {
+        setError("Movie ID not found.");
+        setIsLoading(false);
+        return;
+    }
 
-  try {
-    movie = await getMovieDetails(params.id);
-  } catch (e) {
-    console.error(`Failed to fetch movie details for ID ${params.id}:`, e);
-    error = "Could not load movie details. Please try again later or check if the movie ID is correct.";
+    async function fetchMovieData() {
+      setIsLoading(true);
+      try {
+        const movieData = await getMovieDetails(params.id);
+        setMovie(movieData);
+
+        const videos: TMDBVideo[] = movieData.videos?.results || [];
+        const officialTrailer = videos.find(
+          (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
+        ) || videos.find( 
+          (video) => video.site === "YouTube" && video.type === "Trailer"
+        );
+        setTrailerKey(officialTrailer?.key || null);
+
+      } catch (e) {
+        console.error(`Failed to fetch movie details for ID ${params.id}:`, e);
+        setError("Could not load movie details. Please try again later.");
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchMovieData();
+  }, [params.id]);
+
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
+        <FilmIcon className="w-24 h-24 text-primary animate-pulse mb-6" />
+        <h1 className="text-3xl font-bold mb-3">Loading Movie Details...</h1>
+        <p className="text-muted-foreground max-w-md">Please wait while we fetch the information.</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -38,7 +78,6 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
   }
 
   if (!movie) {
-    // This case should ideally be caught by error handling, but as a fallback:
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center p-6">
         <FilmIcon className="w-24 h-24 text-muted-foreground mb-6" />
@@ -63,9 +102,10 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
           className="object-cover object-top transition-transform duration-500 ease-in-out group-hover:scale-105"
           priority
           data-ai-hint="movie backdrop"
+          sizes="100vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-6 md:p-10">
+        <div className="absolute bottom-0 left-0 p-6 md:p-10 z-10">
           <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
             {movie.title}
           </h1>
@@ -73,6 +113,16 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
             <p className="text-lg md:text-xl text-muted-foreground italic mt-1 shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
               {movie.tagline}
             </p>
+          )}
+          {trailerKey && (
+            <Button
+              size="lg"
+              className="mt-4 h-12 px-6 sm:h-14 sm:px-8 text-base sm:text-lg group/button animate-fade-in-up"
+              onClick={() => setIsTrailerModalOpen(true)}
+            >
+              <PlayCircleIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
+              Watch Trailer
+            </Button>
           )}
         </div>
       </div>
@@ -87,6 +137,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
                 fill
                 className="object-cover"
                 data-ai-hint="movie poster"
+                sizes="(max-width: 767px) 100vw, (max-width: 1023px) 33vw, 25vw"
               />
             </div>
             <CardContent className="p-4 space-y-4">
@@ -199,6 +250,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
                               fill
                               className="object-contain"
                               data-ai-hint="company logo"
+                              sizes="100px"
                             />
                         </div>
                         <p className="text-xs text-muted-foreground">{company.name}</p>
@@ -216,7 +268,37 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
           )}
         </div>
       </div>
+      <Dialog open={isTrailerModalOpen} onOpenChange={setIsTrailerModalOpen}>
+        <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] p-0 border-0 bg-black/90 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
+          {trailerKey && (
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
+          )}
+        </DialogContent>
+      </Dialog>
+       <style jsx global>{`
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0; /* Start hidden for animation */
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
-

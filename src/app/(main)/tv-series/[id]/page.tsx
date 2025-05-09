@@ -2,13 +2,14 @@
 'use client';
 // src/app/(main)/tv-series/[id]/page.tsx
 import { getTvSeriesDetails, getTvSeasonDetails, getFullImagePath } from "@/lib/tmdb";
-import type { TMDBTVSeries, TMDBSeason, TMDBEpisode } from "@/types/tmdb";
+import type { TMDBTVSeries, TMDBSeason, TMDBEpisode, TMDBVideo } from "@/types/tmdb";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon, PlayCircleIcon } from "lucide-react";
 import Link from "next/link";
 import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSeasonButton";
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
@@ -114,10 +115,12 @@ function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesId: numb
 
 
 export default function TvSeriesDetailsPage() {
-  const routeParams = useParams();
-  const id = routeParams.id as string;
+  const routeParams = useParams<{ id: string }>();
+  const id = routeParams.id;
 
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -132,6 +135,15 @@ export default function TvSeriesDetailsPage() {
       try {
         const seriesData = await getTvSeriesDetails(id);
         setSeries(seriesData);
+
+        const videos: TMDBVideo[] = seriesData.videos?.results || [];
+        const officialTrailer = videos.find(
+          (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
+        ) || videos.find( 
+          (video) => video.site === "YouTube" && video.type === "Trailer"
+        );
+        setTrailerKey(officialTrailer?.key || null);
+
       } catch (e) {
         console.error(`Failed to fetch TV series details for ID ${id}:`, e);
         setError("Could not load TV series details. Please try again later or check if the series ID is correct.");
@@ -182,7 +194,7 @@ export default function TvSeriesDetailsPage() {
   }
   
   const sortedSeasons = (series.seasons || [])
-    .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0)) // Filter out "Specials" if they have 0 episodes, or keep them if they do.
+    .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0)) 
     .sort((a, b) => a.season_number - b.season_number);
 
   const firstAiringSeason = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0);
@@ -205,7 +217,7 @@ export default function TvSeriesDetailsPage() {
           sizes="(max-width: 768px) 100vw, 80vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-4 sm:p-6 md:p-8">
+        <div className="absolute bottom-0 left-0 p-4 sm:p-6 md:p-8 z-10">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
             {series.name}
           </h1>
@@ -213,6 +225,16 @@ export default function TvSeriesDetailsPage() {
             <p className="text-md sm:text-lg md:text-xl text-muted-foreground italic mt-1 max-w-xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
               {series.tagline}
             </p>
+          )}
+           {trailerKey && (
+            <Button
+              size="lg"
+              className="mt-2 sm:mt-3 h-11 px-5 sm:h-12 sm:px-7 text-base sm:text-lg group/button self-start animate-fade-in-up"
+              onClick={() => setIsTrailerModalOpen(true)}
+            >
+              <PlayCircleIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
+              Watch Trailer
+            </Button>
           )}
         </div>
       </div>
@@ -343,6 +365,37 @@ export default function TvSeriesDetailsPage() {
           )}
         </div>
       </div>
+      <Dialog open={isTrailerModalOpen} onOpenChange={setIsTrailerModalOpen}>
+        <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] p-0 border-0 bg-black/90 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
+          {trailerKey && (
+            <iframe
+              width="100%"
+              height="100%"
+              src={`https://www.youtube.com/embed/${trailerKey}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
+              title="YouTube video player"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+            ></iframe>
+          )}
+        </DialogContent>
+      </Dialog>
+      <style jsx global>{`
+        .animate-fade-in-up {
+          animation: fadeInUp 0.6s ease-out forwards;
+          opacity: 0; /* Start hidden for animation */
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }
