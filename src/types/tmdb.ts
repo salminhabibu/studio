@@ -21,6 +21,7 @@ export interface TMDBBaseMovie {
   vote_average: number;
   genre_ids?: number[]; // Present in list views
   overview: string;
+  media_type?: 'movie'; // Added for multi-search
 }
 
 export interface TMDBMovie extends TMDBBaseMovie {
@@ -49,6 +50,7 @@ export interface TMDBBaseTVSeries {
   vote_average: number;
   genre_ids?: number[]; // Present in list views
   overview: string;
+  media_type?: 'tv'; // Added for multi-search
 }
 
 export interface TMDBEpisode {
@@ -90,3 +92,28 @@ export interface TMDBTvSeasonDetails extends TMDBSeason {
   _id: string; // TMDB provides this, often includes series_id and season_number
   episodes: TMDBEpisode[];
 }
+
+// Types for Multi Search
+interface TMDBPersonResult {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  media_type: 'person';
+  adult: boolean;
+  popularity: number;
+  known_for_department?: string;
+  // known_for can be an array of TMDBBaseMovie or TMDBBaseTVSeries, simplified here
+  known_for?: Array<Partial<TMDBBaseMovie & TMDBBaseTVSeries>>; 
+}
+
+export type TMDBMultiSearchResultItem = 
+  | (TMDBBaseMovie & { media_type: 'movie' }) 
+  | (TMDBBaseTVSeries & { media_type: 'tv' }) 
+  | TMDBPersonResult;
+
+export type ClientTMDBMultiSearchResultItem = 
+  | (TMDBBaseMovie & { media_type: 'movie' }) 
+  | (TMDBBaseTVSeries & { media_type: 'tv' });
+
+
+export interface TMDBMultiPaginatedResponse extends TMDBPaginatedResponse<TMDBMultiSearchResultItem> {}

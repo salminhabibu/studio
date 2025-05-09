@@ -1,14 +1,14 @@
 // src/app/(main)/home/page.tsx
 import { VideoUrlForm } from '@/components/features/home/VideoUrlForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { SearchIcon, PlayCircleIcon, ArrowRightIcon } from 'lucide-react';
+import { PlayCircleIcon, ArrowRightIcon } from 'lucide-react';
 import Image from 'next/image';
+import { LiveSearch } from '@/components/features/search/LiveSearch'; // Import LiveSearch
 
 export default function HomePage() {
   const featuredItems = [
-    { id: 1, title: "Interstellar Exploration", category: "Sci-Fi Adventure", year: "2024", imageUrl: "https://picsum.photos/seed/ interstellar/400/600", dataAiHint: "space movie" },
+    { id: 1, title: "Interstellar Exploration", category: "Sci-Fi Adventure", year: "2024", imageUrl: "https://picsum.photos/seed/interstellar/400/600", dataAiHint: "space movie" },
     { id: 2, title: "Cybernetic Uprising", category: "Action Thriller", year: "2023", imageUrl: "https://picsum.photos/seed/cyberpunk/400/600", dataAiHint: "robot movie" },
     { id: 3, title: "Mysteries of the Deep", category: "Documentary", year: "2024", imageUrl: "https://picsum.photos/seed/deepsea/400/600", dataAiHint: "ocean documentary" },
     { id: 4, title: "Chronicles of Eldoria", category: "Fantasy Epic", year: "2023", imageUrl: "https://picsum.photos/seed/fantasy/400/600", dataAiHint: "fantasy landscape" },
@@ -60,26 +60,17 @@ export default function HomePage() {
         </Card>
       </section>
       
-      {/* Search Section */}
+      {/* Search Section - Replaced with LiveSearch */}
       <section>
         <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">Search Movies & TV Shows</CardTitle>
             <CardDescription>
-              Find content by title, actor, or genre.
+              Find content by title, actor, or genre. Results appear as you type.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex w-full items-center space-x-3">
-              <Input 
-                type="search" 
-                placeholder="e.g., 'Guardians of the Galaxy', 'Sci-Fi', 'Chris Pratt'..." 
-                className="h-14 text-base flex-grow" 
-              />
-              <Button type="submit" size="lg" className="h-14 px-6">
-                <SearchIcon className="mr-2 h-5 w-5" /> Search
-              </Button>
-            </div>
+            <LiveSearch />
           </CardContent>
         </Card>
       </section>
