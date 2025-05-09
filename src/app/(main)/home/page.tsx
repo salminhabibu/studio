@@ -2,7 +2,7 @@
 import { VideoUrlForm } from '@/components/features/home/VideoUrlForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRightIcon } from 'lucide-react';
+import { ArrowRightIcon, YoutubeIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LiveSearch } from '@/components/features/search/LiveSearch';
@@ -106,9 +106,12 @@ export default async function HomePage() {
       <section>
         <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
-            <CardTitle className="text-2xl font-semibold">Add Video by Link</CardTitle>
+            <CardTitle className="text-2xl font-semibold flex items-center">
+              <YoutubeIcon className="h-7 w-7 mr-2 text-red-500" />
+              Download from YouTube
+            </CardTitle>
             <CardDescription>
-              Paste a video URL from a supported platform to start processing.
+              Paste a YouTube video URL below to start the download process.
             </CardDescription>
           </CardHeader>
           <CardContent>
