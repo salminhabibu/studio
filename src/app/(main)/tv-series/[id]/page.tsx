@@ -16,24 +16,16 @@ interface TvSeriesDetailsPageProps {
   params: { id: string };
 }
 
-// SeasonAccordionItem needs to be a Client Component because DownloadSeasonButton is one (due to useState for quality)
-// and it contains DownloadEpisodeButton which is also a Client Component.
-// Alternatively, make DownloadSeasonButton and DownloadEpisodeButton server components that trigger actions,
-// but for UI interactivity like dropdowns, client components are often easier.
-// For now, let's make SeasonAccordionItem a client component.
-
-"use client"; // Add this if SeasonAccordionItem directly uses client hooks or event handlers at its root
-// However, if it only *uses* client components (DownloadSeasonButton, DownloadEpisodeButton), it can remain a Server Component
-// The issue was that the event handler for DownloadSeasonButton being passed directly.
-// By making DownloadSeasonButton a self-contained client component with its own state, this should be fine.
-// Let's try keeping SeasonAccordionItem as an async server component that renders client components.
-
+// SeasonAccordionItem is an async Server Component.
+// It fetches its own data (episodes for a season) and renders Client Components
+// like DownloadSeasonButton and DownloadEpisodeButton. This is a valid pattern.
 async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | string; season: TMDBSeason }) {
   let episodes: TMDBEpisode[] = [];
   let error: string | null = null;
 
   try {
-    if (season.season_number > 0 || (season.season_number === 0 && season.episode_count > 0)) {
+    // Only fetch episodes if there's an episode count, to avoid 404s on empty/special seasons
+    if (season.episode_count > 0) {
       const seasonDetails = await getTvSeasonDetails(seriesId, season.season_number);
       episodes = seasonDetails.episodes;
     }
@@ -43,55 +35,55 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
   }
 
   return (
-    <AccordionItem value={`season-${season.season_number}`} className="border-b border-border/30">
-      <AccordionTrigger className="py-4 px-6 hover:bg-muted/30 transition-colors w-full text-left group">
+    <AccordionItem value={`season-${season.season_number}`} className="border-b border-border/30 last:border-b-0">
+      <AccordionTrigger className="py-4 px-3 sm:px-4 hover:bg-muted/30 transition-colors w-full text-left group data-[state=open]:bg-muted/20">
         <div className="flex justify-between items-center w-full gap-2">
-          <div className="flex items-center gap-3 min-w-0"> {/* Added min-w-0 for truncation */}
+          <div className="flex items-center gap-3 min-w-0">
             {season.poster_path ? (
-              <div className="relative w-12 h-18 rounded overflow-hidden flex-shrink-0">
-                <Image src={getFullImagePath(season.poster_path, "w92")} alt={season.name} fill className="object-cover" data-ai-hint="season poster"/>
+              <div className="relative w-12 h-[72px] rounded overflow-hidden flex-shrink-0 shadow-md bg-muted">
+                <Image src={getFullImagePath(season.poster_path, "w154")} alt={season.name} fill className="object-cover" data-ai-hint="season poster"/>
               </div>
             ) : (
-              <div className="w-12 h-18 rounded bg-muted flex items-center justify-center flex-shrink-0">
+              <div className="w-12 h-[72px] rounded bg-muted flex items-center justify-center flex-shrink-0 shadow-inner">
                 <ClapperboardIcon className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
-            <div className="min-w-0"> {/* Added min-w-0 for truncation */}
-              <h4 className="text-lg font-semibold group-hover:text-primary transition-colors truncate" title={season.name}>{season.name}</h4>
-              <p className="text-sm text-muted-foreground truncate">
+            <div className="min-w-0 flex-1">
+              <h4 className="text-md sm:text-lg font-semibold group-hover:text-primary transition-colors truncate" title={season.name}>{season.name}</h4>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate">
                 {season.episode_count} Episode{season.episode_count !== 1 ? 's' : ''}
-                {season.air_date && ` • Aired: ${new Date(season.air_date).getFullYear()}`}
+                {season.air_date && ` • Aired: ${new Date(season.air_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })}`}
               </p>
             </div>
           </div>
           <DownloadSeasonButton seriesId={seriesId} seasonNumber={season.season_number} seasonName={season.name} />
         </div>
       </AccordionTrigger>
-      <AccordionContent className="bg-background/30">
-        <div className="p-2 sm:p-4 space-y-3">
+      <AccordionContent className="bg-card/50">
+        <div className="p-2 sm:p-3 space-y-2">
           {error && <p className="text-destructive p-4 text-center">{error}</p>}
-          {!error && episodes.length === 0 && (season.season_number > 0 || (season.season_number === 0 && season.episode_count > 0)) && (
-            <p className="text-muted-foreground p-4 text-center">No episodes found for this season, or data is unavailable.</p>
+          {!error && episodes.length === 0 && season.episode_count > 0 && (
+            <p className="text-muted-foreground p-3 text-center text-sm">No episodes found for this season, or data is unavailable.</p>
           )}
           {!error && episodes.map((episode) => (
-            <Card key={episode.id} className="overflow-hidden shadow-md bg-card hover:bg-card/90">
-              <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <Card key={episode.id} className="overflow-hidden shadow-sm bg-card hover:shadow-md transition-shadow duration-200">
+              <CardContent className="p-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 {episode.still_path && (
-                  <div className="relative w-full sm:w-32 md:w-40 aspect-video rounded overflow-hidden flex-shrink-0 bg-muted">
+                  <div className="relative w-full sm:w-32 md:w-36 aspect-[16/9] rounded overflow-hidden flex-shrink-0 bg-muted shadow-inner">
                     <Image src={getFullImagePath(episode.still_path, "w300")} alt={`Still from ${episode.name}`} fill className="object-cover" data-ai-hint="episode still" />
                   </div>
                 )}
                  {!episode.still_path && (
-                  <div className="w-full sm:w-32 md:w-40 aspect-video rounded bg-muted flex items-center justify-center flex-shrink-0">
-                    <ClapperboardIcon className="w-8 h-8 text-muted-foreground" />
+                  <div className="w-full sm:w-32 md:w-36 aspect-[16/9] rounded bg-muted flex items-center justify-center flex-shrink-0 shadow-inner">
+                    <ClapperboardIcon className="w-8 h-8 text-muted-foreground/70" />
                   </div>
                 )}
                 <div className="flex-grow min-w-0">
-                  <h5 className="font-semibold text-md truncate" title={episode.name}>
+                  <h5 className="font-semibold text-sm sm:text-base truncate" title={episode.name}>
                     S{String(episode.season_number).padStart(2, '0')}E{String(episode.episode_number).padStart(2, '0')}: {episode.name}
                   </h5>
-                  {episode.air_date && <p className="text-xs text-muted-foreground mb-1">Aired: {new Date(episode.air_date).toLocaleDateString()}</p>}
-                  <p className="text-sm text-muted-foreground line-clamp-2">{episode.overview || "No overview available."}</p>
+                  {episode.air_date && <p className="text-xs text-muted-foreground mb-1">Aired: {new Date(episode.air_date).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</p>}
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 sm:line-clamp-3">{episode.overview || "No overview available."}</p>
                 </div>
                 <DownloadEpisodeButton
                   seriesId={seriesId}
@@ -122,11 +114,11 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-center p-6">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Tv2Icon className="w-24 h-24 text-destructive mb-6" />
         <h1 className="text-3xl font-bold text-destructive mb-3">Error Loading Series Details</h1>
         <p className="text-muted-foreground max-w-md">{error}</p>
-        <Button asChild variant="outline" className="mt-6">
+        <Button asChild variant="outline" className="mt-8 text-lg px-6 py-3">
           <Link href="/tv-series">Back to TV Series</Link>
         </Button>
       </div>
@@ -135,50 +127,60 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
 
   if (!series) {
     return (
-      <div className="flex flex-col items-center justify-center h-[70vh] text-center p-6">
-        <Tv2Icon className="w-24 h-24 text-muted-foreground mb-6" />
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
+        <Tv2Icon className="w-24 h-24 text-muted-foreground/70 mb-6" />
         <h1 className="text-3xl font-bold mb-3">TV Series Not Found</h1>
         <p className="text-muted-foreground max-w-md">The TV series you are looking for could not be found.</p>
-        <Button asChild variant="outline" className="mt-6">
+         <Button asChild variant="outline" className="mt-8 text-lg px-6 py-3">
           <Link href="/tv-series">Back to TV Series</Link>
         </Button>
       </div>
     );
   }
   
-  const sortedSeasons = series.seasons?.sort((a, b) => a.season_number - b.season_number) || [];
-  const defaultAccordionValue = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0) 
-    ? `season-${sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0)!.season_number}` 
+  // Filter out seasons with season_number 0 unless they actually have episodes (like specials)
+  // and then sort primarily by season number.
+  const sortedSeasons = (series.seasons || [])
+    .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0))
+    .sort((a, b) => a.season_number - b.season_number);
+
+  // Determine the first valid season to open by default. Prefers season 1 or the lowest numbered season > 0.
+  const firstAiringSeason = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0);
+  const defaultAccordionValue = firstAiringSeason 
+    ? `season-${firstAiringSeason.season_number}` 
     : (sortedSeasons.length > 0 && sortedSeasons[0].episode_count > 0 ? `season-${sortedSeasons[0].season_number}` : undefined);
 
 
   return (
-    <div className="container mx-auto py-8 px-4 md:px-0">
-      <div className="relative h-[60vh] min-h-[300px] md:min-h-[400px] lg:min-h-[500px] rounded-xl overflow-hidden shadow-2xl group mb-8">
+    <div className="container mx-auto py-6 sm:py-8 px-2 sm:px-4">
+      {/* Hero section */}
+      <div className="relative h-[45vh] sm:h-[50vh] md:h-[60vh] min-h-[280px] sm:min-h-[350px] md:min-h-[400px] rounded-lg sm:rounded-xl overflow-hidden shadow-2xl group mb-6 sm:mb-8">
         <Image
           src={getFullImagePath(series.backdrop_path, "original")}
           alt={`${series.name} backdrop`}
           fill
-          className="object-cover object-top transition-transform duration-500 ease-in-out group-hover:scale-105"
+          className="object-cover object-center sm:object-top transition-transform duration-500 ease-in-out group-hover:scale-105"
           priority
           data-ai-hint="tv series backdrop"
+          sizes="(max-width: 768px) 100vw, 80vw"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-        <div className="absolute bottom-0 left-0 p-6 md:p-10">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
+        <div className="absolute bottom-0 left-0 p-4 sm:p-6 md:p-8">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
             {series.name}
           </h1>
           {series.tagline && (
-            <p className="text-lg md:text-xl text-muted-foreground italic mt-1 shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
+            <p className="text-md sm:text-lg md:text-xl text-muted-foreground italic mt-1 max-w-xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
               {series.tagline}
             </p>
           )}
         </div>
       </div>
 
-      <div className="grid md:grid-cols-12 gap-8">
+      <div className="grid md:grid-cols-12 gap-6 sm:gap-8">
+        {/* Left column - Poster and Download All button */}
         <div className="md:col-span-4 lg:col-span-3">
-          <Card className="overflow-hidden shadow-xl sticky top-24">
+          <Card className="overflow-hidden shadow-xl sticky top-20 sm:top-24">
             <div className="aspect-[2/3] relative w-full bg-muted">
               <Image
                 src={getFullImagePath(series.poster_path, "w500")}
@@ -186,12 +188,13 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                 fill
                 className="object-cover"
                 data-ai-hint="tv series poster"
+                sizes="(max-width: 767px) 100vw, (max-width: 1023px) 33vw, 25vw"
               />
             </div>
-             <CardContent className="p-4">
+             <CardContent className="p-3 sm:p-4">
                 <DownloadAllSeasonsWithOptionsButton seriesId={series.id} seriesName={series.name} />
                 {series.homepage && (
-                <Button variant="outline" className="w-full mt-3" asChild>
+                <Button variant="outline" className="w-full mt-3 h-11 text-sm" asChild>
                   <Link href={series.homepage} target="_blank" rel="noopener noreferrer">
                     <ExternalLinkIcon className="mr-2 h-4 w-4" /> Visit Homepage
                   </Link>
@@ -201,96 +204,58 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
           </Card>
         </div>
 
-        <div className="md:col-span-8 lg:col-span-9 space-y-8">
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><InfoIcon className="h-6 w-6 text-primary"/> Overview</CardTitle>
+        {/* Right column - Details and Seasons */}
+        <div className="md:col-span-8 lg:col-span-9 space-y-6 sm:space-y-8">
+          <Card className="shadow-lg border-border/40">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><InfoIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-foreground/80 leading-relaxed">{series.overview || "No overview available."}</p>
+              <p className="text-foreground/80 leading-relaxed text-sm sm:text-base">{series.overview || "No overview available."}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {series.genres.map(genre => (
-                  <Badge key={genre.id} variant="secondary" className="text-sm px-3 py-1">{genre.name}</Badge>
+                  <Badge key={genre.id} variant="secondary" className="text-xs sm:text-sm px-2.5 py-1">{genre.name}</Badge>
                 ))}
               </div>
             </CardContent>
           </Card>
 
-          <Card className="shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Tv2Icon className="h-6 w-6 text-primary"/> Series Details</CardTitle>
+          <Card className="shadow-lg border-border/40">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><Tv2Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Series Details</CardTitle>
             </CardHeader>
-            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 text-sm">
-              <div className="flex items-start space-x-3">
-                <CalendarDaysIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">First Aired</p>
-                  <p className="text-muted-foreground">{series.first_air_date ? new Date(series.first_air_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <HashIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Seasons</p>
-                  <p className="text-muted-foreground">{series.number_of_seasons}</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <HashIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Total Episodes</p>
-                  <p className="text-muted-foreground">{series.number_of_episodes}</p>
-                </div>
-              </div>
-               <div className="flex items-start space-x-3">
-                <StarIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Rating</p>
-                  <p className="text-muted-foreground">{series.vote_average > 0 ? `${series.vote_average.toFixed(1)} / 10` : 'N/A'}</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3">
-                <ClapperboardIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-semibold">Status</p>
-                  <p className="text-muted-foreground">{series.status || 'N/A'}</p>
-                </div>
-              </div>
-               {series.created_by && series.created_by.length > 0 && (
-                <div className="flex items-start space-x-3">
-                    <UsersIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                        <p className="font-semibold">Created By</p>
-                        <p className="text-muted-foreground">{series.created_by.map(creator => creator.name).join(', ')}</p>
-                    </div>
-                </div>
-                )}
-                 {series.homepage && ( // Homepage link is now under poster
-                  <div className="hidden sm:col-span-2 lg:col-span-1">
-                    <ExternalLinkIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p className="font-semibold">Homepage</p>
-                      <Link href={series.homepage} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline truncate">
-                        {series.homepage}
-                      </Link>
-                    </div>
+            <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5 text-sm sm:text-base">
+              {[
+                { icon: CalendarDaysIcon, label: "First Aired", value: series.first_air_date ? new Date(series.first_air_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A' },
+                { icon: HashIcon, label: "Seasons", value: series.number_of_seasons },
+                { icon: HashIcon, label: "Total Episodes", value: series.number_of_episodes },
+                { icon: StarIcon, label: "Rating", value: series.vote_average > 0 ? `${series.vote_average.toFixed(1)} / 10` : 'N/A' },
+                { icon: ClapperboardIcon, label: "Status", value: series.status || 'N/A' },
+                ...(series.created_by && series.created_by.length > 0 ? [{ icon: UsersIcon, label: "Created By", value: series.created_by.map(creator => creator.name).join(', ')}] : [])
+              ].map(detail => (
+                <div key={detail.label} className="flex items-start space-x-2.5">
+                  <detail.icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">{detail.label}</p>
+                    <p className="text-muted-foreground">{detail.value}</p>
                   </div>
-                )}
+                </div>
+              ))}
             </CardContent>
           </Card>
 
           {sortedSeasons && sortedSeasons.length > 0 && (
-            <Card className="shadow-lg overflow-hidden">
-              <CardHeader className="bg-card/50 border-b border-border/30">
-                <CardTitle className="text-2xl font-semibold flex items-center">
-                  <ClapperboardIcon className="mr-3 h-6 w-6 text-primary" />
+            <Card className="shadow-lg border-border/40 overflow-hidden">
+              <CardHeader className="bg-card/30 border-b border-border/30">
+                <CardTitle className="text-xl sm:text-2xl font-semibold flex items-center">
+                  <ClapperboardIcon className="mr-2.5 h-5 w-5 sm:h-6 sm:w-6 text-primary" />
                   Seasons & Episodes
                 </CardTitle>
-                <CardDescription>Browse and download episodes by season. Click a season to expand.</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Browse and download episodes by season. Click a season to expand.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
-                  {sortedSeasons.filter(s => s.episode_count > 0).map(season => ( // Filter out seasons with 0 episodes
+                  {sortedSeasons.map(season => (
                     <SeasonAccordionItem key={season.id} seriesId={series!.id} season={season} />
                   ))}
                 </Accordion>
@@ -299,30 +264,31 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
           )}
            
           {series.production_companies && series.production_companies.length > 0 && (
-            <Card className="shadow-lg">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2"><UsersIcon className="h-6 w-6 text-primary"/> Production Companies</CardTitle>
+            <Card className="shadow-lg border-border/40">
+              <CardHeader className="pb-4">
+                <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Production Companies</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                  {series.production_companies.map(company => (
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+                  {series.production_companies.filter(c => c.logo_path || c.name).map(company => (
                     company.logo_path ? (
-                      <div key={company.id} className="flex flex-col items-center text-center p-2 bg-card-foreground/5 rounded-md">
-                         <div className="relative w-full h-16 mb-2">
+                      <div key={company.id} className="flex flex-col items-center text-center p-2 bg-card-foreground/5 rounded-md aspect-[3/2] justify-center">
+                         <div className="relative w-full h-12 sm:h-16 mb-1.5">
                            <Image 
                               src={getFullImagePath(company.logo_path, 'w200')} 
                               alt={company.name} 
                               fill
                               className="object-contain"
                               data-ai-hint="company logo"
+                              sizes="80px"
                             />
                         </div>
-                        <p className="text-xs text-muted-foreground">{company.name}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{company.name}</p>
                       </div>
                     ) : (
-                      <div key={company.id} className="flex flex-col items-center justify-center text-center p-2 bg-card-foreground/5 rounded-md min-h-[6rem]">
-                        <UsersIcon className="h-8 w-8 text-muted-foreground mb-1"/>
-                        <p className="text-xs text-muted-foreground">{company.name}</p>
+                      <div key={company.id} className="flex flex-col items-center justify-center text-center p-2 bg-card-foreground/5 rounded-md aspect-[3/2] min-h-[5rem] sm:min-h-[6rem]">
+                        <UsersIcon className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground/70 mb-1"/>
+                        <p className="text-xs text-muted-foreground line-clamp-2">{company.name}</p>
                       </div>
                     )
                   ))}
