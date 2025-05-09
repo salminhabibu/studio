@@ -6,7 +6,7 @@ import { ArrowRightIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LiveSearch } from '@/components/features/search/LiveSearch';
-import { getPopularMovies, getFullImagePath, getMovieDetails } from "@/lib/tmdb";
+import { getPopularMovies, getFullImagePath, getMovieDetails, getPopularTvSeries } from "@/lib/tmdb";
 import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { Badge } from "@/components/ui/badge";
 import { HeroSection, type HeroItem } from '@/components/features/home/HeroSection';
@@ -183,3 +183,4 @@ export default async function HomePage() {
     </div>
   );
 }
+
