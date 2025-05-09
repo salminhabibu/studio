@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, ChevronDown } from "lucide-react"; // Added ChevronDown
+import { DownloadIcon, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -12,7 +12,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils"; // Import cn for merging classes if needed
 
 interface DownloadSeasonButtonProps {
   seriesId: number | string;
@@ -30,7 +29,7 @@ export function DownloadSeasonButton({
   const { toast } = useToast();
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]);
 
-  const handleDownloadSeason = (e: React.MouseEvent) => {
+  const handleDownloadSeason = (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation(); // Prevent AccordionTrigger from toggling
     console.log(
       `Download season ${seasonNumber} (${seasonName}) for series ${seriesId} in ${selectedQuality}`
@@ -48,21 +47,21 @@ export function DownloadSeasonButton({
         onValueChange={setSelectedQuality}
       >
         <SelectTrigger
-          asChild // Use asChild to render the child component instead of a button
-          className="w-[150px] h-9 text-xs" // These classes will be applied to the div by Radix
+          asChild
+          className="w-[150px] h-9 text-xs"
           onClick={(e) => {
             // Stop propagation to prevent AccordionTrigger from toggling
+            // and Select from opening when clicking on the trigger button from accordion.
             e.stopPropagation();
           }}
         >
-          {/* 
-            This div replaces the default button rendered by SelectTrigger.
-            Radix will pass down ARIA attributes and event handlers.
-            The className from SelectTrigger (merged default + "w-[150px] h-9 text-xs") will be applied here.
-          */}
-          <div> {/* This div itself will get styled by SelectTrigger's classes like flex, justify-between */}
+          {/* This div receives merged classes from SelectTrigger and custom ones.
+              Radix Slot component handles merging props and className.
+              It acts as the visual trigger for the Select component.
+           */}
+          <div>
             <SelectValue placeholder="Select quality" />
-            <ChevronDown className="h-4 w-4 opacity-50" /> {/* Manually add icon */}
+            <ChevronDown className="h-4 w-4 opacity-50" />
           </div>
         </SelectTrigger>
         <SelectContent onClick={(e) => e.stopPropagation()}> {/* Prevent clicks in content from toggling accordion */}
@@ -74,13 +73,26 @@ export function DownloadSeasonButton({
         </SelectContent>
       </Select>
       <Button
+        asChild // Render the child component instead of a <button> element
         size="sm"
         variant="outline"
-        className="h-9"
-        onClick={handleDownloadSeason} // This already stops propagation
+        className="h-9" // Styling from buttonVariants will be applied to the div
+        onClick={handleDownloadSeason} // onClick handler will be passed to the div via Slot
         aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality}`}
       >
-        <DownloadIcon className="mr-2 h-4 w-4" /> Download Season
+        <div // This div will be rendered, styled like a button, but is not a <button> tag
+          role="button" // Accessibility: announce as a button
+          tabIndex={0}  // Accessibility: make it focusable
+          onKeyDown={(e) => {
+            // Accessibility: allow activation with Enter or Space key
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault(); // Prevent default spacebar scroll
+              handleDownloadSeason(e); // Trigger the same action as click
+            }
+          }}
+        >
+          <DownloadIcon className="mr-2 h-4 w-4" /> Download Season
+        </div>
       </Button>
     </div>
   );
