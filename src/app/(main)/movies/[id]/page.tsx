@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDaysIcon, ClockIcon, DownloadIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
 import Link from "next/link";
 
 interface MovieDetailsPageProps {
@@ -52,7 +51,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
     );
   }
 
-  const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)"];
+  const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "4K (UHD)", "2K (QHD)"];
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
@@ -81,7 +80,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
       <div className="grid md:grid-cols-12 gap-8">
         <div className="md:col-span-4 lg:col-span-3">
           <Card className="overflow-hidden shadow-xl sticky top-24">
-            <div className="aspect-[2/3] relative w-full">
+            <div className="aspect-[2/3] relative w-full bg-muted">
               <Image
                 src={getFullImagePath(movie.poster_path, "w500")}
                 alt={`${movie.title} poster`}
@@ -94,16 +93,16 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
               <div className="space-y-2">
                 <h3 className="text-lg font-semibold mb-1">Download Movie</h3>
                 <Select defaultValue={qualities[0]}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full h-11 text-sm">
                     <SelectValue placeholder="Select quality" />
                   </SelectTrigger>
                   <SelectContent>
                     {qualities.map(quality => (
-                      <SelectItem key={quality} value={quality}>{quality}</SelectItem>
+                      <SelectItem key={quality} value={quality} className="text-sm">{quality}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-                <Button size="lg" className="w-full mt-2">
+                <Button size="lg" className="w-full mt-2 h-12">
                   <DownloadIcon className="mr-2 h-5 w-5" /> Download
                 </Button>
               </div>
@@ -124,7 +123,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
               <CardTitle className="flex items-center gap-2"><InfoIcon className="h-6 w-6 text-primary"/> Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-foreground/80 leading-relaxed">{movie.overview}</p>
+              <p className="text-foreground/80 leading-relaxed">{movie.overview || "No overview available."}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {movie.genres.map(genre => (
                   <Badge key={genre.id} variant="secondary" className="text-sm px-3 py-1">{genre.name}</Badge>
@@ -220,3 +219,4 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
     </div>
   );
 }
+

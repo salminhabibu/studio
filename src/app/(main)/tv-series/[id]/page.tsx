@@ -6,23 +6,33 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { CalendarDaysIcon, DownloadIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
+import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon } from "lucide-react";
 import Link from "next/link";
 import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSeasonButton";
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
+import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 
 interface TvSeriesDetailsPageProps {
   params: { id: string };
 }
+
+// SeasonAccordionItem needs to be a Client Component because DownloadSeasonButton is one (due to useState for quality)
+// and it contains DownloadEpisodeButton which is also a Client Component.
+// Alternatively, make DownloadSeasonButton and DownloadEpisodeButton server components that trigger actions,
+// but for UI interactivity like dropdowns, client components are often easier.
+// For now, let's make SeasonAccordionItem a client component.
+
+"use client"; // Add this if SeasonAccordionItem directly uses client hooks or event handlers at its root
+// However, if it only *uses* client components (DownloadSeasonButton, DownloadEpisodeButton), it can remain a Server Component
+// The issue was that the event handler for DownloadSeasonButton being passed directly.
+// By making DownloadSeasonButton a self-contained client component with its own state, this should be fine.
+// Let's try keeping SeasonAccordionItem as an async server component that renders client components.
 
 async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | string; season: TMDBSeason }) {
   let episodes: TMDBEpisode[] = [];
   let error: string | null = null;
 
   try {
-    // Only fetch episodes if season number is greater than 0 (actual seasons, not specials)
-    // or if it's season 0 (specials) and has episodes.
     if (season.season_number > 0 || (season.season_number === 0 && season.episode_count > 0)) {
       const seasonDetails = await getTvSeasonDetails(seriesId, season.season_number);
       episodes = seasonDetails.episodes;
@@ -35,8 +45,8 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
   return (
     <AccordionItem value={`season-${season.season_number}`} className="border-b border-border/30">
       <AccordionTrigger className="py-4 px-6 hover:bg-muted/30 transition-colors w-full text-left group">
-        <div className="flex justify-between items-center w-full">
-          <div className="flex items-center gap-3">
+        <div className="flex justify-between items-center w-full gap-2">
+          <div className="flex items-center gap-3 min-w-0"> {/* Added min-w-0 for truncation */}
             {season.poster_path ? (
               <div className="relative w-12 h-18 rounded overflow-hidden flex-shrink-0">
                 <Image src={getFullImagePath(season.poster_path, "w92")} alt={season.name} fill className="object-cover" data-ai-hint="season poster"/>
@@ -46,15 +56,15 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
                 <ClapperboardIcon className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
-            <div>
-              <h4 className="text-lg font-semibold group-hover:text-primary transition-colors">{season.name}</h4>
-              <p className="text-sm text-muted-foreground">
+            <div className="min-w-0"> {/* Added min-w-0 for truncation */}
+              <h4 className="text-lg font-semibold group-hover:text-primary transition-colors truncate" title={season.name}>{season.name}</h4>
+              <p className="text-sm text-muted-foreground truncate">
                 {season.episode_count} Episode{season.episode_count !== 1 ? 's' : ''}
                 {season.air_date && ` • Aired: ${new Date(season.air_date).getFullYear()}`}
               </p>
             </div>
           </div>
-          <DownloadSeasonButton seriesId={seriesId} seasonNumber={season.season_number} />
+          <DownloadSeasonButton seriesId={seriesId} seasonNumber={season.season_number} seasonName={season.name} />
         </div>
       </AccordionTrigger>
       <AccordionContent className="bg-background/30">
@@ -67,16 +77,21 @@ async function SeasonAccordionItem({ seriesId, season }: { seriesId: number | st
             <Card key={episode.id} className="overflow-hidden shadow-md bg-card hover:bg-card/90">
               <CardContent className="p-4 flex flex-col sm:flex-row items-start sm:items-center gap-4">
                 {episode.still_path && (
-                  <div className="relative w-full sm:w-32 md:w-40 aspect-video rounded overflow-hidden flex-shrink-0">
+                  <div className="relative w-full sm:w-32 md:w-40 aspect-video rounded overflow-hidden flex-shrink-0 bg-muted">
                     <Image src={getFullImagePath(episode.still_path, "w300")} alt={`Still from ${episode.name}`} fill className="object-cover" data-ai-hint="episode still" />
                   </div>
                 )}
-                <div className="flex-grow">
-                  <h5 className="font-semibold text-md">
+                 {!episode.still_path && (
+                  <div className="w-full sm:w-32 md:w-40 aspect-video rounded bg-muted flex items-center justify-center flex-shrink-0">
+                    <ClapperboardIcon className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div className="flex-grow min-w-0">
+                  <h5 className="font-semibold text-md truncate" title={episode.name}>
                     S{String(episode.season_number).padStart(2, '0')}E{String(episode.episode_number).padStart(2, '0')}: {episode.name}
                   </h5>
                   {episode.air_date && <p className="text-xs text-muted-foreground mb-1">Aired: {new Date(episode.air_date).toLocaleDateString()}</p>}
-                  <p className="text-sm text-muted-foreground line-clamp-2">{episode.overview}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2">{episode.overview || "No overview available."}</p>
                 </div>
                 <DownloadEpisodeButton
                   seriesId={seriesId}
@@ -132,7 +147,9 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
   }
   
   const sortedSeasons = series.seasons?.sort((a, b) => a.season_number - b.season_number) || [];
-  const defaultAccordionValue = sortedSeasons.find(s => s.season_number > 0) ? `season-${sortedSeasons.find(s => s.season_number > 0)!.season_number}` : (sortedSeasons.length > 0 ? `season-${sortedSeasons[0].season_number}` : undefined);
+  const defaultAccordionValue = sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0) 
+    ? `season-${sortedSeasons.find(s => s.season_number > 0 && s.episode_count > 0)!.season_number}` 
+    : (sortedSeasons.length > 0 && sortedSeasons[0].episode_count > 0 ? `season-${sortedSeasons[0].season_number}` : undefined);
 
 
   return (
@@ -162,7 +179,7 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
       <div className="grid md:grid-cols-12 gap-8">
         <div className="md:col-span-4 lg:col-span-3">
           <Card className="overflow-hidden shadow-xl sticky top-24">
-            <div className="aspect-[2/3] relative w-full">
+            <div className="aspect-[2/3] relative w-full bg-muted">
               <Image
                 src={getFullImagePath(series.poster_path, "w500")}
                 alt={`${series.name} poster`}
@@ -172,10 +189,14 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
               />
             </div>
              <CardContent className="p-4">
-                <Button size="lg" className="w-full mt-2">
-                    <DownloadIcon className="mr-2 h-5 w-5" /> Download All Seasons
+                <DownloadAllSeasonsWithOptionsButton seriesId={series.id} seriesName={series.name} />
+                {series.homepage && (
+                <Button variant="outline" className="w-full mt-3" asChild>
+                  <Link href={series.homepage} target="_blank" rel="noopener noreferrer">
+                    <ExternalLinkIcon className="mr-2 h-4 w-4" /> Visit Homepage
+                  </Link>
                 </Button>
-                <p className="text-xs text-muted-foreground text-center mt-2">More download options coming soon.</p>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -186,7 +207,7 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
               <CardTitle className="flex items-center gap-2"><InfoIcon className="h-6 w-6 text-primary"/> Overview</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-foreground/80 leading-relaxed">{series.overview}</p>
+              <p className="text-foreground/80 leading-relaxed">{series.overview || "No overview available."}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {series.genres.map(genre => (
                   <Badge key={genre.id} variant="secondary" className="text-sm px-3 py-1">{genre.name}</Badge>
@@ -244,8 +265,8 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                     </div>
                 </div>
                 )}
-                 {series.homepage && (
-                  <div className="flex items-start space-x-3 sm:col-span-2 lg:col-span-1">
+                 {series.homepage && ( // Homepage link is now under poster
+                  <div className="hidden sm:col-span-2 lg:col-span-1">
                     <ExternalLinkIcon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
                     <div>
                       <p className="font-semibold">Homepage</p>
@@ -265,11 +286,11 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
                   <ClapperboardIcon className="mr-3 h-6 w-6 text-primary" />
                   Seasons & Episodes
                 </CardTitle>
-                <CardDescription>Browse and download episodes by season.</CardDescription>
+                <CardDescription>Browse and download episodes by season. Click a season to expand.</CardDescription>
               </CardHeader>
               <CardContent className="p-0">
                 <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
-                  {sortedSeasons.map(season => (
+                  {sortedSeasons.filter(s => s.episode_count > 0).map(season => ( // Filter out seasons with 0 episodes
                     <SeasonAccordionItem key={season.id} seriesId={series!.id} season={season} />
                   ))}
                 </Accordion>
@@ -314,3 +335,4 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
     </div>
   );
 }
+
