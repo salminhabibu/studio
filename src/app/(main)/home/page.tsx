@@ -3,70 +3,126 @@ import { VideoUrlForm } from '@/components/features/home/VideoUrlForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { SearchIcon, FilmIcon } from 'lucide-react'; // Added FilmIcon for consistency in potential empty state
+import { SearchIcon, PlayCircleIcon, ArrowRightIcon } from 'lucide-react';
 import Image from 'next/image';
 
 export default function HomePage() {
-  return (
-    <div className="space-y-8">
-      <Card className="shadow-lg border-border/50">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Add Video Link</CardTitle>
-          <CardDescription>
-            Enter a video URL from a supported platform to begin.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <VideoUrlForm />
-        </CardContent>
-      </Card>
+  const featuredItems = [
+    { id: 1, title: "Interstellar Exploration", category: "Sci-Fi Adventure", year: "2024", imageUrl: "https://picsum.photos/seed/ interstellar/400/600", dataAiHint: "space movie" },
+    { id: 2, title: "Cybernetic Uprising", category: "Action Thriller", year: "2023", imageUrl: "https://picsum.photos/seed/cyberpunk/400/600", dataAiHint: "robot movie" },
+    { id: 3, title: "Mysteries of the Deep", category: "Documentary", year: "2024", imageUrl: "https://picsum.photos/seed/deepsea/400/600", dataAiHint: "ocean documentary" },
+    { id: 4, title: "Chronicles of Eldoria", category: "Fantasy Epic", year: "2023", imageUrl: "https://picsum.photos/seed/fantasy/400/600", dataAiHint: "fantasy landscape" },
+    { id: 5, title: "The Last Stand", category: "War Drama", year: "2024", imageUrl: "https://picsum.photos/seed/war/400/600", dataAiHint: "battle scene" },
+    { id: 6, title: "Neon City Racers", category: "Racing Action", year: "2023", imageUrl: "https://picsum.photos/seed/racing/400/600", dataAiHint: "futuristic car" },
+  ];
 
-      <Card className="shadow-lg border-border/50">
-        <CardHeader>
-          <CardTitle className="text-2xl font-semibold">Search for Movies & TV Shows</CardTitle>
-          <CardDescription>
-            Find your favorite content to download.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex w-full items-center space-x-2">
-            <Input type="search" placeholder="Search by title, actor, genre..." className="h-12 text-base" />
-            <Button type="submit" size="lg" className="h-12">
-              <SearchIcon className="mr-2 h-5 w-5" /> Search
+  return (
+    <div className="space-y-12">
+      {/* Hero Section */}
+      <section className="relative h-[60vh] min-h-[400px] rounded-xl overflow-hidden shadow-2xl group">
+        <Image
+          src="https://picsum.photos/seed/hero-banner/1600/900"
+          alt="Featured Movie Banner"
+          fill
+          className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
+          data-ai-hint="epic landscape"
+          priority
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/40 to-transparent" />
+        <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12 lg:p-16 space-y-4">
+          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
+            Discover Your Next Favorite Movie
+          </h1>
+          <p className="text-lg md:text-xl text-foreground/80 max-w-2xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
+            Explore a vast collection of movies and TV series. Download and watch offline with ChillyMovies.
+          </p>
+          <div>
+            <Button size="lg" className="h-14 px-8 text-lg group/button">
+              <PlayCircleIcon className="mr-3 h-6 w-6 transition-transform duration-300 group-hover/button:scale-110" />
+              Watch Trailer
             </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Placeholder for search results or featured content */}
-      <div className="mt-8">
-        <h2 className="text-xl font-semibold mb-4 text-foreground/80">Featured Content</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {[1, 2, 3, 4, 5].map((item) => (
-            <Card key={item} className="overflow-hidden shadow-md hover:shadow-primary/30 transition-shadow duration-300">
-              <Image
-                src={`https://picsum.photos/seed/${item + 10}/400/600`}
-                alt={`Featured Content ${item}`}
-                width={400}
-                height={600}
-                className="w-full h-auto aspect-[2/3] object-cover"
-                data-ai-hint="movie poster"
-              />
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-lg truncate">Awesome Movie Title {item}</h3>
-                <p className="text-sm text-muted-foreground">Action, Sci-Fi - 202X</p>
-              </CardContent>
-            </Card>
-          ))}
         </div>
-         {/* Empty State Example - Kept commented as per original, but design aligns with proposal */}
-        {/* <div className="text-center py-12">
-          <FilmIcon className="mx-auto h-16 w-16 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold text-muted-foreground">Nothing to show here yet</h3>
-          <p className="text-muted-foreground">Start by searching or adding a video link.</p>
-        </div> */}
-      </div>
+      </section>
+
+      {/* Add Video Link Section */}
+      <section>
+        <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-semibold">Add Video by Link</CardTitle>
+            <CardDescription>
+              Paste a video URL from a supported platform to start processing.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <VideoUrlForm />
+          </CardContent>
+        </Card>
+      </section>
+      
+      {/* Search Section */}
+      <section>
+        <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl font-semibold">Search Movies & TV Shows</CardTitle>
+            <CardDescription>
+              Find content by title, actor, or genre.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex w-full items-center space-x-3">
+              <Input 
+                type="search" 
+                placeholder="e.g., 'Guardians of the Galaxy', 'Sci-Fi', 'Chris Pratt'..." 
+                className="h-14 text-base flex-grow" 
+              />
+              <Button type="submit" size="lg" className="h-14 px-6">
+                <SearchIcon className="mr-2 h-5 w-5" /> Search
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Featured Content Section - Horizontal Scroll */}
+      <section className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-semibold text-foreground/90">Featured Content</h2>
+          <Button variant="link" className="text-primary hover:text-primary/80">
+            View All <ArrowRightIcon className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+        <div className="relative">
+          <div className="flex space-x-6 overflow-x-auto pb-4 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mb-4">
+            {featuredItems.map((item) => (
+              <div key={item.id} className="group flex-shrink-0 w-52 md:w-60">
+                <Card className="overflow-hidden shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out transform hover:-translate-y-1 h-full flex flex-col">
+                  <div className="aspect-[2/3] relative w-full">
+                    <Image
+                      src={item.imageUrl}
+                      alt={item.title}
+                      fill
+                      className="object-cover transition-transform duration-300 group-hover:scale-105"
+                      data-ai-hint={item.dataAiHint}
+                      sizes="(max-width: 768px) 50vw, (max-width: 1200px) 20vw, 15vw"
+                    />
+                  </div>
+                  <CardContent className="p-4 flex-grow flex flex-col justify-between">
+                    <div>
+                      <h3 className="font-semibold text-md lg:text-lg truncate group-hover:text-primary transition-colors">
+                        {item.title}
+                      </h3>
+                      <p className="text-xs lg:text-sm text-muted-foreground">
+                        {item.category} &bull; {item.year}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
-
