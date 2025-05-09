@@ -6,10 +6,10 @@ import { ArrowRightIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LiveSearch } from '@/components/features/search/LiveSearch';
-import { getPopularMovies, getPopularTvSeries, getFullImagePath, getMovieDetails, getMovieVideos } from "@/lib/tmdb";
+import { getPopularMovies, getFullImagePath, getMovieDetails } from "@/lib/tmdb";
 import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { Badge } from "@/components/ui/badge";
-import { HeroSection } from '@/components/features/home/HeroSection';
+import { HeroSection, type HeroItem } from '@/components/features/home/HeroSection';
 
 interface FeaturedItem {
   id: number;
@@ -44,8 +44,7 @@ function transformToFeaturedItem(
 export default async function HomePage() {
   let popularMovies: TMDBBaseMovie[] = [];
   let popularTvSeries: TMDBBaseTVSeries[] = [];
-  let heroMovie: TMDBMovie | null = null;
-  let heroTrailerKey: string | null = null;
+  let heroItems: HeroItem[] = [];
 
   try {
     const [moviesData, tvSeriesData] = await Promise.all([
@@ -55,27 +54,32 @@ export default async function HomePage() {
     popularMovies = moviesData.results;
     popularTvSeries = tvSeriesData.results;
 
-    if (popularMovies.length > 0) {
-      const firstPopularMovieWithBackdrop = popularMovies.find(movie => movie.backdrop_path);
-      if (firstPopularMovieWithBackdrop) {
-        // Fetch full details for the hero movie to get tagline and appended videos
-        heroMovie = await getMovieDetails(firstPopularMovieWithBackdrop.id);
-        
-        // Extract trailer from appended videos or fetch separately if not available
-        let videos: TMDBVideo[] = heroMovie.videos?.results || [];
-        if (!videos || videos.length === 0) {
-           const videoData = await getMovieVideos(heroMovie.id);
-           videos = videoData.results;
-        }
+    // Prepare items for HeroSection
+    const potentialHeroMovies = popularMovies.filter(movie => movie.backdrop_path).slice(0, 10); // Take top 10 with backdrops
+    
+    const heroItemsDataPromises = potentialHeroMovies.map(async (movie) => {
+      try {
+        const movieDetails = await getMovieDetails(movie.id); // This already appends videos
+        const videos: TMDBVideo[] = movieDetails.videos?.results || [];
         
         const officialTrailer = videos.find(
           (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
         ) || videos.find( // Fallback to any trailer if no official one
           (video) => video.site === "YouTube" && video.type === "Trailer"
         );
-        heroTrailerKey = officialTrailer ? officialTrailer.key : null;
+
+        if (officialTrailer?.key) {
+          return { movie: movieDetails, trailerKey: officialTrailer.key };
+        }
+        return null;
+      } catch (detailError) {
+        console.error(`Failed to fetch details/trailer for movie ${movie.id}:`, detailError);
+        return null;
       }
-    }
+    });
+
+    const resolvedHeroItemsData = await Promise.all(heroItemsDataPromises);
+    heroItems = resolvedHeroItemsData.filter((item): item is HeroItem => item !== null).slice(0, 5); // Limit to 5 valid items for the carousel
 
   } catch (error) {
     console.error("Failed to fetch content for Home Page:", error);
@@ -96,7 +100,7 @@ export default async function HomePage() {
   return (
     <div className="space-y-12">
       {/* Hero Section */}
-      <HeroSection movie={heroMovie} trailerKey={heroTrailerKey} />
+      <HeroSection items={heroItems} />
 
       {/* Add Video Link Section */}
       <section>
