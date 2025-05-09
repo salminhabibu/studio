@@ -2,13 +2,14 @@
 import { VideoUrlForm } from '@/components/features/home/VideoUrlForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlayCircleIcon, ArrowRightIcon } from 'lucide-react';
+import { ArrowRightIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { LiveSearch } from '@/components/features/search/LiveSearch';
-import { getPopularMovies, getPopularTvSeries, getFullImagePath } from "@/lib/tmdb";
-import type { TMDBBaseMovie, TMDBBaseTVSeries } from "@/types/tmdb";
+import { getPopularMovies, getPopularTvSeries, getFullImagePath, getMovieDetails, getMovieVideos } from "@/lib/tmdb";
+import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { Badge } from "@/components/ui/badge";
+import { HeroSection } from '@/components/features/home/HeroSection';
 
 interface FeaturedItem {
   id: number;
@@ -43,7 +44,8 @@ function transformToFeaturedItem(
 export default async function HomePage() {
   let popularMovies: TMDBBaseMovie[] = [];
   let popularTvSeries: TMDBBaseTVSeries[] = [];
-  // let fetchError: string | null = null; // Error state can be used to display a message
+  let heroMovie: TMDBMovie | null = null;
+  let heroTrailerKey: string | null = null;
 
   try {
     const [moviesData, tvSeriesData] = await Promise.all([
@@ -52,9 +54,31 @@ export default async function HomePage() {
     ]);
     popularMovies = moviesData.results;
     popularTvSeries = tvSeriesData.results;
+
+    if (popularMovies.length > 0) {
+      const firstPopularMovieWithBackdrop = popularMovies.find(movie => movie.backdrop_path);
+      if (firstPopularMovieWithBackdrop) {
+        // Fetch full details for the hero movie to get tagline and appended videos
+        heroMovie = await getMovieDetails(firstPopularMovieWithBackdrop.id);
+        
+        // Extract trailer from appended videos or fetch separately if not available
+        let videos: TMDBVideo[] = heroMovie.videos?.results || [];
+        if (!videos || videos.length === 0) {
+           const videoData = await getMovieVideos(heroMovie.id);
+           videos = videoData.results;
+        }
+        
+        const officialTrailer = videos.find(
+          (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
+        ) || videos.find( // Fallback to any trailer if no official one
+          (video) => video.site === "YouTube" && video.type === "Trailer"
+        );
+        heroTrailerKey = officialTrailer ? officialTrailer.key : null;
+      }
+    }
+
   } catch (error) {
-    console.error("Failed to fetch featured content:", error);
-    // fetchError = "Could not load featured content at this time.";
+    console.error("Failed to fetch content for Home Page:", error);
   }
 
   const featuredItems: FeaturedItem[] = [];
@@ -66,39 +90,13 @@ export default async function HomePage() {
     if (moviesTransformed[i]) featuredItems.push(moviesTransformed[i]);
     if (tvSeriesTransformed[i]) featuredItems.push(tvSeriesTransformed[i]);
   }
-  // Slice to ensure a max of 8 items if both arrays had 4 items.
-  // If one fetch failed, this will take up to 4 from the successful one.
   const finalFeaturedItems = featuredItems.slice(0, 8);
 
 
   return (
     <div className="space-y-12">
       {/* Hero Section */}
-      <section className="relative h-[60vh] min-h-[400px] rounded-xl overflow-hidden shadow-2xl group">
-        <Image
-          src="https://picsum.photos/seed/hero-banner/1600/900"
-          alt="Featured Movie Banner"
-          fill
-          className="object-cover transition-transform duration-500 ease-in-out group-hover:scale-105"
-          data-ai-hint="epic landscape"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-background/40 to-transparent" />
-        <div className="absolute inset-0 flex flex-col justify-end p-8 md:p-12 lg:p-16 space-y-4">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)]">
-            Discover Your Next Favorite Movie
-          </h1>
-          <p className="text-lg md:text-xl text-foreground/80 max-w-2xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)]">
-            Explore a vast collection of movies and TV series. Download and watch offline with ChillyMovies.
-          </p>
-          <div>
-            <Button size="lg" className="h-14 px-8 text-lg group/button">
-              <PlayCircleIcon className="mr-3 h-6 w-6 transition-transform duration-300 group-hover/button:scale-110" />
-              Watch Trailer
-            </Button>
-          </div>
-        </div>
-      </section>
+      <HeroSection movie={heroMovie} trailerKey={heroTrailerKey} />
 
       {/* Add Video Link Section */}
       <section>
@@ -136,7 +134,7 @@ export default async function HomePage() {
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold text-foreground/90">Featured Content</h2>
             <Button variant="link" className="text-primary hover:text-primary/80" asChild>
-              <Link href="/movies"> {/* Consider changing this link if a mixed "explore" page is added */}
+              <Link href="/movies">
                 View All <ArrowRightIcon className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -153,7 +151,7 @@ export default async function HomePage() {
                         fill
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                         data-ai-hint={item.dataAiHint}
-                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 20vw" // Adjusted sizes
+                        sizes="(max-width: 768px) 50vw, (max-width: 1024px) 25vw, 20vw"
                       />
                       {item.vote_average && item.vote_average > 0 && (
                         <Badge variant="default" className="absolute top-2 right-2 bg-primary/80 backdrop-blur-sm text-xs">
@@ -181,4 +179,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

@@ -32,6 +32,9 @@ export interface TMDBMovie extends TMDBBaseMovie {
   revenue?: number;
   budget?: number;
   status?: string;
+  videos?: {
+    results: TMDBVideo[];
+  };
 }
 
 export interface TMDBPaginatedResponse<T> {
@@ -86,6 +89,9 @@ export interface TMDBTVSeries extends TMDBBaseTVSeries {
   production_companies: TMDBProductionCompany[];
   created_by?: { id: number; name: string; profile_path: string | null }[];
   status?: string;
+  videos?: {
+    results: TMDBVideo[];
+  };
 }
 
 export interface TMDBTvSeasonDetails extends TMDBSeason {
@@ -117,3 +123,23 @@ export type ClientTMDBMultiSearchResultItem =
 
 
 export interface TMDBMultiPaginatedResponse extends TMDBPaginatedResponse<TMDBMultiSearchResultItem> {}
+
+
+// Types for Movie/TV Videos
+export interface TMDBVideo {
+  iso_639_1: string;
+  iso_3166_1: string;
+  name: string;
+  key: string; // YouTube video key
+  site: "YouTube" | string; // Typically "YouTube"
+  size: 1080 | 720 | 480 | 2160 | 1440; // Example sizes
+  type: "Trailer" | "Teaser" | "Clip" | "Featurette" | "Behind the Scenes" | "Bloopers";
+  official: boolean;
+  published_at: string; // ISO date string
+  id: string; // Video ID from TMDB
+}
+
+export interface TMDBVideoResponse {
+  id: number; // Movie or TV Show ID
+  results: TMDBVideo[];
+}
