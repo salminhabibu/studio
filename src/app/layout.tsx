@@ -1,13 +1,13 @@
 import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"; // Import Toaster
+import { Toaster } from "@/components/ui/toaster";
 
 const poppins = Poppins({
   subsets: ['latin'],
   display: 'swap',
   variable: '--font-poppins',
-  weight: ['300', '400', '500', '600', '700'] // Light, Regular, Medium, SemiBold
+  weight: ['300', '400', '500', '600', '700']
 });
 
 export const metadata: Metadata = {
