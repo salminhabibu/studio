@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, ChevronDown } from "lucide-react"; // Added ChevronDown
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils"; // Import cn for merging classes if needed
 
 interface DownloadSeasonButtonProps {
   seriesId: number | string;
@@ -45,21 +46,26 @@ export function DownloadSeasonButton({
       <Select
         value={selectedQuality}
         onValueChange={setSelectedQuality}
-        // Prevent accordion toggle when select is opened
-        onOpenChange={(open) => {
-          if (open) {
-            const event = new Event('mousedown', { bubbles: true, cancelable: true });
-            document.dispatchEvent(event); // A bit of a hack to stop propagation if Radix doesn't do it itself
-          }
-        }}
       >
-        <SelectTrigger 
-          className="w-[150px] h-9 text-xs"
-          onClick={(e) => e.stopPropagation()} // Ensure click on trigger doesn't toggle accordion
+        <SelectTrigger
+          asChild // Use asChild to render the child component instead of a button
+          className="w-[150px] h-9 text-xs" // These classes will be applied to the div by Radix
+          onClick={(e) => {
+            // Stop propagation to prevent AccordionTrigger from toggling
+            e.stopPropagation();
+          }}
         >
-          <SelectValue placeholder="Select quality" />
+          {/* 
+            This div replaces the default button rendered by SelectTrigger.
+            Radix will pass down ARIA attributes and event handlers.
+            The className from SelectTrigger (merged default + "w-[150px] h-9 text-xs") will be applied here.
+          */}
+          <div> {/* This div itself will get styled by SelectTrigger's classes like flex, justify-between */}
+            <SelectValue placeholder="Select quality" />
+            <ChevronDown className="h-4 w-4 opacity-50" /> {/* Manually add icon */}
+          </div>
         </SelectTrigger>
-        <SelectContent onClick={(e) => e.stopPropagation()}>
+        <SelectContent onClick={(e) => e.stopPropagation()}> {/* Prevent clicks in content from toggling accordion */}
           {qualities.map((quality) => (
             <SelectItem key={quality} value={quality} className="text-xs">
               {quality}
@@ -71,7 +77,7 @@ export function DownloadSeasonButton({
         size="sm"
         variant="outline"
         className="h-9"
-        onClick={handleDownloadSeason}
+        onClick={handleDownloadSeason} // This already stops propagation
         aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality}`}
       >
         <DownloadIcon className="mr-2 h-4 w-4" /> Download Season
