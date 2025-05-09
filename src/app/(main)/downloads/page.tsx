@@ -22,7 +22,7 @@ export default function DownloadsPage() {
       <h1 className="text-3xl font-semibold tracking-tight">Downloads</h1>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 md:w-1/2 lg:w-1/3">
+        <TabsList className="grid w-full grid-cols-2 gap-2 md:w-1/2 lg:w-1/3">
           <TabsTrigger value="active">Active Downloads</TabsTrigger>
           <TabsTrigger value="history">Download History</TabsTrigger>
         </TabsList>
