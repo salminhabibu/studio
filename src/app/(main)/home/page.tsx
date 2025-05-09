@@ -47,8 +47,8 @@ export default async function HomePage() {
 
   try {
     const [moviesData, tvSeriesData] = await Promise.all([
-      getPopularMovies({ page: 1 }),
-      getPopularTvSeries({ page: 1 }),
+      getPopularMovies(1),
+      getPopularTvSeries(1),
     ]);
     popularMovies = moviesData.results;
     popularTvSeries = tvSeriesData.results;
