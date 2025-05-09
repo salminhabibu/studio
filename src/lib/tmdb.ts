@@ -1,14 +1,14 @@
 // src/lib/tmdb.ts
 import type { TMDBMovie, TMDBPaginatedResponse, TMDBBaseMovie, TMDBTVSeries, TMDBBaseTVSeries, TMDBTvSeasonDetails, TMDBMultiPaginatedResponse } from '@/types/tmdb';
 
-const API_KEY = process.env.TMDB_API_KEY;
+const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
 export const IMAGE_BASE_URL = 'https://image.tmdb.org/t/p/';
 
 async function fetchTMDB<T>(endpoint: string, params: Record<string, string> = {}): Promise<T> {
   if (!API_KEY) {
-    console.error('TMDB_API_KEY is not defined in environment variables. Please add it to your .env file.');
-    throw new Error('TMDB_API_KEY is not configured.');
+    console.error('NEXT_PUBLIC_TMDB_API_KEY is not defined in environment variables. Please add it to your .env file.');
+    throw new Error('NEXT_PUBLIC_TMDB_API_KEY is not configured.');
   }
   const urlParams = new URLSearchParams({
     api_key: API_KEY,
@@ -78,3 +78,4 @@ export function getFullImagePath(filePath: string | null | undefined, size: stri
   }
   return `${IMAGE_BASE_URL}${size}${filePath}`;
 }
+
