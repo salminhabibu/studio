@@ -4,7 +4,7 @@
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { PlayCircleIcon, FilmIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog"; // DialogTrigger not used directly here
 import type { TMDBMovie } from "@/types/tmdb";
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState, useEffect, useCallback } from "react";
@@ -100,15 +100,15 @@ export function HeroSection({ items }: HeroSectionProps) {
         ))}
       </div>
       
-      <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 md:p-12 lg:p-16 space-y-3 sm:space-y-4 z-20">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)] animate-fade-in-up"
-          key={movieTitle} // For re-triggering animation on change
-        >
+      {/* Keyed content wrapper for smoother text transitions */}
+      <div 
+        key={`hero-content-${currentItem.movie.id}`} 
+        className="absolute inset-0 flex flex-col justify-end p-6 sm:p-8 md:p-12 lg:p-16 space-y-3 sm:space-y-4 z-20"
+      >
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-foreground tracking-tight shadow-black [text-shadow:_0_2px_4px_var(--tw-shadow-color)] animate-fade-in-up">
           {movieTitle}
         </h1>
-        <p className="text-md sm:text-lg md:text-xl text-foreground/80 max-w-2xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)] animate-fade-in-up animation-delay-200"
-          key={movieTagline}
-        >
+        <p className="text-md sm:text-lg md:text-xl text-foreground/80 max-w-2xl shadow-black [text-shadow:_0_1px_2px_var(--tw-shadow-color)] animate-fade-in-up animation-delay-200">
           {movieTagline}
         </p>
         {currentItem.trailerKey && (
@@ -116,7 +116,6 @@ export function HeroSection({ items }: HeroSectionProps) {
             size="lg" 
             className="h-12 px-6 sm:h-14 sm:px-8 text-base sm:text-lg group/button self-start mt-2 animate-fade-in-up animation-delay-400"
             onClick={() => handleWatchTrailer(currentItem.trailerKey)}
-            key={`btn-${currentItem.movie.id}`}
           >
             <PlayCircleIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
             Watch Trailer

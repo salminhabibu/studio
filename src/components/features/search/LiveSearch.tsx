@@ -84,7 +84,7 @@ export function LiveSearch() {
       </div>
 
       {showResultsDropdown && (
-        <Card className="absolute top-full mt-2 w-full z-50 shadow-2xl border-border/60 bg-card/95 backdrop-blur-sm">
+        <Card className="absolute top-full mt-2 w-full z-50 shadow-2xl border-border/60 bg-card backdrop-blur-sm"> {/* Changed bg-card/95 to bg-card */}
           <ScrollArea className="max-h-[60vh] overflow-y-auto">
             <CardContent className="p-2 space-y-1">
               {isLoading && (
