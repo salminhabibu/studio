@@ -37,13 +37,11 @@ const youtubeUrlFormSchema = z.object({
 type YouTubeUrlFormValues = z.infer<typeof youtubeUrlFormSchema>;
 
 interface VideoFormat {
-  qualityLabel: string; 
+  quality: string; // Was qualityLabel previously, API changed to 'quality' for consistency
   itag: number;
   mimeType?: string;
   container?: string;
   fps?: number;
-  hasAudio?: boolean;
-  hasVideo?: boolean;
 }
 interface AudioFormat {
   quality: string; 
@@ -136,7 +134,6 @@ export function YouTubeDownloaderForm() {
     const extractedId = getYouTubeVideoId(data.url);
     setPreviewVideoId(extractedId);
 
-
     if (!extractedId) {
         toast({
             title: "Invalid YouTube URL",
@@ -149,12 +146,15 @@ export function YouTubeDownloaderForm() {
     }
     
     try {
+      console.log(`[YouTubeDownloaderForm] Fetching info for URL: ${data.url}`);
       const response = await fetch(`/api/youtube/video-info?url=${encodeURIComponent(data.url)}`);
       const result = await response.json();
+      console.log("[YouTubeDownloaderForm] API Response for video-info:", result);
 
       if (!response.ok || result.error) {
-        toast({ title: "Error", description: result.error || "Failed to fetch video info.", variant: "destructive" });
-        setPreviewVideoId(null);
+        const errorDescription = result.error || `Failed with status ${response.status}. Please try a different video.`;
+        toast({ title: "Error Fetching Info", description: errorDescription, variant: "destructive" });
+        console.error("[YouTubeDownloaderForm] Error from API:", result.error || `Status: ${response.status}`);
         setVideoInfo(null); 
       } else {
         setVideoInfo(result);
@@ -168,10 +168,13 @@ export function YouTubeDownloaderForm() {
         } else {
           setSelectedAudioItag("");
         }
+        if (result.videoFormats?.length === 0 && result.audioFormats?.length === 0) {
+            toast({ title: "No Downloadable Formats", description: "No downloadable video or audio formats found for this URL.", variant: "default" });
+        }
       }
     } catch (error) {
-      toast({ title: "Error", description: "An unexpected error occurred while fetching video info.", variant: "destructive" });
-      setPreviewVideoId(null);
+      console.error("[YouTubeDownloaderForm] Exception during fetch:", error);
+      toast({ title: "Network/Parsing Error", description: "Could not fetch video information. Check network or URL.", variant: "destructive" });
       setVideoInfo(null);
     } finally {
       setIsLoadingInfo(false);
@@ -188,25 +191,22 @@ export function YouTubeDownloaderForm() {
     }
 
     const downloadUrl = `/api/youtube/download-${type}?url=${encodeURIComponent(currentUrl)}&itag=${itag}&title=${encodeURIComponent(videoInfo.title)}`;
+    console.log(`[YouTubeDownloaderForm] Initiating ${type} download. URL: ${downloadUrl}`);
     
     if (type === 'video') setIsDownloadingVideo(true);
     else setIsDownloadingAudio(true);
 
-    // Trigger download by opening URL; for actual file download, browser handles it.
-    // For a better UX with large files, consider streaming to a Blob and then triggering download,
-    // but window.location.href is simplest for now.
     window.location.href = downloadUrl;
 
-    // Simulate download completion for UI feedback, actual download is browser-handled.
     setTimeout(() => {
       if (type === 'video') setIsDownloadingVideo(false);
       else setIsDownloadingAudio(false);
       toast({ title: "Download Started", description: `${videoInfo.title} (${type}) should begin downloading shortly.`});
-    }, 3000); // Assume download starts within 3s for feedback.
+    }, 3000); 
   };
 
   return (
-    <div> {/* Wrapper div to ensure single root for the component, and to house style tag separately */}
+    <div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSearch)} className="space-y-6">
           <FormField
@@ -260,7 +260,7 @@ export function YouTubeDownloaderForm() {
 
 
           {videoInfo && (
-            <Card className="animate-fade-in-up shadow-md border-border/30">
+            <Card className="animate-fade-in-up shadow-md border-border/30 mt-6">
               <CardContent className="p-4 md:p-6 grid md:grid-cols-12 gap-4 md:gap-6">
                 <div className="md:col-span-5">
                    {previewVideoId && (
@@ -298,7 +298,7 @@ export function YouTubeDownloaderForm() {
                       <SelectContent>
                         {videoInfo.videoFormats && videoInfo.videoFormats.map((format) => (
                           <SelectItem key={format.itag} value={format.itag.toString()}>
-                            {format.qualityLabel} ({format.container}{format.fps ? `, ${format.fps}fps` : ''})
+                            {format.quality} ({format.container}{format.fps ? `, ${format.fps}fps` : ''})
                           </SelectItem>
                         ))}
                         {(!videoInfo.videoFormats || videoInfo.videoFormats.length === 0) && <SelectItem value="disabled" disabled>No video formats available</SelectItem>}
@@ -348,4 +348,3 @@ export function YouTubeDownloaderForm() {
     </div>
   );
 }
-
