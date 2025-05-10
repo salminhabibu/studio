@@ -3,17 +3,17 @@ import type { Instance as WebTorrentInstance, Torrent as WebTorrentAPITorrent, T
 import { Buffer } from 'buffer';
 
 if (typeof window !== 'undefined') {
+  // Ensure Buffer is available
   if (typeof (window as any).Buffer === 'undefined') {
     (window as any).Buffer = Buffer;
   }
-  // process.browser polyfill is generally handled by Next.js for client components.
-  // If specific issues arise, a minimal polyfill like below could be considered,
-  // but dynamic import is preferred to ensure code runs in the correct environment.
-  // if (typeof (window as any).process === 'undefined') {
-  //   (window as any).process = { browser: true, env: {} };
-  // } else if (typeof (window as any).process.browser === 'undefined') {
-  //   (window as any).process.browser = true;
-  // }
+  // Ensure process.browser is available for libraries that check it
+  if (typeof (window as any).process === 'undefined') {
+    (window as any).process = {}; // Initialize process if it doesn't exist
+  }
+  if (typeof (window as any).process.browser === 'undefined') { // Then ensure .browser is set
+    (window as any).process.browser = true;
+  }
 }
 
 
@@ -376,3 +376,4 @@ class WebTorrentService {
 
 const webTorrentService = new WebTorrentService();
 export default webTorrentService;
+
