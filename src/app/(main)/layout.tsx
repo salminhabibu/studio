@@ -1,14 +1,19 @@
 // src/app/(main)/layout.tsx
+"use client"; // Required for usePathname
+
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/AppSidebar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { SparklesIcon } from "lucide-react"; // Added for consistency if ChillyMovies text removed
+import { SparklesIcon } from "lucide-react";
+import { usePathname } from "next/navigation"; // Import usePathname
 
 export default function MainLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname(); // Get current pathname
+
   return (
     <SidebarProvider defaultOpen={true}> {/* Desktop first, sidebar open by default */}
       <div className="flex min-h-screen bg-background">
@@ -19,11 +24,17 @@ export default function MainLayout({
               <SparklesIcon className="h-6 w-6 text-primary" />
               <h1 className="text-xl font-semibold text-foreground">ChillyMovies</h1>
             </header>
-            <ScrollArea className="flex-1 p-6 md:p-8 lg:p-10"> {/* Increased padding */}
-              {children}
+            <ScrollArea className="flex-1"> {/* Removed padding from here */}
+              <div 
+                key={pathname} // Re-trigger animation on route change
+                className="animate-page-content-load p-6 md:p-8 lg:p-10" // Added padding here and animation class
+              >
+                {children}
+              </div>
             </ScrollArea>
         </SidebarInset>
       </div>
     </SidebarProvider>
   );
 }
+
