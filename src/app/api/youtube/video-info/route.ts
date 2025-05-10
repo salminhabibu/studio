@@ -75,11 +75,14 @@ export async function GET(request: NextRequest) {
     } else if (typeof err === 'string') {
         detailedError = err;
     }
+    
     // Specific check for common ytdl-core errors
     if (detailedError.includes("private") || detailedError.includes("unavailable")) {
         detailedError = "This video is private or unavailable.";
     } else if (detailedError.includes("Status code: 410")) {
         detailedError = "This video is no longer available (may have been deleted or restricted).";
+    } else if (detailedError.toLowerCase().includes("could not extract functions")) {
+        detailedError = "Could not process this video. It might be age-restricted, region-locked, require login, or YouTube's site structure may have changed. Please try a different video.";
     }
     
     return NextResponse.json({ error: `ytdl-core error: ${detailedError}` }, { status: 500 });
