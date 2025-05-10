@@ -114,14 +114,14 @@ export default async function HomePage() {
               Paste a YouTube video URL below to fetch info and download options.
             </CardDescription>
           </CardHeader>
-          <CardContent className="p-4"> {/* Adjusted padding for a more compact initial view */}
+          <CardContent className="p-4">
             <YouTubeDownloaderForm />
           </CardContent>
         </Card>
       </section>
       
-      {/* Search Section */}
-      <section className="relative z-10">
+      {/* Search Section - Increased z-index to ensure dropdown is above subsequent content */}
+      <section className="relative z-20"> {/* Was z-10, increased to z-20 */}
         <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">Search Movies & TV Shows</CardTitle>
@@ -137,7 +137,7 @@ export default async function HomePage() {
 
       {/* Featured Content Section - Horizontal Scroll */}
       {finalFeaturedItems.length > 0 && (
-        <section className="space-y-6">
+        <section className="space-y-6 relative z-10"> {/* Added relative z-10 to ensure it's below search if contexts align */}
           <div className="flex justify-between items-center">
             <h2 className="text-2xl font-semibold text-foreground/90">Featured Content</h2>
             <Button variant="link" className="text-primary hover:text-primary/80" asChild>
@@ -186,4 +186,3 @@ export default async function HomePage() {
     </div>
   );
 }
-

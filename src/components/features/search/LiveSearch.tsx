@@ -70,21 +70,20 @@ export function LiveSearch() {
   return (
     <div className="relative w-full" ref={searchContainerRef}>
       <div className="relative flex w-full items-center">
-        <SearchIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
+        <SearchIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground z-10" /> {/* Ensure icon is above input */}
         <Input
           type="search"
           placeholder="Search movies & TV shows..."
-          className="h-14 text-base flex-grow pl-10 pr-16" // Added pr for potential button
+          className="h-14 text-base flex-grow pl-10 pr-4" // Adjusted pr
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => setIsFocused(true)}
           aria-label="Search movies and TV shows"
         />
-        {/* Optional: could add a clear button or use browser default */}
       </div>
 
       {showResultsDropdown && (
-        <Card className="absolute top-full mt-2 w-full z-50 shadow-2xl border-border/60 bg-card backdrop-blur-sm"> {/* Changed bg-card/95 to bg-card */}
+        <Card className="absolute top-full mt-2 w-full z-50 shadow-2xl border-border/60 bg-card backdrop-blur-sm"> {/* z-50 should be high enough */}
           <ScrollArea className="max-h-[60vh] overflow-y-auto">
             <CardContent className="p-2 space-y-1">
               {isLoading && (
