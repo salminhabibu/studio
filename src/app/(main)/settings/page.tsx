@@ -4,11 +4,11 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon } from "lucide-react";
+import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, FolderDownIcon, DownloadCloudIcon, ListChecksIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
-import { useWebTorrent } from "@/contexts/WebTorrentContext"; // Import useWebTorrent
-import { useToast } from "@/hooks/use-toast"; // Import useToast
+import { useWebTorrent } from "@/contexts/WebTorrentContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,8 +20,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// ... (Keep PRIMARY_ACCENT_COLORS and HIGHLIGHT_ACCENT_COLORS definitions and defaults as they are)
 interface PrimaryAccentColorOption {
   name: string;
   hex: string;
@@ -58,10 +59,20 @@ const HIGHLIGHT_ACCENT_COLORS: HighlightAccentOption[] = [
 ];
 const DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION = HIGHLIGHT_ACCENT_COLORS[0];
 
+const DOWNLOAD_QUALITY_OPTIONS = [
+  { value: "1080p", label: "1080p (Full HD)" },
+  { value: "720p", label: "720p (HD)" },
+  { value: "480p", label: "480p (SD)" },
+  { value: "any", label: "Any Available" },
+];
+const DEFAULT_DOWNLOAD_QUALITY = DOWNLOAD_QUALITY_OPTIONS[0].value;
+
+
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);
   const [selectedHighlightAccentHex, setSelectedHighlightAccentHex] = useState<string>(DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION.hex);
+  const [preferredDownloadQuality, setPreferredDownloadQuality] = useState<string>(DEFAULT_DOWNLOAD_QUALITY);
 
   const { clearDownloadHistory } = useWebTorrent();
   const { toast } = useToast();
@@ -82,10 +93,15 @@ export default function SettingsPage() {
     setMounted(true);
     const savedPrimaryAccentHex = localStorage.getItem("chillymovies-primary-accent-color");
     const savedHighlightAccentHex = localStorage.getItem("chillymovies-highlight-accent-color");
+    const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-download-quality");
+
     const initialPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === savedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
     const initialHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === savedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
+    const initialPreferredQuality = DOWNLOAD_QUALITY_OPTIONS.find(q => q.value === savedPreferredQuality)?.value || DEFAULT_DOWNLOAD_QUALITY;
+    
     setSelectedPrimaryAccentHex(initialPrimaryColor.hex);
     setSelectedHighlightAccentHex(initialHighlightColor.hex);
+    setPreferredDownloadQuality(initialPreferredQuality);
     applyThemeColors(initialPrimaryColor, initialHighlightColor);
   }, [applyThemeColors]);
   
@@ -103,6 +119,15 @@ export default function SettingsPage() {
     if (mounted) localStorage.setItem("chillymovies-highlight-accent-color", color.hex);
   }, [mounted, applyThemeColors, selectedPrimaryAccentHex]);
 
+  const handlePreferredQualityChange = (qualityValue: string) => {
+    setPreferredDownloadQuality(qualityValue);
+    if (mounted) localStorage.setItem("chillymovies-preferred-download-quality", qualityValue);
+    toast({
+      title: "Preference Saved",
+      description: `Preferred download quality set to ${DOWNLOAD_QUALITY_OPTIONS.find(q=>q.value === qualityValue)?.label || qualityValue}.`
+    })
+  };
+
   const handleClearHistory = () => {
     clearDownloadHistory();
     toast({
@@ -115,7 +140,6 @@ export default function SettingsPage() {
     <div className="space-y-8 max-w-3xl mx-auto">
       <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
 
-      {/* Appearance Section - Remains the same */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><PaletteIcon className="h-6 w-6 text-accent" /> Appearance</CardTitle>
@@ -155,7 +179,57 @@ export default function SettingsPage() {
       
       <Separator />
 
-      {/* Data Management Section */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><DownloadCloudIcon className="h-6 w-6 text-primary" /> Download Preferences</CardTitle>
+          <CardDescription>Configure your download settings.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-3 p-4 border rounded-lg">
+             <div className="flex items-start gap-3">
+                <FolderDownIcon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+                <div>
+                    <h4 className="text-base font-medium">Download Location</h4>
+                    <p className="text-sm text-muted-foreground">
+                        Your browser manages all downloads. Files are typically saved to your default &lsquo;Downloads&rsquo; folder.
+                        You can usually change this location in your browser&apos;s settings.
+                    </p>
+                </div>
+            </div>
+          </div>
+
+          <div className="space-y-3 p-4 border rounded-lg">
+            <div className="flex items-start gap-3">
+              <ListChecksIcon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
+              <div>
+                <Label htmlFor="preferred-quality-select" className="text-base font-medium block mb-1.5">Preferred Download Quality</Label>
+                <Select value={preferredDownloadQuality} onValueChange={handlePreferredQualityChange}>
+                  <SelectTrigger id="preferred-quality-select" className="h-11 w-full sm:w-64">
+                    <SelectValue placeholder="Select preferred quality" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOWNLOAD_QUALITY_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-2">
+                  This sets your general preference for new downloads. Actual availability depends on the source and may be overridden by specific quality selectors on download pages.
+                </p>
+              </div>
+            </div>
+          </div>
+           <div className="flex items-start p-3 rounded-md bg-muted/50 border border-dashed border-border">
+            <InfoIcon className="h-5 w-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-muted-foreground">
+                The app attempts to download all items added to the queue. For best performance, manage the number of active large downloads, as many simultaneous connections can impact browser and network speed.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Separator />
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><DatabaseIcon className="h-6 w-6 text-primary" /> Data Management</CardTitle>
@@ -185,18 +259,14 @@ export default function SettingsPage() {
               </AlertDialogContent>
             </AlertDialog>
           </div>
-          {/* Placeholder for other data settings if needed in the future */}
            <div className="flex items-start p-3 rounded-md bg-muted/50 border border-dashed border-border">
             <InfoIcon className="h-5 w-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
-                Download history is stored locally in your browser. Clearing it here will remove it permanently from this browser.
+                Download history and preferences are stored locally in your browser. Clearing history here will remove it permanently from this browser.
             </p>
           </div>
         </CardContent>
       </Card>
-
-      {/* Removed General, Network, and Notifications sections as they contained mostly placeholders not applicable to client-side WebTorrent */}
-      {/* A general "Save Changes" button might not be needed if settings are applied/saved instantly (like appearance and history) */}
     </div>
   );
 }
