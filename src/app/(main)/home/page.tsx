@@ -121,7 +121,7 @@ export default async function HomePage() {
       </section>
       
       {/* Search Section */}
-      <section>
+      <section className="relative z-10">
         <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
           <CardHeader>
             <CardTitle className="text-2xl font-semibold">Search Movies & TV Shows</CardTitle>
