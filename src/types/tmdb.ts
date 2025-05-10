@@ -35,6 +35,7 @@ export interface TMDBMovie extends TMDBBaseMovie {
   videos?: {
     results: TMDBVideo[];
   };
+  imdb_id?: string; // Often available, useful for other APIs
 }
 
 export interface TMDBPaginatedResponse<T> {
@@ -82,7 +83,7 @@ export interface TMDBTVSeries extends TMDBBaseTVSeries {
   genres: TMDBGenre[];
   number_of_seasons: number;
   number_of_episodes: number;
-  seasons: TMDBSeason[]; // This is usually a summary; full episode list per season needs separate call
+  seasons: TMDBSeason[];
   last_episode_to_air: TMDBEpisode | null;
   next_episode_to_air: TMDBEpisode | null;
   tagline: string | null;
@@ -95,11 +96,10 @@ export interface TMDBTVSeries extends TMDBBaseTVSeries {
 }
 
 export interface TMDBTvSeasonDetails extends TMDBSeason {
-  _id: string; // TMDB provides this, often includes series_id and season_number
+  _id: string; 
   episodes: TMDBEpisode[];
 }
 
-// Types for Multi Search
 interface TMDBPersonResult {
   id: number;
   name: string;
@@ -108,7 +108,6 @@ interface TMDBPersonResult {
   adult: boolean;
   popularity: number;
   known_for_department?: string;
-  // known_for can be an array of TMDBBaseMovie or TMDBBaseTVSeries, simplified here
   known_for?: Array<Partial<TMDBBaseMovie & TMDBBaseTVSeries>>; 
 }
 
@@ -125,21 +124,29 @@ export type ClientTMDBMultiSearchResultItem =
 export interface TMDBMultiPaginatedResponse extends TMDBPaginatedResponse<TMDBMultiSearchResultItem> {}
 
 
-// Types for Movie/TV Videos
 export interface TMDBVideo {
   iso_639_1: string;
   iso_3166_1: string;
   name: string;
-  key: string; // YouTube video key
-  site: "YouTube" | string; // Typically "YouTube"
-  size: 1080 | 720 | 480 | 2160 | 1440; // Example sizes
+  key: string; 
+  site: "YouTube" | string; 
+  size: 1080 | 720 | 480 | 2160 | 1440; 
   type: "Trailer" | "Teaser" | "Clip" | "Featurette" | "Behind the Scenes" | "Bloopers";
   official: boolean;
-  published_at: string; // ISO date string
-  id: string; // Video ID from TMDB
+  published_at: string; 
+  id: string; 
 }
 
 export interface TMDBVideoResponse {
-  id: number; // Movie or TV Show ID
+  id: number; 
   results: TMDBVideo[];
+}
+
+export interface TMDBDiscoverFilters {
+  with_genres?: string | string[]; // Comma-separated string of genre IDs or array
+  primary_release_year?: number;   // For movies
+  first_air_date_year?: number;    // For TV series
+  with_origin_country?: string;    // ISO 3166-1 code
+  sort_by?: string;                // e.g., 'popularity.desc', 'release_date.desc'
+  // Add other relevant filters as needed from TMDB discover docs
 }
