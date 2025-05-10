@@ -21,7 +21,7 @@ import {
   Tv2Icon, 
   DownloadCloudIcon, 
   SettingsIcon, 
-  SparklesIcon, 
+  ClapperboardIcon, // Changed from SparklesIcon
   PanelLeftCloseIcon, 
   PanelRightCloseIcon,
   GithubIcon
@@ -64,7 +64,7 @@ export function AppSidebar() {
     >
       <SidebarHeader className="p-4 flex items-center h-20 border-b border-sidebar-border">
         <Link href="/home" className="flex items-center gap-3 overflow-hidden" aria-label="ChillyMovies Home">
-          <SparklesIcon className="h-8 w-8 text-primary flex-shrink-0" />
+          <ClapperboardIcon className="h-8 w-8 text-primary flex-shrink-0" /> {/* Changed from SparklesIcon */}
           {/* Wrapped text in a span and used group-data for consistent hiding */}
           <h1 className="text-2xl font-semibold text-foreground whitespace-nowrap overflow-hidden">
             <span className="transition-opacity duration-300 group-data-[collapsible=icon]:hidden">
