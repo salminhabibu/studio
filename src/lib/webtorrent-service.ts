@@ -3,16 +3,25 @@ import type { Instance as WebTorrentInstance, Torrent as WebTorrentAPITorrent, T
 import { Buffer } from 'buffer';
 
 if (typeof window !== 'undefined') {
-  // Ensure Buffer is available
+  // Ensure Buffer is available globally
   if (typeof (window as any).Buffer === 'undefined') {
     (window as any).Buffer = Buffer;
   }
-  // Ensure process.browser is available for libraries that check it
+
+  // Ensure process object and its properties (env, browser) are available for libraries that check them
   if (typeof (window as any).process === 'undefined') {
-    (window as any).process = {}; // Initialize process if it doesn't exist
-  }
-  if (typeof (window as any).process.browser === 'undefined') { // Then ensure .browser is set
-    (window as any).process.browser = true;
+    (window as any).process = {
+      env: {}, // Initialize env
+      browser: true // Explicitly set browser to true
+    };
+  } else {
+    // If process exists, ensure browser and env properties are there
+    if (typeof (window as any).process.browser === 'undefined') {
+      (window as any).process.browser = true;
+    }
+    if (typeof (window as any).process.env === 'undefined') {
+      (window as any).process.env = {};
+    }
   }
 }
 
