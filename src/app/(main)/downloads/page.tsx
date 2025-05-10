@@ -13,7 +13,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { useWebTorrent } from "@/contexts/WebTorrentContext";
-import { TorrentProgress, HistoryItem } from "@/lib/webtorrent-service";
+import { TorrentProgress, HistoryItem, TorrentFile as WebTorrentTorrentFile } from "@/lib/webtorrent-service"; // Corrected import for TorrentFile type
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
 import { formatBytes } from "@/lib/utils";
@@ -40,7 +40,7 @@ export default function DownloadsPage() {
     getLargestFileForStreaming,
     clearDownloadHistory,
     removeDownloadFromHistory,
-    addTorrent // For re-adding/retrying failed torrents
+    addTorrent 
   } = useWebTorrent();
   const { toast } = useToast();
 
@@ -61,7 +61,7 @@ export default function DownloadsPage() {
         return { badge: <Badge variant="outline" className="animate-pulse">Connecting...</Badge> };
       case "removed":
         return { badge: <Badge variant="outline">Removed</Badge> };
-      case "active": // History status for items still in active queue
+      case "active": 
          return { badge: <Badge variant="outline">In Queue</Badge> };
       default:
         return { badge: <Badge variant="outline">Unknown</Badge> };
@@ -71,41 +71,80 @@ export default function DownloadsPage() {
   const handlePlay = async (torrentIdOrMagnet: string, isMagnet = false) => {
     toast({ title: "Preparing Stream", description: "Attempting to stream the largest file..." });
     let infoHash = torrentIdOrMagnet;
+    
     if (isMagnet) {
-        const existingTorrent = getTorrentInstance(torrentIdOrMagnet);
-        if (existingTorrent) {
-            infoHash = existingTorrent.infoHash;
-        } else {
-            const newTorrent = addTorrent(torrentIdOrMagnet, "Streaming item"); // Add if not already active
+        let torrent = getTorrentInstance(torrentIdOrMagnet);
+        if (!torrent) {
+            const newTorrent = await addTorrent(torrentIdOrMagnet, "Streaming item"); 
             if (!newTorrent || !newTorrent.infoHash) {
                 toast({ title: "Stream Failed", description: "Could not start torrent for streaming.", variant: "destructive" });
                 return;
             }
             infoHash = newTorrent.infoHash;
-            // Wait a moment for metadata to be fetched if it's a new torrent
-            await new Promise(resolve => setTimeout(resolve, 2000)); 
+             // Wait a moment for metadata to be fetched if it's a new torrent
+            await new Promise(resolve => setTimeout(resolve, 3000)); // Increased timeout slightly
+        } else {
+          infoHash = torrent.infoHash;
         }
     }
+    // Ensure torrent is ready by re-fetching after potential add.
+    const torrentInstance = getTorrentInstance(infoHash);
+    if (!torrentInstance || !torrentInstance.ready) {
+      toast({ title: "Stream Preparation", description: "Waiting for torrent metadata...", variant: "default" });
+      await new Promise(resolve => {
+        const checkReady = setInterval(() => {
+          const updatedTorrent = getTorrentInstance(infoHash);
+          if (updatedTorrent && updatedTorrent.ready) {
+            clearInterval(checkReady);
+            resolve(true);
+          }
+        }, 1000);
+        setTimeout(() => { // Timeout for waiting
+          clearInterval(checkReady);
+          resolve(false);
+        }, 15000); // Wait up to 15 seconds
+      });
+    }
+
 
     const streamData = await getLargestFileForStreaming(infoHash);
     if (streamData && streamData.streamUrl) {
       console.log("[DownloadsPage] Stream URL:", streamData.streamUrl);
-      toast({ title: "Streaming Ready", description: `Player UI for ${streamData.file.name} would open here.` });
-      // TODO: Implement an actual video player modal
+      toast({ title: "Streaming Ready", description: `Opening player for ${streamData.file.name}.` });
       window.open(streamData.streamUrl, '_blank');
     } else {
-      toast({ title: "Stream Failed", description: "Could not prepare the file for streaming.", variant: "destructive" });
+      toast({ title: "Stream Failed", description: "Could not prepare the file for streaming. Ensure torrent has files and is active.", variant: "destructive" });
     }
   };
   
-  const handleRetryDownload = (item: HistoryItem) => {
+  const handleRetryDownload = async (item: HistoryItem) => {
     if (item.magnetURI) {
-      addTorrent(item.magnetURI, item.name, item.itemId);
-      toast({ title: "Retrying Download", description: `Adding ${item.name} back to active queue.`});
+      try {
+        const torrent = await addTorrent(item.magnetURI, item.name, item.itemId);
+        if (torrent) {
+          toast({ title: "Retrying Download", description: `Adding ${item.name} back to active queue.`});
+        } else {
+          toast({ title: "Retry Issue", description: `Could not add ${item.name}. It might already be active or an error occurred.`, variant: "default"});
+        }
+      } catch (error) {
+        console.error("[DownloadsPage] Error retrying download:", error);
+        toast({ title: "Retry Error", description: "An unexpected error occurred.", variant: "destructive"});
+      }
     } else {
       toast({ title: "Retry Failed", description: "Magnet URI not found for this item.", variant: "destructive"});
     }
   };
+
+  const handleRemoveTorrent = async (torrentId: string) => {
+    try {
+      await removeTorrent(torrentId);
+      toast({title: "Torrent Removed", description: "The torrent has been removed from the active queue and history (if applicable)."});
+    } catch (error) {
+      console.error("[DownloadsPage] Error removing torrent:", error);
+      toast({title: "Removal Error", description: "Could not remove the torrent.", variant: "destructive"});
+    }
+  }
+
 
   return (
     <div className="space-y-8">
@@ -117,9 +156,9 @@ export default function DownloadsPage() {
       </div>
 
       <Tabs defaultValue="active" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 gap-x-1.5 rounded-lg p-1.5 bg-muted">
-          <TabsTrigger value="active">Active Downloads</TabsTrigger>
-          <TabsTrigger value="history">Download History</TabsTrigger>
+        <TabsList className="grid w-full grid-cols-2 gap-x-1.5 rounded-lg p-1.5 bg-muted h-12 text-base">
+          <TabsTrigger value="active" className="h-full">Active Downloads</TabsTrigger>
+          <TabsTrigger value="history" className="h-full">Download History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-8">
@@ -156,10 +195,10 @@ export default function DownloadsPage() {
                             {download.status === 'paused' && (
                               <Button variant="ghost" size="icon" aria-label="Resume" onClick={() => resumeTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
-                            {(download.status === 'done' || download.status === 'seeding' || (torrentInstance && torrentInstance.files.length > 0)) && (
+                            {(download.status === 'done' || download.status === 'seeding' || (torrentInstance && torrentInstance.files.length > 0 && torrentInstance.ready)) && (
                               <Button variant="ghost" size="icon" aria-label="Play/Stream" onClick={() => handlePlay(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
-                            <Button variant="ghost" size="icon" className="text-destructive" aria-label="Remove" onClick={() => removeTorrent(download.torrentId)}><XCircleIcon className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" aria-label="Remove" onClick={() => handleRemoveTorrent(download.torrentId)}><XCircleIcon className="h-5 w-5" /></Button>
                           </div>
                         </div>
                         <Progress value={download.progress * 100} className="mt-3 h-1.5 md:h-2" indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : download.status === 'error' ? 'bg-red-500' : (download.status === 'done' || download.status === 'seeding' ) ? 'bg-green-500' : 'bg-primary'} />
@@ -222,7 +261,7 @@ export default function DownloadsPage() {
                             {item.status === 'failed' && item.magnetURI && (
                               <Button variant="ghost" size="icon" title="Retry Download" onClick={() => handleRetryDownload(item)}><RefreshCwIcon className="h-5 w-5" /></Button>
                             )}
-                            <Button variant="ghost" size="icon" className="text-destructive" title="Remove from History" onClick={() => removeDownloadFromHistory(item.infoHash)}><Trash2Icon className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title="Remove from History" onClick={() => removeDownloadFromHistory(item.infoHash)}><Trash2Icon className="h-5 w-5" /></Button>
                           </div>
                         </div>
                       </div>

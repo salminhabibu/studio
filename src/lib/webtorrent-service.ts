@@ -1,13 +1,25 @@
-import WebTorrent from 'webtorrent';
+// src/lib/webtorrent-service.ts
+import type { Instance as WebTorrentInstance, Torrent as WebTorrentAPITorrent, TorrentFile as WebTorrentAPITorrentFile } from 'webtorrent';
 import { Buffer } from 'buffer';
 
-if (typeof window !== 'undefined' && typeof (window as any).Buffer === 'undefined') {
-  (window as any).Buffer = Buffer;
+if (typeof window !== 'undefined') {
+  if (typeof (window as any).Buffer === 'undefined') {
+    (window as any).Buffer = Buffer;
+  }
+  // process.browser polyfill is generally handled by Next.js for client components.
+  // If specific issues arise, a minimal polyfill like below could be considered,
+  // but dynamic import is preferred to ensure code runs in the correct environment.
+  // if (typeof (window as any).process === 'undefined') {
+  //   (window as any).process = { browser: true, env: {} };
+  // } else if (typeof (window as any).process.browser === 'undefined') {
+  //   (window as any).process.browser = true;
+  // }
 }
 
-export interface TorrentFile extends WebTorrent.TorrentFile {}
 
-export interface Torrent extends WebTorrent.Torrent {
+export interface TorrentFile extends WebTorrentAPITorrentFile {}
+
+export interface Torrent extends WebTorrentAPITorrent {
   customName?: string;
   addedDate?: Date;
   itemId?: string | number;
@@ -43,7 +55,7 @@ export interface HistoryItem {
 const HISTORY_STORAGE_KEY = 'chillymovies_download_history';
 
 class WebTorrentService {
-  private client: WebTorrent.Instance | null = null;
+  private client: WebTorrentInstance | null = null;
   private activeTorrents: Map<string, Torrent> = new Map(); // magnetURI -> Torrent
 
   private progressListeners: Array<(progress: TorrentProgress) => void> = [];
@@ -54,23 +66,33 @@ class WebTorrentService {
   private historyUpdatedListeners: Array<() => void> = [];
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      this.initializeClient();
+    // Initialization is deferred to getClient to ensure it's async and client-side
+  }
+
+  private async initializeClient(): Promise<void> {
+    if (this.client || typeof window === 'undefined') return;
+
+    console.log('[WebTorrentService] Initializing client (async)...');
+    try {
+      const WebTorrentModule = await import('webtorrent');
+      // WebTorrent is typically a default export from the CJS module
+      const WT = WebTorrentModule.default || WebTorrentModule;
+      this.client = new WT();
+      this.client.on('error', (err) => {
+        console.error('[WebTorrentService] Client error:', err);
+        this.torrentErrorListeners.forEach(listener => listener(null, err as Error));
+      });
+      console.log('[WebTorrentService] Client initialized successfully.');
+    } catch (error) {
+      console.error('[WebTorrentService] Failed to initialize WebTorrent client:', error);
+      this.torrentErrorListeners.forEach(listener => listener(null, error instanceof Error ? error : String(error) ));
     }
   }
 
-  private initializeClient() {
-    if (this.client) return;
-    console.log('[WebTorrentService] Initializing client...');
-    this.client = new WebTorrent();
-    this.client.on('error', (err) => {
-      console.error('[WebTorrentService] Client error:', err);
-      this.torrentErrorListeners.forEach(listener => listener(null, err as Error));
-    });
-  }
-
-  getClient(): WebTorrent.Instance | null {
-    if (!this.client) this.initializeClient();
+  public async getClient(): Promise<WebTorrentInstance | null> {
+    if (!this.client && typeof window !== 'undefined') {
+      await this.initializeClient();
+    }
     return this.client;
   }
 
@@ -126,41 +148,60 @@ class WebTorrentService {
   }
   // --- End History Management ---
 
-  addTorrent(magnetURI: string, itemName?: string, itemId?: string | number): Torrent | null {
-    const client = this.getClient();
+  async addTorrent(magnetURI: string, itemName?: string, itemId?: string | number): Promise<Torrent | null> {
+    const client = await this.getClient();
     if (!client) {
-      console.error('[WebTorrentService] Client not initialized.');
+      console.error('[WebTorrentService] Client not initialized for addTorrent.');
       this.torrentErrorListeners.forEach(listener => listener(null, 'Client not initialized'));
       return null;
     }
 
-    if (this.activeTorrents.has(magnetURI)) {
-      console.log(`[WebTorrentService] Torrent already in active session: ${itemName || magnetURI}`);
-      return this.activeTorrents.get(magnetURI)!;
-    }
+    return new Promise<Torrent | null>((resolve) => {
+        if (this.activeTorrents.has(magnetURI)) {
+          console.log(`[WebTorrentService] Torrent already in active session: ${itemName || magnetURI}`);
+          resolve(this.activeTorrents.get(magnetURI)!);
+          return;
+        }
 
-    console.log(`[WebTorrentService] Adding torrent: ${itemName || magnetURI}`);
-    const torrent = client.add(magnetURI, (t: WebTorrent.Torrent) => {
-      const enhancedTorrent = t as Torrent;
-      enhancedTorrent.customName = itemName || t.name;
-      enhancedTorrent.addedDate = new Date();
-      enhancedTorrent.itemId = itemId;
-      enhancedTorrent.statusForHistory = 'active';
+        console.log(`[WebTorrentService] Adding torrent: ${itemName || magnetURI}`);
+        const torrentInstance = client.add(magnetURI, (t: WebTorrentAPITorrent) => {
+          const enhancedTorrent = t as Torrent;
+          enhancedTorrent.customName = itemName || t.name;
+          enhancedTorrent.addedDate = new Date();
+          enhancedTorrent.itemId = itemId;
+          enhancedTorrent.statusForHistory = 'active';
 
-      console.log(`[WebTorrentService] Torrent metadata ready for: ${enhancedTorrent.customName}`);
-      this.activeTorrents.set(magnetURI, enhancedTorrent);
-      this.updateHistoryItem(enhancedTorrent, 'active');
-      this.torrentAddedListeners.forEach(listener => listener(enhancedTorrent));
-      this.setupTorrentEventListeners(enhancedTorrent);
-    }) as Torrent;
-    
-    if (torrent) {
-        // If client.add returns torrent synchronously (it does for magnet URIs before metadata)
-        // we might not have infoHash yet. History update might be better inside the callback.
-        // However, the current structure adds to history once metadata is ready (inside the callback).
-        this.notifyProgress(torrent, 'connecting');
-    }
-    return torrent;
+          console.log(`[WebTorrentService] Torrent metadata ready for: ${enhancedTorrent.customName}`);
+          this.activeTorrents.set(magnetURI, enhancedTorrent);
+          this.updateHistoryItem(enhancedTorrent, 'active');
+          this.torrentAddedListeners.forEach(listener => listener(enhancedTorrent));
+          this.setupTorrentEventListeners(enhancedTorrent);
+          resolve(enhancedTorrent);
+        }) as Torrent;
+        
+        if (!torrentInstance) {
+            console.error('[WebTorrentService] Failed to initiate torrent addition.');
+            this.torrentErrorListeners.forEach(listener => listener(null, 'Failed to initiate torrent addition'));
+            resolve(null);
+        } else {
+            torrentInstance.once('error', (err) => {
+                console.error(`[WebTorrentService] Error during torrent initialization for ${itemName || magnetURI}:`, err);
+                // This handles errors before the main 'add' callback or 'metadata' event.
+                // If the promise hasn't resolved, resolve with null or reject.
+                // Assuming the main callback path is the primary resolution.
+                // Consider if this should `reject(err)` if the promise might not otherwise resolve.
+                // For now, consistent with returning null on failure.
+                if (this.activeTorrents.has(magnetURI)) { // if it got added then errored
+                    this.activeTorrents.delete(magnetURI);
+                }
+                this.updateHistoryItem(torrentInstance, 'failed'); // Mark as failed in history
+                this.notifyProgress(torrentInstance, 'error');
+                resolve(null); 
+            });
+            // Initial progress notification
+            this.notifyProgress(torrentInstance, 'connecting');
+        }
+    });
   }
   
   private setupTorrentEventListeners(torrent: Torrent) {
@@ -183,15 +224,18 @@ class WebTorrentService {
   }
 
   private notifyProgress(torrent: Torrent, statusOverride?: TorrentProgress['status']) {
-    if (!torrent || !this.activeTorrents.has(torrent.magnetURI)) return;
+    // Ensure torrent has infoHash before notifying; can be null briefly for magnet links
+    if (!torrent || !torrent.infoHash ||!this.activeTorrents.has(torrent.magnetURI) ) return;
     
     let currentStatus: TorrentProgress['status'] = statusOverride || 'connecting';
-    if (!statusOverride) {
+    if (!statusOverride) { // Determine status if not overridden
         if (torrent.done) currentStatus = 'done';
-        else if (torrent.paused) currentStatus = 'paused'; // Check paused state
+        else if (torrent.paused) currentStatus = 'paused';
         else if (torrent.progress > 0 && torrent.progress < 1) currentStatus = 'downloading';
-        else if (torrent.progress === 1 && !torrent.done) currentStatus = 'seeding'; 
+        else if (torrent.progress === 1 && !torrent.done) currentStatus = 'seeding';
+        // Default to 'connecting' if no other state matches (e.g. progress = 0, not paused, not done)
     }
+
 
     const progressData: TorrentProgress = {
       torrentId: torrent.infoHash, 
@@ -214,6 +258,7 @@ class WebTorrentService {
     if (this.activeTorrents.has(infoHashOrMagnetURI)) {
         return this.activeTorrents.get(infoHashOrMagnetURI);
     }
+    // Fallback to check by infoHash if magnetURI was not the key (e.g. if torrent re-added via infohash somehow)
     for (const torrent of this.activeTorrents.values()) {
         if (torrent.infoHash === infoHashOrMagnetURI) return torrent;
     }
@@ -223,13 +268,16 @@ class WebTorrentService {
   getAllTorrentsProgress(): TorrentProgress[] {
     const progressList: TorrentProgress[] = [];
     this.activeTorrents.forEach(torrent => {
+      // Ensure infoHash exists before creating progress item
+      if (!torrent.infoHash) return; 
+
       let status: TorrentProgress['status'] = 'connecting';
-      if (torrent.ready && torrent.progress === 0 && torrent.downloadSpeed === 0 && torrent.files && torrent.files.length === 0 && !torrent.paused) status = 'connecting';
+      if (torrent.ready && torrent.progress === 0 && torrent.downloadSpeed === 0 && torrent.files && torrent.files.length === 0 && !torrent.paused && !torrent.done) status = 'connecting';
       else if (torrent.done) status = 'done';
       else if (torrent.paused) status = 'paused';
-      else if (torrent.progress < 1 && (torrent.downloadSpeed > 0 || torrent.downloaded > 0)) status = 'downloading';
+      else if (torrent.progress < 1 && (torrent.downloadSpeed > 0 || torrent.downloaded > 0 || torrent.progress > 0)) status = 'downloading';
       else if (torrent.progress === 1 && !torrent.done) status = 'seeding';
-      else if (torrent.downloadSpeed === 0 && torrent.progress > 0 && torrent.progress < 1 && !torrent.paused) status = 'downloading'; // Could be stalled, but still downloading category
+      // else if (torrent.downloadSpeed === 0 && torrent.progress > 0 && torrent.progress < 1 && !torrent.paused) status = 'downloading'; // Stalled
       
       progressList.push({
         torrentId: torrent.infoHash,
@@ -249,19 +297,34 @@ class WebTorrentService {
     return progressList;
   }
 
-  removeTorrent(infoHashOrMagnetURI: string): void {
-    const client = this.getClient();
-    if (!client) return;
+  async removeTorrent(infoHashOrMagnetURI: string): Promise<void> {
+    const client = await this.getClient();
+    if (!client) {
+        console.error("[WebTorrentService] Client not available for removeTorrent");
+        return;
+    }
 
     const torrent = this.getTorrent(infoHashOrMagnetURI);
     if (torrent) {
-      this.updateHistoryItem(torrent, torrent.statusForHistory === 'completed' ? 'completed' : 'removed'); // Keep completed status, otherwise mark as removed
-      client.remove(torrent.magnetURI, (err) => {
-        if (err) console.error(`[WebTorrentService] Error removing torrent ${torrent.customName}:`, err);
-        else console.log(`[WebTorrentService] Torrent removed from client: ${torrent.customName}`);
-      });
+      this.updateHistoryItem(torrent, torrent.statusForHistory === 'completed' ? 'completed' : 'removed');
+      
+      await new Promise<void>((resolve, reject) => {
+          client.remove(torrent.magnetURI, (err) => {
+            if (err) {
+                console.error(`[WebTorrentService] Error removing torrent ${torrent.customName}:`, err);
+                // Still proceed with removing from activeTorrents map
+                reject(err); 
+            } else {
+                console.log(`[WebTorrentService] Torrent removed from client: ${torrent.customName}`);
+                resolve();
+            }
+          });
+      }).catch(err => console.error("Removal promise rejection:", err)); // Catch potential rejection if not handled by caller
+
       this.activeTorrents.delete(torrent.magnetURI);
-      this.torrentRemovedListeners.forEach(listener => listener(torrent.infoHash));
+      if (torrent.infoHash) { // Ensure infoHash exists
+        this.torrentRemovedListeners.forEach(listener => listener(torrent.infoHash));
+      }
       console.log(`[WebTorrentService] Torrent removed from active list: ${torrent.customName}`);
     }
   }
@@ -279,7 +342,8 @@ class WebTorrentService {
     const torrent = this.getTorrent(infoHashOrMagnetURI);
     if (torrent && torrent.paused) {
       torrent.resume();
-      this.notifyProgress(torrent, 'downloading'); 
+      // Status will be determined by notifyProgress based on actual state (e.g. downloading, connecting)
+      this.notifyProgress(torrent); 
       console.log(`[WebTorrentService] Torrent resumed: ${torrent.customName}`);
     }
   }
@@ -312,4 +376,3 @@ class WebTorrentService {
 
 const webTorrentService = new WebTorrentService();
 export default webTorrentService;
-
