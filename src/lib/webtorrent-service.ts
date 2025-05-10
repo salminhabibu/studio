@@ -49,8 +49,10 @@ if (typeof window !== 'undefined') {
   }
 }
 
-
+// Import WebTorrent statically
+import ActualWebTorrent from 'webtorrent';
 import type { Instance as WebTorrentInstance, Torrent as WebTorrentAPITorrent, TorrentFile as WebTorrentAPITorrentFile } from 'webtorrent';
+
 
 export interface TorrentFile extends WebTorrentAPITorrentFile {}
 
@@ -101,19 +103,16 @@ class WebTorrentService {
   private historyUpdatedListeners: Array<() => void> = [];
 
   constructor() {
-    // Initialization is deferred to getClient to ensure it's async and client-side
+    // Initialization is deferred to getClient to ensure it's client-side
   }
 
   private async initializeClient(): Promise<void> {
-    // Polyfills are applied at the top of the file if window is defined.
-    // This check is just to prevent server-side execution.
     if (this.client || typeof window === 'undefined') return;
 
-    console.log('[WebTorrentService] Initializing client (async)...');
+    console.log('[WebTorrentService] Initializing client...');
     try {
-      // Dynamically import WebTorrent
-      const WebTorrentModule = await import('webtorrent');
-      const WT = WebTorrentModule.default || WebTorrentModule; // Handle CJS/ESM export
+      // WebTorrent is now imported statically as ActualWebTorrent
+      const WT = ActualWebTorrent.default || ActualWebTorrent; // Handle CJS/ESM export
       
       this.client = new WT();
       this.client.on('error', (err) => {
@@ -222,14 +221,21 @@ class WebTorrentService {
             this.torrentErrorListeners.forEach(listener => listener(null, 'Failed to initiate torrent addition'));
             resolve(null);
         } else {
+            // It's possible 'error' could fire before 'metadata' if the magnetURI is immediately invalid
+            // or network issues prevent fetching metadata.
             torrentInstance.once('error', (err) => {
-                console.error(`[WebTorrentService] Error during torrent initialization for ${itemName || magnetURI}:`, err);
-                if (this.activeTorrents.has(magnetURI)) { 
-                    this.activeTorrents.delete(magnetURI);
+                // Check if it's already been resolved/handled by the 'add' callback's error path.
+                // This is a fallback. The 'add' callback might not fire if 'add' itself throws or errors quickly.
+                if (!this.activeTorrents.has(magnetURI)) { // If not yet in activeTorrents, means 'add' callback didn't succeed
+                    console.error(`[WebTorrentService] Error during torrent initialization (early error) for ${itemName || magnetURI}:`, err);
+                    // Don't delete from activeTorrents if it was never added
+                    this.updateHistoryItem(torrentInstance, 'failed'); // Still try to mark as failed in history
+                    this.notifyProgress(torrentInstance, 'error'); // Notify progress with error status
+                    this.torrentErrorListeners.forEach(listener => listener(torrentInstance, err as Error));
+                    if (!torrentInstance.metadata) { // Only resolve(null) if not already resolved by the 'add' callback
+                         resolve(null); 
+                    }
                 }
-                this.updateHistoryItem(torrentInstance, 'failed'); 
-                this.notifyProgress(torrentInstance, 'error');
-                resolve(null); 
             });
             this.notifyProgress(torrentInstance, 'connecting');
         }
@@ -256,14 +262,30 @@ class WebTorrentService {
   }
 
   private notifyProgress(torrent: Torrent, statusOverride?: TorrentProgress['status']) {
-    if (!torrent || !torrent.infoHash ||!this.activeTorrents.has(torrent.magnetURI) ) return;
+    if (!torrent || !torrent.infoHash ||!this.activeTorrents.has(torrent.magnetURI) ) {
+        // If torrent is not in activeTorrents map, it might be an early error notification
+        // for a torrent that failed to fully add. In this case, still try to provide some progress.
+        if (torrent && torrent.infoHash && statusOverride === 'error') {
+             const progressData: TorrentProgress = {
+                torrentId: torrent.infoHash,
+                progress: 0, downloadSpeed: 0, uploadSpeed: 0, peers: 0,
+                downloaded: 0, length: torrent.length,
+                customName: torrent.customName || torrent.name,
+                addedDate: torrent.addedDate || new Date(),
+                itemId: torrent.itemId,
+                status: 'error',
+            };
+            this.progressListeners.forEach(listener => listener(progressData));
+        }
+        return;
+    }
     
     let currentStatus: TorrentProgress['status'] = statusOverride || 'connecting';
     if (!statusOverride) { 
         if (torrent.done) currentStatus = 'done';
         else if (torrent.paused) currentStatus = 'paused';
         else if (torrent.progress > 0 && torrent.progress < 1) currentStatus = 'downloading';
-        else if (torrent.progress === 1 && !torrent.done) currentStatus = 'seeding';
+        else if (torrent.progress === 1 && !torrent.done) currentStatus = 'seeding'; // Seeding implies progress is 1
     }
 
     const progressData: TorrentProgress = {
