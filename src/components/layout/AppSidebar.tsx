@@ -21,10 +21,10 @@ import {
   Tv2Icon, 
   DownloadCloudIcon, 
   SettingsIcon, 
-  ClapperboardIcon, // Changed from SparklesIcon
+  ClapperboardIcon,
   PanelLeftCloseIcon, 
   PanelRightCloseIcon,
-  GithubIcon
+  InfoIcon // Added for About page
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,7 @@ const navItems = [
   { href: "/tv-series", label: "TV Series", icon: Tv2Icon },
   { href: "/downloads", label: "Downloads", icon: DownloadCloudIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
+  { href: "/about", label: "About", icon: InfoIcon }, // Added About page
 ];
 
 export function AppSidebar() {
@@ -58,14 +59,13 @@ export function AppSidebar() {
     <Sidebar 
       collapsible={isMobile ? "offcanvas" : "icon"} 
       className={cn(
-        "border-r-0 shadow-xl bg-sidebar text-sidebar-foreground", // Ensuring sidebar background is from theme
+        "border-r-0 shadow-xl bg-sidebar text-sidebar-foreground", 
         "transition-all duration-300 ease-in-out" 
       )}
     >
       <SidebarHeader className="p-4 flex items-center h-20 border-b border-sidebar-border">
         <Link href="/home" className="flex items-center gap-3 overflow-hidden" aria-label="ChillyMovies Home">
-          <ClapperboardIcon className="h-8 w-8 text-primary flex-shrink-0" /> {/* Changed from SparklesIcon */}
-          {/* Wrapped text in a span and used group-data for consistent hiding */}
+          <ClapperboardIcon className="h-8 w-8 text-primary flex-shrink-0" />
           <h1 className="text-2xl font-semibold text-foreground whitespace-nowrap overflow-hidden">
             <span className="transition-opacity duration-300 group-data-[collapsible=icon]:hidden">
               ChillyMovies
@@ -81,13 +81,11 @@ export function AppSidebar() {
               <SidebarMenuItem key={item.label} className="mb-1">
                 <SidebarMenuButton
                   asChild
-                  isActive={isActive} // Relies on data-active prop and internal variants
+                  isActive={isActive}
                   tooltip={{ children: item.label, side: "right", align: "center" }}
                   className={cn(
                     "justify-start h-11 rounded-lg text-sm",
                     "focus-visible:ring-sidebar-ring focus-visible:ring-offset-0 focus-visible:ring-offset-sidebar-background"
-                    // Removed explicit: isActive && "bg-sidebar-accent text-sidebar-accent-foreground"
-                    // This is handled by data-active={isActive} and the component's variants
                   )}
                 >
                   <Link href={item.href} className="flex items-center gap-3 px-3">
@@ -112,16 +110,7 @@ export function AppSidebar() {
             <span className="group-data-[collapsible=icon]:hidden ml-3">{open ? "Collapse" : "Expand"}</span>
           </Button>
         )}
-         <Button 
-            variant="ghost" 
-            asChild
-            className="w-full justify-start group-data-[collapsible=icon]:justify-center h-11 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground mt-2"
-          >
-            <Link href="https://github.com/firebase/genkit/tree/main/studio" target="_blank" rel="noopener noreferrer">
-              <GithubIcon className="h-5 w-5 flex-shrink-0" />
-              <span className="group-data-[collapsible=icon]:hidden ml-3">View on GitHub</span>
-            </Link>
-          </Button>
+        {/* Removed GitHub link button */}
       </SidebarFooter>
     </Sidebar>
   );
