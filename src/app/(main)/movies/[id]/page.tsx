@@ -1,21 +1,20 @@
 // src/app/(main)/movies/[id]/page.tsx
 import { getMovieDetails, getFullImagePath } from "@/lib/tmdb";
 import type { TMDBMovie, TMDBVideo } from "@/types/tmdb";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDaysIcon, ClockIcon, DownloadIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon } from "lucide-react";
+import { CalendarDaysIcon, ClockIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, StarIcon } from "lucide-react";
 import Link from "next/link";
 import { MovieClientContent } from "@/components/features/movies/MovieClientContent";
+import { MovieDownloadCard } from "@/components/features/movies/MovieDownloadCard"; // Import the new component
 
 interface MovieDetailsPageProps {
   params: { id: string };
 }
 
 export default async function MovieDetailsPage({ params }: MovieDetailsPageProps) {
-  let movie: TMDBMovie | null = null;
+  let movie: (TMDBMovie & { magnetLink?: string }) | null = null; // Ensure magnetLink is part of the type
   let trailerKey: string | null = null;
   let error: string | null = null;
 
@@ -23,6 +22,7 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
     error = "Movie ID not found.";
   } else {
     try {
+      // getMovieDetails should already include magnetLink if found
       const movieData = await getMovieDetails(params.id);
       movie = movieData;
 
@@ -54,7 +54,6 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
   }
 
   if (!movie) {
-    // This case should ideally be caught by the error block if params.id was valid but movie not found by API
     return (
       <div className="flex flex-col items-center justify-center h-[70vh] text-center p-6">
         <FilmIcon className="w-24 h-24 text-muted-foreground mb-6" />
@@ -67,50 +66,13 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
     );
   }
 
-  const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "4K (UHD)", "2K (QHD)"];
-
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
       <MovieClientContent movie={movie} trailerKey={trailerKey}>
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-4 lg:col-span-3">
-            <Card className="overflow-hidden shadow-xl sticky top-24">
-              <div className="aspect-[2/3] relative w-full bg-muted">
-                <Image
-                  src={getFullImagePath(movie.poster_path, "w500")}
-                  alt={`${movie.title} poster`}
-                  fill
-                  className="object-cover"
-                  data-ai-hint="movie poster"
-                  sizes="(max-width: 767px) 100vw, (max-width: 1023px) 33vw, 25vw"
-                />
-              </div>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold mb-1">Download Movie</h3>
-                  <Select defaultValue={qualities[0]}>
-                    <SelectTrigger className="w-full h-11 text-sm">
-                      <SelectValue placeholder="Select quality" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {qualities.map(quality => (
-                        <SelectItem key={quality} value={quality} className="text-sm">{quality}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button size="lg" className="w-full mt-2 h-12">
-                    <DownloadIcon className="mr-2 h-5 w-5" /> Download
-                  </Button>
-                </div>
-                {movie.homepage && (
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href={movie.homepage} target="_blank" rel="noopener noreferrer">
-                      <ExternalLinkIcon className="mr-2 h-4 w-4" /> Visit Homepage
-                    </Link>
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            {/* Replace the old card content with the new Client Component */}
+            <MovieDownloadCard movie={movie} />
           </div>
 
           <div className="md:col-span-8 lg:col-span-9 space-y-8">

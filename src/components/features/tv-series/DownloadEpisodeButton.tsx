@@ -3,75 +3,118 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon } from "lucide-react";
+import { DownloadIcon, PlayIcon } from "lucide-react"; // Added PlayIcon
 import { useToast } from "@/hooks/use-toast";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { getEpisodeMagnetLink } from "@/lib/tmdb"; // To fetch magnet link
+import { useWebTorrent } from "@/contexts/WebTorrentContext"; // Import the hook
+// Removed quality selector as it's not directly used by the current episode torrent search
+// If quality selection is desired for episodes, the backend API and torrent search logic would need an update.
 
 interface DownloadEpisodeButtonProps {
-  seriesId: number | string;
+  seriesId: number | string; // TMDB ID of the series
+  seriesTitle: string; // Title of the series, needed for magnet link search
   seasonNumber: number;
   episodeNumber: number;
   episodeName: string;
 }
 
-const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "4K (UHD)", "2K (QHD)"];
-
 export function DownloadEpisodeButton({
   seriesId,
+  seriesTitle,
   seasonNumber,
   episodeNumber,
   episodeName,
 }: DownloadEpisodeButtonProps) {
   const { toast } = useToast();
-  const [selectedQuality, setSelectedQuality] = useState(qualities[0]);
+  const { addTorrent, getTorrentInstance } = useWebTorrent(); // Get addTorrent and getTorrentInstance from context
+  const [isLoading, setIsLoading] = useState(false);
+  const [magnetLink, setMagnetLink] = useState<string | null>(null);
+  const [isFetchingMagnet, setIsFetchingMagnet] = useState(false);
 
-  const handleDownloadEpisode = (e: React.MouseEvent) => {
-    // e.stopPropagation(); // Already handled by button click, select is separate
-    const episodeId = `S${String(seasonNumber).padStart(2, "0")}E${String(
-      episodeNumber
-    ).padStart(2, "0")}`;
+  const episodeIdString = `S${String(seasonNumber).padStart(2, "0")}E${String(
+    episodeNumber
+  ).padStart(2, "0")}`;
+  const uniqueItemId = `${seriesId}-${episodeIdString}`;
+
+  // Check if torrent already exists when component mounts or props change
+  // This is a basic check; more sophisticated state might be needed for a "Watch" button state
+  // if the torrent is already fully downloaded and ready to play.
+
+  const handleFetchAndDownload = async () => {
+    setIsLoading(true);
+    setIsFetchingMagnet(true);
     console.log(
-      `Download ${episodeId}: ${episodeName} for series ${seriesId} in ${selectedQuality}`
+      `[DownloadEpisodeButton] Clicked Download for ${seriesTitle} ${episodeIdString}: ${episodeName}`
     );
-    // Implement actual download logic here
-    toast({
-      title: "Download Started (Episode)",
-      description: `${episodeId} - ${episodeName} (${selectedQuality}) is being prepared for download.`,
-    });
+
+    try {
+      const fetchedMagnetLink = await getEpisodeMagnetLink(
+        seriesTitle,
+        seasonNumber,
+        episodeNumber
+      );
+      setIsFetchingMagnet(false);
+
+      if (fetchedMagnetLink) {
+        setMagnetLink(fetchedMagnetLink);
+        const torrent = addTorrent(fetchedMagnetLink, `${seriesTitle} - ${episodeIdString} - ${episodeName}`, uniqueItemId);
+        if (torrent) {
+          toast({
+            title: "Download Started",
+            description: `${episodeName} is being added to your active downloads.`,
+          });
+        } else {
+          toast({
+            title: "Already in Downloads",
+            description: `${episodeName} is already in your active downloads or failed to add.`,
+            variant: "default",
+          });
+        }
+      } else {
+        toast({
+          title: "Download Failed",
+          description: `Could not find a download link for ${episodeName}.`,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error("[DownloadEpisodeButton] Error fetching magnet or adding torrent:", error);
+      setIsFetchingMagnet(false);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while trying to start the download.",
+        variant: "destructive",
+      });
+    }
+    setIsLoading(false);
   };
+  
+  // A more sophisticated approach would be to check torrent.status from useWebTorrent().torrents
+  // to show "Watch" if done, or "Downloading..." if in progress.
+  // For now, it's a simple download button.
 
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0 self-start sm:self-center">
-      <Select value={selectedQuality} onValueChange={setSelectedQuality}>
-        <SelectTrigger className="w-full sm:w-[150px] h-9 text-xs">
-          <SelectValue placeholder="Select quality" />
-        </SelectTrigger>
-        <SelectContent>
-          {qualities.map((quality) => (
-            <SelectItem key={quality} value={quality} className="text-xs">
-              {quality}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Quality selector removed for now, can be re-added if backend supports it */}
       <Button
         size="sm"
         variant="ghost"
         className="flex-shrink-0 text-primary hover:text-primary/80 h-9"
-        onClick={handleDownloadEpisode}
-        aria-label={`Download episode S${String(seasonNumber).padStart(
-          2,
-          "0"
-        )}E${String(episodeNumber).padStart(2, "0")}: ${episodeName} in ${selectedQuality}`}
+        onClick={handleFetchAndDownload}
+        disabled={isLoading || isFetchingMagnet}
+        aria-label={`Download episode ${episodeIdString}: ${episodeName}`}
       >
-        <DownloadIcon className="mr-2 h-4 w-4" /> Download Episode
+        {isFetchingMagnet ? (
+            <DownloadIcon className="mr-2 h-4 w-4 animate-pulse" /> 
+        ) : (
+            <DownloadIcon className="mr-2 h-4 w-4" />
+        )}
+        {isLoading ? (isFetchingMagnet ? 'Fetching Link...' : 'Adding...') : 'Download Episode'}
       </Button>
+      {/* Example of a "Watch" button - would need more logic */}
+      {/* <Button size="sm" variant="outline" className="h-9" disabled={!torrent?.done}>
+        <PlayIcon className="mr-2 h-4 w-4" /> Watch
+      </Button> */}
     </div>
   );
 }

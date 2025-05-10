@@ -1,215 +1,242 @@
 // src/app/(main)/downloads/page.tsx
+"use client";
+
+import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { DownloadCloudIcon, PlayCircleIcon, PauseCircleIcon, XCircleIcon, FolderOpenIcon, Trash2Icon, RefreshCwIcon, HistoryIcon, ListChecksIcon, ArrowUpDownIcon, FileTextIcon } from "lucide-react";
+import { 
+    DownloadCloudIcon, PlayCircleIcon, PauseCircleIcon, XCircleIcon, 
+    FolderOpenIcon, Trash2Icon, RefreshCwIcon, HistoryIcon, 
+    ListChecksIcon, FileTextIcon, Loader2Icon, CheckCircle2Icon, AlertTriangleIcon, InfoIcon
+} from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { useWebTorrent } from "@/contexts/WebTorrentContext";
+import { TorrentProgress, HistoryItem } from "@/lib/webtorrent-service";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
+import { formatBytes } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function DownloadsPage() {
-  const activeDownloads = [
-    { id: 1, name: "Epic Movie Adventure The Lost Horizon.mkv", progress: 65, speed: "2.5 MB/s", eta: "5 min", status: "downloading" as const, size: "1.2 GB / 2.0 GB" },
-    { id: 2, name: "Popular TV Show S01E01 Pilot Episode.mp4", progress: 30, speed: "1.2 MB/s", eta: "12 min", status: "downloading" as const, size: "300 MB / 1.0 GB" },
-    { id: 6, name: "Sci-Fi Short Film The Glitch.webm", progress: 85, speed: "0.8 MB/s", eta: "2 min", status: "paused" as const, size: "170 MB / 200 MB" },
-  ];
+  const {
+    torrents: activeDownloads,
+    history: downloadHistory,
+    removeTorrent,
+    pauseTorrent,
+    resumeTorrent,
+    getTorrentInstance,
+    getLargestFileForStreaming,
+    clearDownloadHistory,
+    removeDownloadFromHistory,
+    addTorrent // For re-adding/retrying failed torrents
+  } = useWebTorrent();
+  const { toast } = useToast();
 
-  const completedDownloads = [
-    { id: 3, name: "Another Great Film The Director's Cut.mp4", status: "completed" as const, date: "2024-07-20", size: "3.5 GB" },
-    { id: 4, name: "Documentary Series Part 1 The Beginning.avi", status: "completed" as const, date: "2024-07-19", size: "1.8 GB" },
-    { id: 5, name: "Failed Download Attempt Corrupted File.webm", status: "failed" as const, date: "2024-07-18", size: "N/A" },
-  ];
-
-  const getStatusBadge = (status: "downloading" | "paused" | "completed" | "failed") => {
+  const getStatusInfo = (status: TorrentProgress['status'] | HistoryItem['status']) => {
     switch (status) {
       case "downloading":
-        return <Badge variant="default" className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30">Downloading</Badge>;
+        return { badge: <Badge variant="default" className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30">Downloading</Badge> };
       case "paused":
-        return <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30">Paused</Badge>;
+        return { badge: <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30">Paused</Badge> };
       case "completed":
-        return <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30">Completed</Badge>;
+      case "done":
+      case "seeding":
+        return { badge: <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30">Completed</Badge> };
       case "failed":
-        return <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">Failed</Badge>;
+      case "error":
+        return { badge: <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">Failed</Badge> };
+      case "connecting":
+        return { badge: <Badge variant="outline" className="animate-pulse">Connecting...</Badge> };
+      case "removed":
+        return { badge: <Badge variant="outline">Removed</Badge> };
+      case "active": // History status for items still in active queue
+         return { badge: <Badge variant="outline">In Queue</Badge> };
       default:
-        return <Badge variant="outline">Unknown</Badge>;
+        return { badge: <Badge variant="outline">Unknown</Badge> };
     }
   };
 
+  const handlePlay = async (torrentIdOrMagnet: string, isMagnet = false) => {
+    toast({ title: "Preparing Stream", description: "Attempting to stream the largest file..." });
+    let infoHash = torrentIdOrMagnet;
+    if (isMagnet) {
+        const existingTorrent = getTorrentInstance(torrentIdOrMagnet);
+        if (existingTorrent) {
+            infoHash = existingTorrent.infoHash;
+        } else {
+            const newTorrent = addTorrent(torrentIdOrMagnet, "Streaming item"); // Add if not already active
+            if (!newTorrent || !newTorrent.infoHash) {
+                toast({ title: "Stream Failed", description: "Could not start torrent for streaming.", variant: "destructive" });
+                return;
+            }
+            infoHash = newTorrent.infoHash;
+            // Wait a moment for metadata to be fetched if it's a new torrent
+            await new Promise(resolve => setTimeout(resolve, 2000)); 
+        }
+    }
+
+    const streamData = await getLargestFileForStreaming(infoHash);
+    if (streamData && streamData.streamUrl) {
+      console.log("[DownloadsPage] Stream URL:", streamData.streamUrl);
+      toast({ title: "Streaming Ready", description: `Player UI for ${streamData.file.name} would open here.` });
+      // TODO: Implement an actual video player modal
+      window.open(streamData.streamUrl, '_blank');
+    } else {
+      toast({ title: "Stream Failed", description: "Could not prepare the file for streaming.", variant: "destructive" });
+    }
+  };
+  
+  const handleRetryDownload = (item: HistoryItem) => {
+    if (item.magnetURI) {
+      addTorrent(item.magnetURI, item.name, item.itemId);
+      toast({ title: "Retrying Download", description: `Adding ${item.name} back to active queue.`});
+    } else {
+      toast({ title: "Retry Failed", description: "Magnet URI not found for this item.", variant: "destructive"});
+    }
+  };
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-4xl font-bold tracking-tight">Downloads</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage your active and completed downloads.
-          </p>
+          <p className="text-muted-foreground mt-1">Manage your active and completed downloads.</p>
         </div>
       </div>
 
       <Tabs defaultValue="active" className="w-full">
         <TabsList className="grid w-full grid-cols-2 gap-x-1.5 rounded-lg p-1.5 bg-muted">
-          <TabsTrigger value="active" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
-            <DownloadCloudIcon className="h-5 w-5" /> Active Downloads
-          </TabsTrigger>
-          <TabsTrigger value="history" className="px-6 py-2.5 text-base data-[state=active]:bg-primary data-[state=active]:text-primary-foreground flex items-center gap-2">
-            <HistoryIcon className="h-5 w-5" /> Download History
-          </TabsTrigger>
+          <TabsTrigger value="active">Active Downloads</TabsTrigger>
+          <TabsTrigger value="history">Download History</TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="mt-8">
-          <Card className="shadow-2xl border-border/40 overflow-hidden">
-            <CardHeader className="bg-card/50 p-6 border-b border-border/30">
-              <CardTitle className="text-2xl font-semibold flex items-center">
-                <ListChecksIcon className="mr-3 h-6 w-6 text-primary" />
-                Active Queue
-              </CardTitle>
-              <CardDescription>Downloads currently in progress or paused.</CardDescription>
-            </CardHeader>
+          <Card className="shadow-lg border-border/40 overflow-hidden">
+            <CardHeader><CardTitle>Active Queue</CardTitle></CardHeader>
             <CardContent className="p-0">
               {activeDownloads.length > 0 ? (
                 <div className="divide-y divide-border/30">
-                {activeDownloads.map((download, index) => (
-                  <div key={download.id} className="p-6 hover:bg-muted/30 transition-colors duration-150">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                      <div className="flex-grow min-w-0"> 
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <FileTextIcon className="h-6 w-6 text-muted-foreground/80 flex-shrink-0" />
-                          <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
+                  {activeDownloads.map((download) => {
+                    const { badge: statusBadge } = getStatusInfo(download.status);
+                    const torrentInstance = getTorrentInstance(download.torrentId);
+                    return (
+                      <div key={download.torrentId} className="p-4 md:p-6 hover:bg-muted/30">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div className="flex-grow min-w-0">
+                            <h3 className="font-semibold text-md md:text-lg truncate mb-1" title={download.customName || download.torrentId}>{download.customName || 'Fetching name...'}</h3>
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs md:text-sm text-muted-foreground">
+                              {statusBadge}
+                              <span>&bull;</span>
+                              <span>{formatBytes(download.downloaded)} / {download.length ? formatBytes(download.length) : 'N/A'}</span>
+                              {(download.status === 'downloading' || download.status === 'connecting') && download.downloadSpeed > 0 && (
+                                <><span className="hidden sm:inline">&bull;</span><span>{formatBytes(download.downloadSpeed)}/s</span></>
+                              )}
+                              {download.status === 'downloading' && download.remainingTime !== undefined && Number.isFinite(download.remainingTime) && download.remainingTime > 0 && (
+                                <><span className="hidden sm:inline">&bull;</span><span>ETA: {new Date(download.remainingTime).toISOString().substr(11, 8)}</span></>
+                              )}
+                              <span className="hidden sm:inline">&bull;</span><span>Peers: {download.peers}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
+                            {(download.status === 'downloading' || download.status === 'connecting') && (
+                              <Button variant="ghost" size="icon" aria-label="Pause" onClick={() => pauseTorrent(download.torrentId)}><PauseCircleIcon className="h-5 w-5" /></Button>
+                            )}
+                            {download.status === 'paused' && (
+                              <Button variant="ghost" size="icon" aria-label="Resume" onClick={() => resumeTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                            )}
+                            {(download.status === 'done' || download.status === 'seeding' || (torrentInstance && torrentInstance.files.length > 0)) && (
+                              <Button variant="ghost" size="icon" aria-label="Play/Stream" onClick={() => handlePlay(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="text-destructive" aria-label="Remove" onClick={() => removeTorrent(download.torrentId)}><XCircleIcon className="h-5 w-5" /></Button>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground ml-9">
-                          {getStatusBadge(download.status)}
-                          <span className="hidden sm:inline">&bull;</span>
-                          <span className="hidden sm:inline">{download.size}</span>
-                          {download.status === 'downloading' && (
-                            <>
-                              <span className="hidden sm:inline">&bull;</span>
-                              <span>{download.speed}</span>
-                              <span className="hidden sm:inline">&bull;</span>
-                              <span>{download.eta}</span>
-                            </>
-                          )}
-                        </div>
+                        <Progress value={download.progress * 100} className="mt-3 h-1.5 md:h-2" indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : download.status === 'error' ? 'bg-red-500' : (download.status === 'done' || download.status === 'seeding' ) ? 'bg-green-500' : 'bg-primary'} />
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0 mt-3 sm:mt-0 self-start sm:self-center">
-                        {download.status === 'downloading' && (
-                          <Button variant="ghost" size="icon" aria-label="Pause" className="hover:bg-yellow-500/10 text-yellow-400 hover:text-yellow-300">
-                            <PauseCircleIcon className="h-6 w-6" />
-                          </Button>
-                        )}
-                        {download.status === 'paused' && (
-                           <Button variant="ghost" size="icon" aria-label="Resume" className="hover:bg-green-500/10 text-green-400 hover:text-green-300">
-                            <PlayCircleIcon className="h-6 w-6" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Cancel">
-                          <XCircleIcon className="h-6 w-6" />
-                        </Button>
-                      </div>
-                    </div>
-                    <Progress 
-                      value={download.progress} 
-                      className="mt-4 h-2" 
-                      indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : 'bg-primary'} 
-                    />
-                  </div>
-                ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-16 px-6">
-                  <DownloadCloudIcon className="mx-auto h-20 w-20 text-muted-foreground/50 mb-6" />
-                  <h3 className="text-2xl font-semibold text-muted-foreground">Your Active Downloads Queue is Empty</h3>
-                  <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-                    Start adding movies or TV series to see them here. They will appear once processing begins.
-                  </p>
-                  <Button variant="outline" className="mt-6">Find Something to Download</Button>
+                <div className="text-center py-12 px-6">
+                  <DownloadCloudIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-xl font-semibold text-muted-foreground">Active Downloads Queue is Empty</h3>
+                  <Button variant="outline" className="mt-4" asChild><Link href="/home">Find Something to Download</Link></Button>
                 </div>
               )}
             </CardContent>
-            {activeDownloads.length > 0 && (
-              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <p className="text-sm text-muted-foreground">Manage all active downloads.</p>
-                <div className="flex gap-3">
-                  <Button variant="outline">Pause All</Button>
-                  <Button variant="destructive">Cancel All</Button>
-                </div>
-              </CardFooter>
-            )}
           </Card>
         </TabsContent>
 
         <TabsContent value="history" className="mt-8">
-          <Card className="shadow-2xl border-border/40 overflow-hidden">
-            <CardHeader className="bg-card/50 p-6 border-b border-border/30">
-              <CardTitle className="text-2xl font-semibold flex items-center">
-                <HistoryIcon className="mr-3 h-6 w-6 text-primary" />
-                Download History
-              </CardTitle>
-              <CardDescription>Review your past download activity.
-                 <div className="mt-4 flex items-center gap-2">
-                    <Button variant="outline" size="sm">
-                        <ArrowUpDownIcon className="mr-2 h-4 w-4" /> Sort by Date
-                    </Button>
-                    <Button variant="outline" size="sm">
-                        Filter by Status
-                    </Button>
-                 </div>
-              </CardDescription>
+          <Card className="shadow-lg border-border/40 overflow-hidden">
+            <CardHeader className="flex flex-row justify-between items-center">
+                <CardTitle>Download History</CardTitle>
+                {downloadHistory.length > 0 && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm"><Trash2Icon className="mr-2 h-4 w-4"/> Clear All History</Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete your entire download history. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction onClick={clearDownloadHistory}>Confirm Clear</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
             </CardHeader>
             <CardContent className="p-0">
-              {completedDownloads.length > 0 ? (
+              {downloadHistory.length > 0 ? (
                 <div className="divide-y divide-border/30">
-                {completedDownloads.map(download => (
-                  <div key={download.id} className={`p-6 hover:bg-muted/30 transition-colors duration-150 ${download.status === 'failed' ? 'bg-destructive/5 hover:bg-destructive/10' : ''}`}>
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                       <div className="flex-grow min-w-0"> 
-                        <div className="flex items-center gap-3 mb-1.5">
-                          <FileTextIcon className="h-6 w-6 text-muted-foreground/80 flex-shrink-0" />
-                          <h3 className="font-semibold text-lg truncate" title={download.name}>{download.name}</h3>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground ml-9">
-                           {getStatusBadge(download.status)}
-                           <span className="hidden sm:inline">&bull;</span>
-                           <span>{download.date}</span>
-                           <span className="hidden sm:inline">&bull;</span>
-                           <span>{download.size}</span>
+                  {downloadHistory.map(item => {
+                    const { badge: statusBadge } = getStatusInfo(item.status);
+                    return (
+                      <div key={item.infoHash} className={`p-4 md:p-6 hover:bg-muted/30 ${item.status === 'failed' ? 'opacity-70' : ''}`}>
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                          <div className="flex-grow min-w-0">
+                            <h3 className="font-semibold text-md md:text-lg truncate mb-1" title={item.name}>{item.name}</h3>
+                            <div className="flex items-center flex-wrap gap-x-2 gap-y-1 text-xs md:text-sm text-muted-foreground">
+                              {statusBadge}
+                              <span>&bull;</span>
+                              <span>Added: {new Date(item.addedDate).toLocaleDateString()}</span>
+                              {item.completedDate && <><span className="hidden sm:inline">&bull;</span><span>Finished: {new Date(item.completedDate).toLocaleDateString()}</span></>}
+                              {item.size && <><span className="hidden sm:inline">&bull;</span><span>Size: {formatBytes(item.size)}</span></>}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
+                            {item.status === 'completed' && item.magnetURI && (
+                                <Button variant="ghost" size="icon" title="Stream/Play again" onClick={() => handlePlay(item.magnetURI, true)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                            )}
+                            {item.status === 'failed' && item.magnetURI && (
+                              <Button variant="ghost" size="icon" title="Retry Download" onClick={() => handleRetryDownload(item)}><RefreshCwIcon className="h-5 w-5" /></Button>
+                            )}
+                            <Button variant="ghost" size="icon" className="text-destructive" title="Remove from History" onClick={() => removeDownloadFromHistory(item.infoHash)}><Trash2Icon className="h-5 w-5" /></Button>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex gap-2 flex-shrink-0 mt-3 sm:mt-0 self-start sm:self-center">
-                        {download.status === 'completed' && (
-                          <Button variant="ghost" size="icon" aria-label="Open folder" className="hover:bg-accent/10 text-accent hover:text-accent/80">
-                            <FolderOpenIcon className="h-6 w-6" />
-                          </Button>
-                        )}
-                        {download.status === 'failed' && (
-                          <Button variant="ghost" size="icon" aria-label="Retry download" className="hover:bg-primary/10 text-primary hover:text-primary/80">
-                            <RefreshCwIcon className="h-6 w-6" />
-                          </Button>
-                        )}
-                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" aria-label="Delete from history">
-                          <Trash2Icon className="h-6 w-6" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="text-center py-16 px-6">
-                  <HistoryIcon className="mx-auto h-20 w-20 text-muted-foreground/50 mb-6" />
-                  <h3 className="text-2xl font-semibold text-muted-foreground">No Download History</h3>
-                  <p className="text-muted-foreground mt-2 max-w-md mx-auto">
-                    Completed or failed downloads will appear here.
-                  </p>
+                <div className="text-center py-12 px-6">
+                  <HistoryIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
+                  <h3 className="text-xl font-semibold text-muted-foreground">No Download History</h3>
+                  <p className="text-muted-foreground mt-1">Completed or failed downloads will appear here.</p>
                 </div>
               )}
             </CardContent>
-             {completedDownloads.length > 0 && (
-              <CardFooter className="p-6 bg-card/50 border-t border-border/30 flex flex-col sm:flex-row justify-between items-center gap-3">
-                 <p className="text-sm text-muted-foreground">Manage your download history.</p>
-                <Button variant="destructive">Clear History</Button>
-              </CardFooter>
-            )}
           </Card>
         </TabsContent>
       </Tabs>
