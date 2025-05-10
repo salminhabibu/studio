@@ -17,7 +17,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); // Last 50 years
 
 const ORIGIN_COUNTRIES = [
-  { label: "Any Origin", value: "" },
+  { label: "Any Origin", value: "0" }, // Changed from "" to "0"
   { label: "Hollywood (US)", value: "US" },
   { label: "Nollywood (NG)", value: "NG" },
   { label: "Bollywood (IN)", value: "IN" },
@@ -125,7 +125,7 @@ export default function MoviesPage() {
   };
 
   const handleOriginChange = (originCode: string) => {
-    setSelectedOrigin(originCode);
+    setSelectedOrigin(originCode === "0" ? "" : originCode); // Treat "0" as "Any Origin"
     handleFilterChange();
   };
 
@@ -188,7 +188,7 @@ export default function MoviesPage() {
           </div>
           <div className="space-y-1.5">
             <label htmlFor="origin-filter" className="text-sm font-medium text-muted-foreground">Origin</label>
-            <Select value={selectedOrigin} onValueChange={handleOriginChange}>
+            <Select value={selectedOrigin || "0"} onValueChange={handleOriginChange}>
               <SelectTrigger id="origin-filter" className="h-10">
                 <SelectValue placeholder="Select Origin" />
               </SelectTrigger>
@@ -294,3 +294,4 @@ export default function MoviesPage() {
     </div>
   );
 }
+
