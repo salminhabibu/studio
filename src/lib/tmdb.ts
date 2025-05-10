@@ -19,7 +19,7 @@ interface YTSMovieTorrent {
   date_uploaded_unix: number;
 }
 
-interface YTSMovie {
+interface YTSMovieDetail { // Renamed to avoid conflict with TMDBMovie
   id: number;
   imdb_code: string;
   title: string;
@@ -31,7 +31,7 @@ interface YTSResponseData {
   movie_count: number;
   limit: number;
   page_number: number;
-  movies?: YTSMovie[];
+  movies?: YTSMovieDetail[];
 }
 
 interface YTSResponse {
@@ -85,40 +85,77 @@ export async function getMovieDetails(movieId: number | string): Promise<TMDBMov
   const movieDetails = await fetchTMDB<TMDBMovie>(`movie/${movieId}`, { append_to_response: 'videos,external_ids' });
 
   if (movieDetails.imdb_id) {
-    console.log(`[Torrent Search] YTS for IMDB ID: ${movieDetails.imdb_id}`);
+    console.log(`[TMDB Details - YTS Search] Attempting YTS search for IMDB ID: ${movieDetails.imdb_id} for movie: ${movieDetails.title}`);
     try {
-      const ytsResponse = await fetch(`https://yts.mx/api/v2/list_movies.json?query_term=${movieDetails.imdb_id}`);
+      const ytsQueryUrl = `https://yts.mx/api/v2/list_movies.json?query_term=${movieDetails.imdb_id}&limit=1&sort_by=seeds`;
+      console.log(`[TMDB Details - YTS Search] YTS Query URL: ${ytsQueryUrl}`);
+      const ytsResponse = await fetch(ytsQueryUrl);
+      
       if (!ytsResponse.ok) {
-        console.warn(`[WARN] YTS API request failed for ${movieDetails.imdb_id} with status: ${ytsResponse.status}`);
+        console.warn(`[TMDB Details - YTS Search] YTS API request failed for ${movieDetails.imdb_id}. Status: ${ytsResponse.status} ${ytsResponse.statusText}`);
+        try {
+            const errorBody = await ytsResponse.json();
+            console.warn(`[TMDB Details - YTS Search] YTS Error Body:`, errorBody);
+        } catch (e) {
+            console.warn(`[TMDB Details - YTS Search] Could not parse YTS error body.`);
+        }
       } else {
         const ytsData: YTSResponse = await ytsResponse.json();
-        if (ytsData.data && ytsData.data.movies && ytsData.data.movies.length > 0) {
+        console.log(`[TMDB Details - YTS Search] YTS API Response for ${movieDetails.imdb_id}: Status: ${ytsData.status}, Movies found: ${ytsData.data?.movie_count}`);
+
+        if (ytsData.status === 'ok' && ytsData.data && ytsData.data.movies && ytsData.data.movies.length > 0) {
           const movie = ytsData.data.movies[0];
+          console.log(`[TMDB Details - YTS Search] Found YTS movie: ${movie.title}, Torrents available: ${movie.torrents?.length}`);
+          
           if (movie.torrents && movie.torrents.length > 0) {
-            let bestTorrent = movie.torrents.find(t => t.quality === '1080p');
+            let bestTorrent = movie.torrents.find(t => t.quality === '1080p' && t.seeds > 0);
             if (!bestTorrent) {
-              bestTorrent = movie.torrents.find(t => t.quality === '720p');
+              bestTorrent = movie.torrents.find(t => t.quality === '720p' && t.seeds > 0);
             }
             if (!bestTorrent) {
-              // Fallback to highest seed count if specific qualities not found
-              bestTorrent = movie.torrents.reduce((prev, current) => (prev.seeds > current.seeds) ? prev : current);
+              // Fallback to highest seed count if specific qualities not found or have 0 seeds
+              bestTorrent = movie.torrents.filter(t => t.seeds > 0).sort((a, b) => (b.seeds || 0) - (a.seeds || 0))[0];
             }
+            // Ensure a torrent was actually found after filtering
+            if (!bestTorrent && movie.torrents.length > 0) {
+                bestTorrent = movie.torrents.sort((a,b) => (b.seeds || 0) - (a.seeds || 0))[0]; // last resort, pick any with most seeds even if 0
+            }
+
+
             if (bestTorrent) {
-              const magnet = `magnet:?xt=urn:btih:${bestTorrent.hash}&dn=${encodeURIComponent(movie.title)}&tr=udp://tracker.openbittorrent.com:80&tr=udp://tracker.opentrackr.org:1337/announce`;
-              console.log(`[Magnet Found] For ${movieDetails.title}: ${magnet}`);
+              const trackers = [
+                'udp://tracker.openbittorrent.com:80/announce',
+                'udp://tracker.opentrackr.org:1337/announce',
+                'udp://tracker.torrent.eu.org:451/announce',
+                'udp://tracker.dler.org:6969/announce',
+                'udp://open.stealth.si:80/announce',
+                'udp://exodus.desync.com:6969/announce',
+                'udp://tracker.tiny-vps.com:6969/announce',
+                'udp://tracker.internetwarriors.net:1337/announce',
+                'udp://tracker.cyberia.is:6969/announce',
+                'udp://tracker.ololosh.space:6969/announce',
+              ].map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
+
+              const magnet = `magnet:?xt=urn:btih:${bestTorrent.hash}&dn=${encodeURIComponent(movie.title)}${trackers}`;
+              console.log(`[TMDB Details - YTS Search] Magnet found for ${movieDetails.title} (Quality: ${bestTorrent.quality}, Seeds: ${bestTorrent.seeds}, Type: ${bestTorrent.type})`);
               return { ...movieDetails, magnetLink: magnet };
+            } else {
+                 console.warn(`[TMDB Details - YTS Search] No suitable torrent (with seeds or matching quality) found in YTS movie torrents list for ${movieDetails.title}`);
             }
+          } else {
+             console.warn(`[TMDB Details - YTS Search] YTS movie found but no torrents listed for ${movieDetails.title}`);
           }
+        } else {
+          console.warn(`[TMDB Details - YTS Search] No movies found on YTS for IMDB ID: ${movieDetails.imdb_id} (Movie: ${movieDetails.title}). YTS Status: ${ytsData.status_message}`);
         }
-        console.warn(`[WARN] No torrents found on YTS for: ${movieDetails.title} (IMDB: ${movieDetails.imdb_id})`);
       }
     } catch (error) {
-      console.error(`[WARN] Error fetching from YTS API for ${movieDetails.imdb_id}:`, error);
+      console.error(`[TMDB Details - YTS Search] Error fetching or processing data from YTS API for ${movieDetails.imdb_id}:`, error);
     }
   } else {
-    console.warn(`[WARN] No IMDB ID found for YTS search for movie: ${movieDetails.title}`);
+    console.warn(`[TMDB Details - YTS Search] No IMDB ID found for movie: "${movieDetails.title}". Cannot search YTS.`);
   }
-  return movieDetails;
+  return movieDetails; // Return movieDetails without magnetLink if YTS search fails or yields no result
 }
 
 export async function getMovieVideos(movieId: number | string): Promise<TMDBVideoResponse> {
@@ -142,26 +179,25 @@ export async function getTvSeasonDetails(tvId: number | string, seasonNumber: nu
 
 export async function getEpisodeMagnetLink(seriesTitle: string, seasonNumber: number, episodeNumber: number): Promise<string | null> {
   const query = `${seriesTitle} S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
-  console.log(`[Client-side Torrent Search] Requesting magnet for: ${query}`);
+  const apiUrl = `/api/torrents/tv?title=${encodeURIComponent(seriesTitle)}&season=${seasonNumber}&episode=${episodeNumber}`;
+  console.log(`[Client-side Torrent Search] Requesting magnet for: "${query}" via API: ${apiUrl}`);
   try {
-    // Corrected query parameters to match API route expectations (title, season, episode)
-    const response = await fetch(`/api/torrents/tv?title=${encodeURIComponent(seriesTitle)}&season=${seasonNumber}&episode=${episodeNumber}`);
+    const response = await fetch(apiUrl);
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Failed to fetch episode magnet link' }));
-      console.warn(`[WARN] API request for magnet link failed for ${query} with status: ${response.status}. Message: ${errorData.error}`);
+      const errorData = await response.json().catch(() => ({ error: `API request failed with status: ${response.status}` }));
+      console.warn(`[Client-side Magnet Search] API request for magnet link failed for "${query}". Status: ${response.status}. Message: ${errorData.error}`);
       return null;
     }
     const data = await response.json();
-    // Corrected to access data.magnet as per the API route's response
     if (data.magnet) {
-      console.log(`[Client-side Magnet Found] For ${query}: ${data.magnet}`);
+      console.log(`[Client-side Magnet Search] Magnet found via API for "${query}".`);
       return data.magnet;
     } else {
-      console.warn(`[Client-side WARN] No torrents found via API for: ${query}. Message: ${data.error || 'No magnet link in response'}`);
+      console.warn(`[Client-side Magnet Search] No magnet link in API response for "${query}". Message: ${data.error || 'No magnet field'}`);
       return null;
     }
   } catch (error) {
-    console.error(`[Client-side ERROR] Error fetching episode magnet link for ${query}:`, error);
+    console.error(`[Client-side Magnet Search] Error fetching episode magnet link for "${query}":`, error);
     return null;
   }
 }
@@ -181,12 +217,21 @@ export async function searchMulti(query: string, page: number = 1): Promise<TMDB
 
 export function getFullImagePath(filePath: string | null | undefined, size: string = "w500"): string {
   if (!filePath) {
-    const width = size === "original" || size === "w1280" || size === "w780" ? 600 : 300;
-    const height = size === "original" || size === "w1280" || size === "w780" ? 338 : 450;
-    const seed = filePath || 'placeholder';
-    // Using a more specific placeholder service if picsum.photos is too generic or causes issues.
-    // For now, keeping picsum.photos as per original, but this could be a point of refinement.
-    return `https://picsum.photos/seed/${seed}/${width}/${height}`;
+    // Determine placeholder dimensions based on typical aspect ratios for posters vs backdrops
+    let width = 300;
+    let height = 450; // Poster-like aspect ratio
+    if (size === "original" || size.startsWith("w") && parseInt(size.substring(1)) >= 780) { // typically backdrop sizes
+        width = 600;
+        height = 338; // Backdrop-like aspect ratio
+    } else if (size === "w500" || size === "w342" || size === "w185" || size === "w154") { // poster sizes
+        // width remains 300, height 450 for consistency
+    }
+
+    // Use a consistent seed based on a part of the size or a static string if filePath is truly absent
+    // This helps in getting somewhat consistent placeholders if called multiple times for same non-existent image
+    const seed = `placeholder_${size}`; 
+    return `https://picsum.photos/seed/${seed}/${width}/${height}?grayscale&blur=2`;
   }
   return `${IMAGE_BASE_URL}${size}${filePath}`;
 }
+
