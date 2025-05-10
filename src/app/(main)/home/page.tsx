@@ -1,5 +1,5 @@
 // src/app/(main)/home/page.tsx
-import { YouTubeDownloaderForm } from '@/components/features/home/YouTubeDownloaderForm'; // Updated import
+import { YouTubeDownloaderForm } from '@/components/features/home/YouTubeDownloaderForm';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRightIcon, YoutubeIcon } from 'lucide-react';
@@ -43,7 +43,7 @@ function transformToFeaturedItem(
 
 export default async function HomePage() {
   let popularMovies: TMDBBaseMovie[] = [];
-  let popularTvSeries: TMDBBaseTVSeries[] = [];
+  let popularTvSeriesList: TMDBBaseTVSeries[] = [];
   let heroItems: HeroItem[] = [];
 
   try {
@@ -52,19 +52,19 @@ export default async function HomePage() {
       getPopularTvSeries(1),
     ]);
     popularMovies = moviesData.results;
-    popularTvSeries = tvSeriesData.results;
+    popularTvSeriesList = tvSeriesData.results;
 
     // Prepare items for HeroSection
-    const potentialHeroMovies = popularMovies.filter(movie => movie.backdrop_path).slice(0, 10); // Take top 10 with backdrops
+    const potentialHeroMovies = popularMovies.filter(movie => movie.backdrop_path).slice(0, 10); 
     
     const heroItemsDataPromises = potentialHeroMovies.map(async (movie) => {
       try {
-        const movieDetails = await getMovieDetails(movie.id); // This already appends videos
+        const movieDetails = await getMovieDetails(movie.id); 
         const videos: TMDBVideo[] = movieDetails.videos?.results || [];
         
         const officialTrailer = videos.find(
           (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
-        ) || videos.find( // Fallback to any trailer if no official one
+        ) || videos.find( 
           (video) => video.site === "YouTube" && video.type === "Trailer"
         );
 
@@ -79,7 +79,7 @@ export default async function HomePage() {
     });
 
     const resolvedHeroItemsData = await Promise.all(heroItemsDataPromises);
-    heroItems = resolvedHeroItemsData.filter((item): item is HeroItem => item !== null).slice(0, 5); // Limit to 5 valid items for the carousel
+    heroItems = resolvedHeroItemsData.filter((item): item is HeroItem => item !== null).slice(0, 5); 
 
   } catch (error) {
     console.error("Failed to fetch content for Home Page:", error);
@@ -87,7 +87,7 @@ export default async function HomePage() {
 
   const featuredItems: FeaturedItem[] = [];
   const moviesTransformed = popularMovies.slice(0, 4).map(m => transformToFeaturedItem({ ...m, media_type: 'movie' as const }));
-  const tvSeriesTransformed = popularTvSeries.slice(0, 4).map(t => transformToFeaturedItem({ ...t, media_type: 'tv' as const }));
+  const tvSeriesTransformed = popularTvSeriesList.slice(0, 4).map(t => transformToFeaturedItem({ ...t, media_type: 'tv' as const }));
 
   const maxLength = Math.max(moviesTransformed.length, tvSeriesTransformed.length);
   for (let i = 0; i < maxLength; i++) {
@@ -115,7 +115,7 @@ export default async function HomePage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <YouTubeDownloaderForm /> {/* Updated component */}
+            <YouTubeDownloaderForm />
           </CardContent>
         </Card>
       </section>
