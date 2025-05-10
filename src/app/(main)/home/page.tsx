@@ -114,7 +114,7 @@ export default async function HomePage() {
               Paste a YouTube video URL below to fetch info and download options.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="p-4"> {/* Adjusted padding for a more compact initial view */}
             <YouTubeDownloaderForm />
           </CardContent>
         </Card>
@@ -186,3 +186,4 @@ export default async function HomePage() {
     </div>
   );
 }
+
