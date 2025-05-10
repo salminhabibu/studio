@@ -1,5 +1,5 @@
 // src/app/(main)/settings/page.tsx
-"use client"; // Required for useState, useEffect, and DOM manipulation
+"use client"; 
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,64 +14,96 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FolderOpenIcon, PaletteIcon, WifiIcon, BellIcon, CheckIcon } from "lucide-react";
+import { FolderOpenIcon, PaletteIcon, WifiIcon, BellIcon, CheckIcon, InfoIcon } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
-// Define AccentColorOption interface and ACCENT_COLORS array
-interface AccentColorOption {
+interface PrimaryAccentColorOption {
   name: string;
   hex: string;
   primaryHsl: string;
-  primaryForegroundHsl: string; // Made non-optional for clarity, ensure all colors have it
+  primaryForegroundHsl: string;
+  ringHsl: string; 
 }
 
-const ACCENT_COLORS: AccentColorOption[] = [
-  { name: "Royal Purple", hex: "#7B2CBF", primaryHsl: "279 63% 46%", primaryForegroundHsl: "0 0% 98%" },
-  { name: "Muted Gold", hex: "#D4AF37", primaryHsl: "45 65% 52%", primaryForegroundHsl: "43 74% 15%" }, // Dark text for gold
-  { name: "Deep Blue", hex: "#1A237E", primaryHsl: "233 63% 30%", primaryForegroundHsl: "0 0% 98%" },
-  { name: "Crimson Red", hex: "#E53E3E", primaryHsl: "0 74% 57%", primaryForegroundHsl: "0 0% 98%" },
-  { name: "Forest Green", hex: "#38A169", primaryHsl: "145 49% 47%", primaryForegroundHsl: "0 0% 98%" },
-  { name: "Ocean Blue", hex: "#3182CE", primaryHsl: "208 60% 50%", primaryForegroundHsl: "0 0% 98%" },
-  { name: "Sunset Orange", hex: "#DD6B20", primaryHsl: "26 74% 49%", primaryForegroundHsl: "0 0% 98%" },
+const PRIMARY_ACCENT_COLORS: PrimaryAccentColorOption[] = [
+  { name: "Royal Purple", hex: "#7B2CBF", primaryHsl: "279 63% 46%", primaryForegroundHsl: "0 0% 98%", ringHsl: "279 63% 50%" },
+  { name: "Muted Gold", hex: "#D4AF37", primaryHsl: "45 65% 52%", primaryForegroundHsl: "43 74% 15%", ringHsl: "45 65% 56%" }, 
+  { name: "Deep Blue", hex: "#1A237E", primaryHsl: "233 63% 30%", primaryForegroundHsl: "0 0% 98%", ringHsl: "233 63% 34%" },
+  { name: "Crimson Red", hex: "#E53E3E", primaryHsl: "0 74% 57%", primaryForegroundHsl: "0 0% 98%", ringHsl: "0 74% 61%" },
+  { name: "Forest Green", hex: "#38A169", primaryHsl: "145 49% 47%", primaryForegroundHsl: "0 0% 98%", ringHsl: "145 49% 51%" },
+  { name: "Ocean Blue", hex: "#3182CE", primaryHsl: "208 60% 50%", primaryForegroundHsl: "0 0% 98%", ringHsl: "208 60% 54%" },
+  { name: "Sunset Orange", hex: "#DD6B20", primaryHsl: "26 74% 49%", primaryForegroundHsl: "0 0% 98%", ringHsl: "26 74% 53%" },
 ];
+const DEFAULT_PRIMARY_ACCENT_COLOR_OPTION = PRIMARY_ACCENT_COLORS[0]; // Royal Purple
 
-const DEFAULT_PRIMARY_COLOR_OPTION = ACCENT_COLORS[0]; // Royal Purple
+interface HighlightAccentOption {
+  name: string;
+  hex: string;
+  accentHsl: string;
+  accentForegroundHsl: string;
+}
+
+const HIGHLIGHT_ACCENT_COLORS: HighlightAccentOption[] = [
+  { name: "Muted Gold", hex: "#D4AF37", accentHsl: "45 65% 52%", accentForegroundHsl: "43 74% 15%" }, // Default from globals.css
+  { name: "Emerald Green", hex: "#2ECC71", accentHsl: "145 63% 49%", accentForegroundHsl: "0 0% 98%" },
+  { name: "Sky Blue", hex: "#3498DB", accentHsl: "207 70% 53%", accentForegroundHsl: "0 0% 98%" },
+  { name: "Ruby Red", hex: "#E74C3C", accentHsl: "6 78% 57%", accentForegroundHsl: "0 0% 98%" },
+  { name: "Amethyst Purple", hex: "#9B59B6", accentHsl: "283 39% 53%", accentForegroundHsl: "0 0% 98%" },
+  { name: "Sun Yellow", hex: "#F1C40F", accentHsl: "48 93% 50%", accentForegroundHsl: "0 0% 7%" },
+];
+const DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION = HIGHLIGHT_ACCENT_COLORS[0]; // Muted Gold
+
 
 export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
-  const [selectedAccentHex, setSelectedAccentHex] = useState<string>(DEFAULT_PRIMARY_COLOR_OPTION.hex);
+  const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);
+  const [selectedHighlightAccentHex, setSelectedHighlightAccentHex] = useState<string>(DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION.hex);
 
-  const applyAccentColor = useCallback((colorOption: AccentColorOption) => {
-    document.documentElement.style.setProperty('--primary', colorOption.primaryHsl);
-    document.documentElement.style.setProperty('--primary-foreground', colorOption.primaryForegroundHsl);
-    // Optionally, update --ring if it should match the primary accent
-    // For simplicity, --ring currently remains as defined in globals.css or updates if --primary is used for it
+  const applyThemeColors = useCallback((primaryColor?: PrimaryAccentColorOption, highlightColor?: HighlightAccentOption) => {
+    if (primaryColor) {
+      document.documentElement.style.setProperty('--primary', primaryColor.primaryHsl);
+      document.documentElement.style.setProperty('--primary-foreground', primaryColor.primaryForegroundHsl);
+      document.documentElement.style.setProperty('--ring', primaryColor.ringHsl);
+    }
+    if (highlightColor) {
+      document.documentElement.style.setProperty('--accent', highlightColor.accentHsl);
+      document.documentElement.style.setProperty('--accent-foreground', highlightColor.accentForegroundHsl);
+    }
   }, []);
 
-  // Effect to load from localStorage and apply on mount
   useEffect(() => {
     setMounted(true);
-    const savedAccentHex = localStorage.getItem("chillymovies-accent-color");
-    const initialColor = ACCENT_COLORS.find(c => c.hex === savedAccentHex) || DEFAULT_PRIMARY_COLOR_OPTION;
-    
-    setSelectedAccentHex(initialColor.hex);
-    applyAccentColor(initialColor);
-  }, [applyAccentColor]);
-  
-  const handleAccentColorChange = useCallback((color: AccentColorOption) => {
-    setSelectedAccentHex(color.hex);
-    applyAccentColor(color);
-    if (mounted) {
-        localStorage.setItem("chillymovies-accent-color", color.hex);
-    }
-  }, [mounted, applyAccentColor]);
+    const savedPrimaryAccentHex = localStorage.getItem("chillymovies-primary-accent-color");
+    const savedHighlightAccentHex = localStorage.getItem("chillymovies-highlight-accent-color");
 
-  // Render skeleton or minimal content until mounted to prevent hydration issues with localStorage
-  // For this example, we'll allow the brief flash if localStorage differs from default.
-  // if (!mounted) {
-  //   return <div className="space-y-8 max-w-3xl mx-auto"><h1 className="text-3xl font-semibold tracking-tight">Loading Settings...</h1></div>; 
-  // }
+    const initialPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === savedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
+    const initialHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === savedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
+    
+    setSelectedPrimaryAccentHex(initialPrimaryColor.hex);
+    setSelectedHighlightAccentHex(initialHighlightColor.hex);
+    
+    applyThemeColors(initialPrimaryColor, initialHighlightColor);
+  }, [applyThemeColors]);
+  
+  const handlePrimaryAccentColorChange = useCallback((color: PrimaryAccentColorOption) => {
+    setSelectedPrimaryAccentHex(color.hex);
+    const currentHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === selectedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
+    applyThemeColors(color, currentHighlightColor);
+    if (mounted) {
+        localStorage.setItem("chillymovies-primary-accent-color", color.hex);
+    }
+  }, [mounted, applyThemeColors, selectedHighlightAccentHex]);
+
+  const handleHighlightAccentColorChange = useCallback((color: HighlightAccentOption) => {
+    setSelectedHighlightAccentHex(color.hex);
+    const currentPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === selectedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
+    applyThemeColors(currentPrimaryColor, color);
+    if (mounted) {
+        localStorage.setItem("chillymovies-highlight-accent-color", color.hex);
+    }
+  }, [mounted, applyThemeColors, selectedPrimaryAccentHex]);
+
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -123,16 +155,18 @@ export default function SettingsPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <PaletteIcon className="h-6 w-6 text-accent" /> {/* This icon uses --accent (Muted Gold by default) */}
+            <PaletteIcon className="h-6 w-6 text-accent" />
             Appearance
           </CardTitle>
-          <CardDescription>Customize the primary accent color of the application. Changes are applied live and saved automatically.</CardDescription>
+          <CardDescription>Customize the primary and highlight accent colors of the application. Changes are applied live and saved automatically.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="accent-color-selector">Primary Accent Color</Label>
-             <div id="accent-color-selector" className="flex flex-wrap gap-3 pt-1">
-                {ACCENT_COLORS.map(color => (
+        <CardContent className="space-y-8">
+          {/* Primary Accent Color */}
+          <div className="space-y-3">
+            <Label htmlFor="primary-accent-color-selector" className="text-base font-medium">Primary Accent Color</Label>
+            <p className="text-sm text-muted-foreground">Controls the main interactive elements like buttons and active states.</p>
+             <div id="primary-accent-color-selector" className="flex flex-wrap gap-3 pt-1">
+                {PRIMARY_ACCENT_COLORS.map(color => (
                   <Button 
                     key={color.hex} 
                     variant="outline" 
@@ -140,18 +174,49 @@ export default function SettingsPage() {
                     style={{ backgroundColor: color.hex }} 
                     className={cn(
                         "w-10 h-10 rounded-full border-2 transition-all duration-150 ease-in-out flex items-center justify-center",
-                        selectedAccentHex === color.hex ? "ring-2 ring-offset-2 ring-offset-background ring-primary" : "border-transparent hover:border-muted-foreground/30",
+                        selectedPrimaryAccentHex === color.hex ? "ring-2 ring-offset-2 ring-offset-background ring-primary" : "border-transparent hover:border-muted-foreground/30",
                     )}
-                    onClick={() => handleAccentColorChange(color)}
-                    aria-label={`Set accent color to ${color.name}`}
+                    onClick={() => handlePrimaryAccentColorChange(color)}
+                    aria-label={`Set primary accent color to ${color.name}`}
                   >
-                    {selectedAccentHex === color.hex && (
+                    {selectedPrimaryAccentHex === color.hex && (
                       <CheckIcon className="h-5 w-5" style={{ color: `hsl(${color.primaryForegroundHsl})` }} />
                     )}
                   </Button>
                 ))}
              </div>
-            <p className="text-sm text-muted-foreground pt-2">Your choice is saved automatically and applied instantly.</p>
+          </div>
+
+          {/* Highlight Accent Color */}
+          <div className="space-y-3">
+            <Label htmlFor="highlight-accent-color-selector" className="text-base font-medium">Highlight Accent Color</Label>
+            <p className="text-sm text-muted-foreground">Used for secondary highlights, special indicators, and some icons.</p>
+             <div id="highlight-accent-color-selector" className="flex flex-wrap gap-3 pt-1">
+                {HIGHLIGHT_ACCENT_COLORS.map(color => (
+                  <Button 
+                    key={color.hex} 
+                    variant="outline" 
+                    size="icon" 
+                    style={{ backgroundColor: color.hex }} 
+                    className={cn(
+                        "w-10 h-10 rounded-full border-2 transition-all duration-150 ease-in-out flex items-center justify-center",
+                        selectedHighlightAccentHex === color.hex ? "ring-2 ring-offset-2 ring-offset-background ring-accent" : "border-transparent hover:border-muted-foreground/30",
+                    )}
+                    onClick={() => handleHighlightAccentColorChange(color)}
+                    aria-label={`Set highlight accent color to ${color.name}`}
+                  >
+                    {selectedHighlightAccentHex === color.hex && (
+                      <CheckIcon className="h-5 w-5" style={{ color: `hsl(${color.accentForegroundHsl})` }} />
+                    )}
+                  </Button>
+                ))}
+             </div>
+          </div>
+          <div className="flex items-start p-3 rounded-md bg-muted/50 border border-dashed border-border">
+            <InfoIcon className="h-5 w-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-muted-foreground">
+                Your color choices are saved automatically in your browser and applied instantly.
+            </p>
           </div>
         </CardContent>
       </Card>
@@ -207,7 +272,7 @@ export default function SettingsPage() {
       </Card>
 
       <div className="flex justify-end pt-4">
-        <Button size="lg" onClick={() => alert("General settings would be saved here. Accent color changes are already live and persisted in local storage.")}>
+        <Button size="lg" onClick={() => alert("General settings (excluding appearance) would be saved here. Appearance changes are already live and persisted in local storage.")}>
           Save Changes
         </Button>
       </div>
