@@ -1,4 +1,4 @@
-// src/components/features/home/VideoUrlForm.tsx
+// src/components/features/home/YouTubeDownloaderForm.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,13 +15,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
-import { handleVideoUrlValidation } from "@/lib/actions/video.actions";
-import { Loader2, CheckCircle, XCircle, YoutubeIcon, DownloadCloudIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, XCircleIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useDebounce } from "@/hooks/use-debounce";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Image from "next/image";
 
-const videoUrlFormSchema = z.object({
+const youtubeUrlFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid YouTube URL." })
   .refine(url => {
     try {
@@ -33,277 +33,305 @@ const videoUrlFormSchema = z.object({
   }, "Please enter a valid YouTube URL."),
 });
 
-type VideoUrlFormValues = z.infer<typeof videoUrlFormSchema>;
+type YouTubeUrlFormValues = z.infer<typeof youtubeUrlFormSchema>;
 
-// Helper function to extract YouTube video ID
+interface VideoFormat {
+  quality: string;
+  itag: number;
+  mimeType?: string;
+  container?: string;
+  fps?: number;
+}
+interface AudioFormat {
+  quality: string;
+  itag: number;
+  mimeType?: string;
+  container?: string;
+  audioBitrate?: number;
+}
+
+interface YouTubeVideoInfo {
+  title: string;
+  thumbnail: string;
+  duration: string;
+  author: string;
+  videoFormats: VideoFormat[];
+  audioFormats: AudioFormat[];
+}
+
 function getYouTubeVideoId(url: string): string | null {
   try {
     const urlObj = new URL(url);
-    // Standard watch URLs
     if (urlObj.hostname.includes('youtube.com') && urlObj.pathname === '/watch') {
       return urlObj.searchParams.get('v');
     }
-    // Shortened URLs
     if (urlObj.hostname === 'youtu.be') {
-      return urlObj.pathname.substring(1).split('?')[0]; // Remove query params like ?si=...
+      return urlObj.pathname.substring(1).split('?')[0];
     }
-    // Shorts URLs
-    if (urlObj.hostname.includes('youtube.com') && urlObj.pathname.startsWith('/shorts/')) {
+     if (urlObj.hostname.includes('youtube.com') && urlObj.pathname.startsWith('/shorts/')) {
         const parts = urlObj.pathname.split('/shorts/');
         if (parts[1]) return parts[1].split('?')[0];
     }
-    // Embed URLs
     if (urlObj.hostname.includes('youtube.com') && urlObj.pathname.startsWith('/embed/')) {
         const parts = urlObj.pathname.split('/embed/');
         if (parts[1]) return parts[1].split('?')[0];
     }
     return null;
-  } catch (e) {
-    // console.error("Error parsing YouTube URL:", e); // Can be noisy during typing
+  } catch {
     return null;
   }
 }
 
-export function VideoUrlForm() {
-  const { toast } = useToast();
-  const [isProcessing, setIsProcessing] = useState(false); // For any async operation
-  const [videoId, setVideoId] = useState<string | null>(null);
-  const [selectedQuality, setSelectedQuality] = useState<string>("1080p");
-  const [downloadType, setDownloadType] = useState<'video' | 'audio'>("video");
+function formatDuration(secondsStr: string): string {
+    const seconds = parseInt(secondsStr, 10);
+    if (isNaN(seconds) || seconds < 0) return "N/A";
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+}
 
-  const form = useForm<VideoUrlFormValues>({
-    resolver: zodResolver(videoUrlFormSchema),
+
+export function YouTubeDownloaderForm() {
+  const { toast } = useToast();
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
+  const [isDownloadingVideo, setIsDownloadingVideo] = useState(false);
+  const [isDownloadingAudio, setIsDownloadingAudio] = useState(false);
+  const [videoInfo, setVideoInfo] = useState<YouTubeVideoInfo | null>(null);
+  const [selectedVideoItag, setSelectedVideoItag] = useState<string>("");
+  const [selectedAudioItag, setSelectedAudioItag] = useState<string>("");
+  const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
+
+  const form = useForm<YouTubeUrlFormValues>({
+    resolver: zodResolver(youtubeUrlFormSchema),
     defaultValues: { url: "" },
-    mode: "onBlur", // Validate URL field onBlur initially
+    mode: "onBlur",
   });
 
   const currentUrl = form.watch("url");
-  const debouncedUrl = useDebounce(currentUrl, 750); // Debounce for live preview logic
-
-  const processUrlForPreview = useCallback(async (urlToProcess: string) => {
-    if (!urlToProcess.trim()) {
-      setVideoId(null);
-      return;
-    }
-    
-    const parsedSchema = videoUrlFormSchema.safeParse({ url: urlToProcess });
-    if (!parsedSchema.success) {
-        if (videoId) setVideoId(null); // Clear preview if URL becomes invalid during typing
-        return;
-    }
-
-    setIsProcessing(true);
-    // No need to clear videoId here, getYouTubeVideoId will return null if not valid,
-    // and then setVideoId(null) will be called.
-
-    try {
-      const extractedVideoId = getYouTubeVideoId(urlToProcess);
-      setVideoId(extractedVideoId); // This will show preview if ID found, or clear it if null
-                                    // No AI validation for instant preview for better UX
-    } catch (error) {
-      console.error("Error processing URL for preview:", error);
-      setVideoId(null); // Clear on error
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [videoId]); // videoId in deps to allow clearing it
 
   useEffect(() => {
-    processUrlForPreview(debouncedUrl);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedUrl]); // processUrlForPreview is memoized, direct inclusion in deps is fine
+    // Clear video info if URL is empty or invalid during typing (after initial validation)
+    if (!currentUrl.trim()) {
+      setVideoInfo(null);
+      setPreviewVideoId(null);
+      return;
+    }
+    const validation = youtubeUrlFormSchema.safeParse({ url: currentUrl });
+    if (!validation.success) {
+        if (videoInfo) setVideoInfo(null);
+        if (previewVideoId) setPreviewVideoId(null);
+    } else {
+        const extractedId = getYouTubeVideoId(currentUrl);
+        if (previewVideoId !== extractedId) { // Only update if ID changes
+            setPreviewVideoId(extractedId);
+             // Automatically fetch info if a valid ID is extracted and preview changes
+            if(extractedId && !videoInfo) { // Avoid refetch if info already there for this id
+                // This could be a bit aggressive if user is just editing URL slightly
+                // Consider if onSearch should be the only trigger for fetchVideoInfo
+            }
+        }
+    }
+  }, [currentUrl, videoInfo, previewVideoId]);
+
+  const onSearch = async (data: YouTubeUrlFormValues) => {
+    setIsLoadingInfo(true);
+    setVideoInfo(null); // Clear previous info
+    // Preview ID should be set by the useEffect watching currentUrl
+    const extractedId = getYouTubeVideoId(data.url);
+    setPreviewVideoId(extractedId);
 
 
-  async function onSubmit(data: VideoUrlFormValues) {
-    if (!videoId) {
-      // Attempt to process URL one last time on submit if no videoId yet (e.g., if debounce didn't catch it or user was too fast)
-      setIsProcessing(true);
-      const extractedId = getYouTubeVideoId(data.url);
-      setIsProcessing(false);
-      if (!extractedId) {
+    if (!extractedId) {
         toast({
             title: "Invalid YouTube URL",
-            description: "Please enter a valid YouTube URL to load a video.",
+            description: "Could not extract video ID from the URL.",
             variant: "destructive",
-            action: <XCircle className="text-white" />,
         });
-        setVideoId(null);
+        setIsLoadingInfo(false);
         return;
+    }
+    
+    try {
+      const response = await fetch(`/api/youtube/video-info?url=${encodeURIComponent(data.url)}`);
+      const result = await response.json();
+
+      if (!response.ok) {
+        toast({ title: "Error", description: result.error || "Failed to fetch video info.", variant: "destructive", action: <XCircleIcon className="text-white" /> });
+        setPreviewVideoId(null); // Clear preview on error
+      } else {
+        setVideoInfo(result);
+        if (result.videoFormats?.length > 0) setSelectedVideoItag(result.videoFormats[0].itag.toString());
+        if (result.audioFormats?.length > 0) setSelectedAudioItag(result.audioFormats[0].itag.toString());
       }
-      // If ID extracted here, it means preview might not have shown yet
-      // We could setVideoId(extractedId) here, but it might be better to ensure preview is shown first.
-      // For now, if we reach here without a videoId from preview logic, it implies an issue.
-      // The button's disabled state should ideally prevent this.
-      // This block primarily handles the case where the button was somehow enabled without a videoId.
-       toast({
-        title: "No Video Loaded",
-        description: "Please ensure the YouTube video preview is showing before downloading.",
-        variant: "destructive",
-      });
+    } catch (error) {
+      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive", action: <XCircleIcon className="text-white" /> });
+      setPreviewVideoId(null);
+    } finally {
+      setIsLoadingInfo(false);
+    }
+  };
+
+  const handleDownload = (type: 'video' | 'audio') => {
+    if (!videoInfo || !currentUrl) return;
+
+    const itag = type === 'video' ? selectedVideoItag : selectedAudioItag;
+    if (!itag) {
+      toast({ title: "Select Format", description: `Please select a ${type} quality.`, variant: "destructive" });
       return;
     }
 
-    setIsProcessing(true);
-    try {
-        // Perform full AI validation on submit
-        const validationResult = await handleVideoUrlValidation({ url: data.url });
-        if (!validationResult.isValid || getYouTubeVideoId(data.url) !== videoId) {
-             setVideoId(null);
-             form.setValue("url", data.url, { shouldValidate: true }); // Re-validate to show error if needed
-             toast({
-                title: "URL Validation Failed",
-                description: validationResult.feedback || "The video URL is invalid or does not match the preview.",
-                variant: "destructive",
-                action: <XCircle className="text-white" />,
-             });
-             setIsProcessing(false);
-             return;
-        }
+    const downloadUrl = `/api/youtube/download-${type}?url=${encodeURIComponent(currentUrl)}&itag=${itag}&title=${encodeURIComponent(videoInfo.title)}`;
+    
+    if (type === 'video') setIsDownloadingVideo(true);
+    else setIsDownloadingAudio(true);
 
-        console.log("Attempting to download:", {
-            url: data.url,
-            quality: selectedQuality,
-            type: downloadType,
-            videoId: videoId,
-            title: validationResult.feedback // Assuming feedback might contain title or info
-        });
-        toast({
-            title: "Download Initiated (Mock)",
-            description: `Preparing ${downloadType} of "${validationResult.feedback || 'video'}" in ${selectedQuality}.`,
-            variant: "default",
-            action: <CheckCircle className="text-green-500" />,
-        });
-    } catch (error) {
-        toast({
-          title: "Download Error",
-          description: "An unexpected error occurred. Please try again.",
-          variant: "destructive",
-        });
-    } finally {
-        setIsProcessing(false);
-    }
-  }
-  
-  const qualityOptions = ["1080p", "720p", "480p", "360p"];
-  const downloadTypeOptions = [
-    { label: "Video", value: "video" as const },
-    { label: "Audio Only", value: "audio" as const },
-  ];
+    // Trigger browser download
+    window.location.href = downloadUrl;
 
-  const isSubmitDisabled = isProcessing || !form.formState.isValid || (!!currentUrl && !videoId);
-
+    // Simulate download completion for UI feedback, actual tracking is hard client-side
+    setTimeout(() => {
+      if (type === 'video') setIsDownloadingVideo(false);
+      else setIsDownloadingAudio(false);
+      toast({ title: "Download Started", description: `${videoInfo.title} (${type}) should begin downloading shortly.`});
+    }, 2000); // Reset loading state after a delay
+  };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSearch)} className="space-y-6">
         <FormField
           control={form.control}
           name="url"
           render={({ field }) => (
             <FormItem>
-              <FormLabel className="text-base flex items-center">
+              <FormLabel className="text-base flex items-center sr-only"> {/* Visually hidden but available for screen readers */}
                 <YoutubeIcon className="h-5 w-5 mr-2 text-red-500" />
                 YouTube Video Link
               </FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-                  {...field}
-                  className="h-12 text-base"
-                />
-              </FormControl>
+              <div className="flex gap-2">
+                <FormControl>
+                  <Input
+                    placeholder="e.g., https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                    {...field}
+                    className="h-12 text-base flex-grow"
+                  />
+                </FormControl>
+                <Button type="submit" size="lg" className="h-12 px-5" disabled={isLoadingInfo || !form.formState.isValid || !currentUrl.trim()}>
+                  {isLoadingInfo ? <Loader2 className="h-5 w-5 animate-spin" /> : <SearchIcon className="h-5 w-5" />}
+                  <span className="ml-2 hidden sm:inline">Fetch Info</span>
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
         />
 
-        {isProcessing && !videoId && currentUrl.length > 0 && (
+        {isLoadingInfo && !videoInfo && (
           <div className="flex items-center justify-center p-4 text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-            Loading video preview...
+            Fetching video details...
           </div>
         )}
-
-        {videoId && (
-          <div className="space-y-4 animate-fade-in-up">
-            <div className="aspect-video w-full overflow-hidden rounded-lg border bg-muted shadow-inner">
-              <iframe
-                width="100%"
-                height="100%"
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=0&modestbranding=1&rel=0`}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                key={videoId} 
-              ></iframe>
+        
+        {previewVideoId && !videoInfo && !isLoadingInfo && form.formState.isValid && currentUrl && (
+             <div className="aspect-video w-full overflow-hidden rounded-lg border bg-muted shadow-inner mt-4">
+                <iframe
+                    width="100%"
+                    height="100%"
+                    src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=0&modestbranding=1&rel=0`}
+                    title="YouTube video player - Preview"
+                    frameBorder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                    key={`preview-${previewVideoId}`} 
+                ></iframe>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <FormItem>
-                <FormLabel htmlFor="quality-select">Quality</FormLabel>
-                <Select value={selectedQuality} onValueChange={setSelectedQuality} name="quality-select">
-                  <SelectTrigger className="h-11" id="quality-select">
-                    <SelectValue placeholder="Select quality" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {qualityOptions.map((quality) => (
-                      <SelectItem key={quality} value={quality}>
-                        {quality}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-
-              <FormItem>
-                <FormLabel htmlFor="type-select">Download Type</FormLabel>
-                <Select value={downloadType} onValueChange={(value) => setDownloadType(value as 'video' | 'audio')} name="type-select">
-                  <SelectTrigger className="h-11" id="type-select">
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {downloadTypeOptions.map((type) => (
-                      <SelectItem key={type.value} value={type.value}>
-                        {type.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormItem>
-            </div>
-          </div>
         )}
 
-        <Button 
-            type="submit" 
-            disabled={isSubmitDisabled}
-            size="lg" 
-            className="w-full h-12"
-        >
-          {isProcessing && videoId ? ( // Show processing only if it's for download, not preview
-            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-          ) : (
-            <>
-              <DownloadCloudIcon className="mr-2 h-5 w-5" />
-              Download {downloadType === 'audio' ? 'Audio' : 'Video'}
-            </>
-          )}
-        </Button>
+
+        {videoInfo && (
+          <Card className="animate-fade-in-up shadow-md border-border/30">
+            <CardContent className="p-4 md:p-6 grid md:grid-cols-12 gap-4 md:gap-6">
+              <div className="md:col-span-5">
+                 {previewVideoId && (
+                    <div className="aspect-video w-full overflow-hidden rounded-lg border bg-muted shadow-inner">
+                        <iframe
+                        width="100%"
+                        height="100%"
+                        src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=0&modestbranding=1&rel=0`}
+                        title={videoInfo.title}
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        key={`loaded-${previewVideoId}`} 
+                        ></iframe>
+                    </div>
+                 )}
+                 {!previewVideoId && videoInfo.thumbnail && ( // Fallback to thumbnail if iframe ID is lost for some reason
+                     <div className="aspect-video w-full overflow-hidden rounded-lg relative bg-muted shadow-inner">
+                        <Image src={videoInfo.thumbnail} alt="Video thumbnail" layout="fill" objectFit="cover" data-ai-hint="video thumbnail"/>
+                     </div>
+                 )}
+              </div>
+              <div className="md:col-span-7 space-y-4">
+                <div>
+                    <h3 className="text-lg font-semibold leading-tight" title={videoInfo.title}>{videoInfo.title}</h3>
+                    <p className="text-sm text-muted-foreground">By: {videoInfo.author} &bull; Duration: {formatDuration(videoInfo.duration)}</p>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="video-quality-select">Video Quality</Label>
+                  <Select value={selectedVideoItag} onValueChange={setSelectedVideoItag} name="video-quality-select">
+                    <SelectTrigger className="h-11" id="video-quality-select" disabled={videoInfo.videoFormats.length === 0}>
+                      <SelectValue placeholder="Select video quality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {videoInfo.videoFormats.map((format) => (
+                        <SelectItem key={format.itag} value={format.itag.toString()}>
+                          {format.quality} ({format.container}, {format.fps}fps)
+                        </SelectItem>
+                      ))}
+                      {videoInfo.videoFormats.length === 0 && <SelectItem value="disabled" disabled>No video formats available</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={() => handleDownload('video')} disabled={isDownloadingVideo || !selectedVideoItag || videoInfo.videoFormats.length === 0} className="w-full h-11">
+                    {isDownloadingVideo ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
+                    Download Video
+                  </Button>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="audio-quality-select">Audio Quality</Label>
+                  <Select value={selectedAudioItag} onValueChange={setSelectedAudioItag} name="audio-quality-select" disabled={videoInfo.audioFormats.length === 0}>
+                    <SelectTrigger className="h-11" id="audio-quality-select">
+                      <SelectValue placeholder="Select audio quality" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {videoInfo.audioFormats.map((format) => (
+                        <SelectItem key={format.itag} value={format.itag.toString()}>
+                          {format.quality} ({format.container})
+                        </SelectItem>
+                      ))}
+                      {videoInfo.audioFormats.length === 0 && <SelectItem value="disabled" disabled>No audio formats available</SelectItem>}
+                    </SelectContent>
+                  </Select>
+                  <Button onClick={() => handleDownload('audio')} disabled={isDownloadingAudio || !selectedAudioItag || videoInfo.audioFormats.length === 0} className="w-full h-11">
+                    {isDownloadingAudio ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
+                    Download Audio
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </form>
       <style jsx global>{`
         .animate-fade-in-up {
           animation: fadeInUp 0.5s ease-out forwards;
         }
         @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </Form>

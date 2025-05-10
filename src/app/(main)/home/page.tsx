@@ -1,5 +1,5 @@
 // src/app/(main)/home/page.tsx
-import { VideoUrlForm } from '@/components/features/home/VideoUrlForm';
+import { YouTubeDownloaderForm } from '@/components/features/home/YouTubeDownloaderForm'; // Updated import
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRightIcon, YoutubeIcon } from 'lucide-react';
@@ -111,11 +111,11 @@ export default async function HomePage() {
               Download from YouTube
             </CardTitle>
             <CardDescription>
-              Paste a YouTube video URL below to start the download process.
+              Paste a YouTube video URL below to fetch info and download options.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <VideoUrlForm />
+            <YouTubeDownloaderForm /> {/* Updated component */}
           </CardContent>
         </Card>
       </section>
@@ -186,4 +186,3 @@ export default async function HomePage() {
     </div>
   );
 }
-
