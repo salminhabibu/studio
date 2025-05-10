@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
-import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, XCircleIcon } from "lucide-react";
+import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import Image from "next/image";
@@ -144,6 +144,7 @@ export function YouTubeDownloaderForm() {
             variant: "destructive",
         });
         setIsLoadingInfo(false);
+        setVideoInfo(null);
         return;
     }
     
@@ -151,17 +152,27 @@ export function YouTubeDownloaderForm() {
       const response = await fetch(`/api/youtube/video-info?url=${encodeURIComponent(data.url)}`);
       const result = await response.json();
 
-      if (!response.ok) {
-        toast({ title: "Error", description: result.error || "Failed to fetch video info.", variant: "destructive", action: <XCircleIcon className="text-white" /> });
-        setPreviewVideoId(null); 
+      if (!response.ok || result.error) {
+        toast({ title: "Error", description: result.error || "Failed to fetch video info.", variant: "destructive" });
+        setPreviewVideoId(null);
+        setVideoInfo(null); 
       } else {
         setVideoInfo(result);
-        if (result.videoFormats?.length > 0) setSelectedVideoItag(result.videoFormats[0].itag.toString());
-        if (result.audioFormats?.length > 0) setSelectedAudioItag(result.audioFormats[0].itag.toString());
+        if (result.videoFormats?.length > 0) {
+          setSelectedVideoItag(result.videoFormats[0].itag.toString());
+        } else {
+          setSelectedVideoItag(""); 
+        }
+        if (result.audioFormats?.length > 0) {
+          setSelectedAudioItag(result.audioFormats[0].itag.toString());
+        } else {
+          setSelectedAudioItag("");
+        }
       }
     } catch (error) {
-      toast({ title: "Error", description: "An unexpected error occurred.", variant: "destructive", action: <XCircleIcon className="text-white" /> });
+      toast({ title: "Error", description: "An unexpected error occurred while fetching video info.", variant: "destructive" });
       setPreviewVideoId(null);
+      setVideoInfo(null);
     } finally {
       setIsLoadingInfo(false);
     }
@@ -181,13 +192,17 @@ export function YouTubeDownloaderForm() {
     if (type === 'video') setIsDownloadingVideo(true);
     else setIsDownloadingAudio(true);
 
+    // Trigger download by opening URL; for actual file download, browser handles it.
+    // For a better UX with large files, consider streaming to a Blob and then triggering download,
+    // but window.location.href is simplest for now.
     window.location.href = downloadUrl;
 
+    // Simulate download completion for UI feedback, actual download is browser-handled.
     setTimeout(() => {
       if (type === 'video') setIsDownloadingVideo(false);
       else setIsDownloadingAudio(false);
       toast({ title: "Download Started", description: `${videoInfo.title} (${type}) should begin downloading shortly.`});
-    }, 3000); 
+    }, 3000); // Assume download starts within 3s for feedback.
   };
 
   return (
@@ -276,20 +291,20 @@ export function YouTubeDownloaderForm() {
                   
                   <div className="space-y-2">
                     <Label htmlFor="video-quality-select">Video Quality</Label>
-                    <Select value={selectedVideoItag} onValueChange={setSelectedVideoItag} name="video-quality-select">
-                      <SelectTrigger className="h-11" id="video-quality-select" disabled={videoInfo.videoFormats.length === 0}>
+                    <Select value={selectedVideoItag} onValueChange={setSelectedVideoItag} name="video-quality-select" disabled={!videoInfo.videoFormats || videoInfo.videoFormats.length === 0}>
+                      <SelectTrigger className="h-11" id="video-quality-select">
                         <SelectValue placeholder="Select video quality" />
                       </SelectTrigger>
                       <SelectContent>
-                        {videoInfo.videoFormats.map((format) => (
+                        {videoInfo.videoFormats && videoInfo.videoFormats.map((format) => (
                           <SelectItem key={format.itag} value={format.itag.toString()}>
                             {format.qualityLabel} ({format.container}{format.fps ? `, ${format.fps}fps` : ''})
                           </SelectItem>
                         ))}
-                        {videoInfo.videoFormats.length === 0 && <SelectItem value="disabled" disabled>No video formats available</SelectItem>}
+                        {(!videoInfo.videoFormats || videoInfo.videoFormats.length === 0) && <SelectItem value="disabled" disabled>No video formats available</SelectItem>}
                       </SelectContent>
                     </Select>
-                    <Button onClick={() => handleDownload('video')} disabled={isDownloadingVideo || !selectedVideoItag || videoInfo.videoFormats.length === 0} className="w-full h-11">
+                    <Button onClick={() => handleDownload('video')} disabled={isDownloadingVideo || !selectedVideoItag || !videoInfo.videoFormats || videoInfo.videoFormats.length === 0} className="w-full h-11">
                       {isDownloadingVideo ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                       Download Video
                     </Button>
@@ -297,20 +312,20 @@ export function YouTubeDownloaderForm() {
 
                   <div className="space-y-2">
                     <Label htmlFor="audio-quality-select">Audio Quality</Label>
-                    <Select value={selectedAudioItag} onValueChange={setSelectedAudioItag} name="audio-quality-select" disabled={videoInfo.audioFormats.length === 0}>
+                    <Select value={selectedAudioItag} onValueChange={setSelectedAudioItag} name="audio-quality-select" disabled={!videoInfo.audioFormats || videoInfo.audioFormats.length === 0}>
                       <SelectTrigger className="h-11" id="audio-quality-select">
                         <SelectValue placeholder="Select audio quality" />
                       </SelectTrigger>
                       <SelectContent>
-                        {videoInfo.audioFormats.map((format) => (
+                        {videoInfo.audioFormats && videoInfo.audioFormats.map((format) => (
                           <SelectItem key={format.itag} value={format.itag.toString()}>
                             {format.quality} ({format.container})
                           </SelectItem>
                         ))}
-                        {videoInfo.audioFormats.length === 0 && <SelectItem value="disabled" disabled>No audio formats available</SelectItem>}
+                        {(!videoInfo.audioFormats || videoInfo.audioFormats.length === 0) && <SelectItem value="disabled" disabled>No audio formats available</SelectItem>}
                       </SelectContent>
                     </Select>
-                    <Button onClick={() => handleDownload('audio')} disabled={isDownloadingAudio || !selectedAudioItag || videoInfo.audioFormats.length === 0} className="w-full h-11">
+                    <Button onClick={() => handleDownload('audio')} disabled={isDownloadingAudio || !selectedAudioItag || !videoInfo.audioFormats || videoInfo.audioFormats.length === 0} className="w-full h-11">
                       {isDownloadingAudio ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                       Download Audio
                     </Button>
@@ -333,3 +348,4 @@ export function YouTubeDownloaderForm() {
     </div>
   );
 }
+
