@@ -24,17 +24,19 @@ import {
   ClapperboardIcon,
   PanelLeftCloseIcon, 
   PanelRightCloseIcon,
-  InfoIcon // Added for About page
+  InfoIcon,
+  YoutubeIcon // Added for YouTube Downloader
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  { href: "/home", label: "Home & Search", icon: HomeIcon },
+  { href: "/home", label: "Home", icon: HomeIcon },
+  { href: "/youtube-downloader", label: "YouTube Downloader", icon: YoutubeIcon },
   { href: "/movies", label: "Movies", icon: FilmIcon },
   { href: "/tv-series", label: "TV Series", icon: Tv2Icon },
   { href: "/downloads", label: "Downloads", icon: DownloadCloudIcon },
   { href: "/settings", label: "Settings", icon: SettingsIcon },
-  { href: "/about", label: "About", icon: InfoIcon }, // Added About page
+  { href: "/about", label: "About", icon: InfoIcon },
 ];
 
 export function AppSidebar() {
@@ -110,7 +112,6 @@ export function AppSidebar() {
             <span className="group-data-[collapsible=icon]:hidden ml-3">{open ? "Collapse" : "Expand"}</span>
           </Button>
         )}
-        {/* Removed GitHub link button */}
       </SidebarFooter>
     </Sidebar>
   );
