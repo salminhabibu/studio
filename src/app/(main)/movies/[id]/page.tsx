@@ -6,16 +6,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalendarDaysIcon, ClockIcon, FilmIcon, DollarSignIcon, GlobeIcon, InfoIcon, UsersIcon, StarIcon } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image"; // Added import for Image component
+import Image from "next/image";
 import { MovieClientContent } from "@/components/features/movies/MovieClientContent";
-import { MovieDownloadCard } from "@/components/features/movies/MovieDownloadCard"; // Import the new component
+import { MovieDownloadCard } from "@/components/features/movies/MovieDownloadCard";
+import { RecommendedMoviesSection } from "@/components/features/movies/RecommendedMoviesSection"; // Added import
+import { Separator } from "@/components/ui/separator"; // Added import
 
 interface MovieDetailsPageProps {
   params: { id: string };
 }
 
 export default async function MovieDetailsPage({ params }: MovieDetailsPageProps) {
-  let movie: (TMDBMovie & { magnetLink?: string }) | null = null; // Ensure magnetLink is part of the type
+  let movie: (TMDBMovie & { magnetLink?: string }) | null = null;
   let trailerKey: string | null = null;
   let error: string | null = null;
 
@@ -23,7 +25,6 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
     error = "Movie ID not found.";
   } else {
     try {
-      // getMovieDetails should already include magnetLink if found
       const movieData = await getMovieDetails(params.id);
       movie = movieData;
 
@@ -72,7 +73,6 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
       <MovieClientContent movie={movie} trailerKey={trailerKey}>
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-4 lg:col-span-3">
-            {/* Replace the old card content with the new Client Component */}
             <MovieDownloadCard movie={movie} />
           </div>
 
@@ -177,7 +177,8 @@ export default async function MovieDetailsPage({ params }: MovieDetailsPageProps
           </div>
         </div>
       </MovieClientContent>
+      <Separator className="my-8 md:my-12" />
+      <RecommendedMoviesSection movieId={movie.id} />
     </div>
   );
 }
-

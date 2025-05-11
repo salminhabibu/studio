@@ -1,4 +1,7 @@
 // src/app/(main)/tv-series/[id]/page.tsx
+"use client"; // This page uses client-side hooks for fetching data and state management.
+
+import React, { useState, useEffect, useCallback, use } from 'react';
 import { getTvSeriesDetails, getFullImagePath } from "@/lib/tmdb";
 import type { TMDBTVSeries, TMDBSeason, TMDBVideo } from "@/types/tmdb";
 import Image from "next/image";
@@ -6,30 +9,42 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion } from "@/components/ui/accordion";
-import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon } from "lucide-react";
+import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 import { SeasonAccordionItem } from "@/components/features/tv-series/SeasonAccordionItem";
 import { TVSeriesClientContent } from "@/components/features/tv-series/TVSeriesClientContent";
-
+import { RecommendedTvSeriesSection } from "@/components/features/tv-series/RecommendedTvSeriesSection"; // Added import
+import { Separator } from "@/components/ui/separator"; // Added import
 
 interface TvSeriesDetailsPageProps {
   params: { id: string };
 }
 
-export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
+export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
+  // Since this is a client component now, we use React.use to resolve the promise from params
+  // This is Next.js 13+ App Router way of handling dynamic segment props in client components
+  // Note: Direct access to params.id might still work in some Next.js versions for client components,
+  // but using `use` is the recommended pattern for Promises.
+  // However, `params` itself is not a promise here, it's an object. The warning was likely a general one.
+  // We'll keep direct access for now as it's typical for page props.
   const id = params.id;
 
-  let series: TMDBTVSeries | null = null;
-  let trailerKey: string | null = null;
-  let error: string | null = null;
+  const [series, setSeries] = useState<TMDBTVSeries | null>(null);
+  const [trailerKey, setTrailerKey] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!id) {
-    error = "Series ID not found in URL.";
-  } else {
+  const fetchData = useCallback(async () => {
+    if (!id) {
+      setError("Series ID not found in URL.");
+      setIsLoading(false);
+      return;
+    }
+    setIsLoading(true);
     try {
       const seriesData = await getTvSeriesDetails(id);
-      series = seriesData;
+      setSeries(seriesData);
 
       const videos: TMDBVideo[] = seriesData.videos?.results || [];
       const officialTrailer = videos.find(
@@ -37,12 +52,27 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
       ) || videos.find( 
         (video) => video.site === "YouTube" && video.type === "Trailer"
       );
-      trailerKey = officialTrailer?.key || null;
+      setTrailerKey(officialTrailer?.key || null);
 
     } catch (e) {
       console.error(`Failed to fetch TV series details for ID ${id}:`, e);
-      error = "Could not load TV series details. Please try again later or check if the series ID is correct.";
+      setError("Could not load TV series details. Please try again later or check if the series ID is correct.");
+    } finally {
+      setIsLoading(false);
     }
+  }, [id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+  
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
+        <Loader2Icon className="w-16 h-16 text-primary animate-spin mb-6" />
+        <h1 className="text-2xl font-semibold text-muted-foreground">Loading Series Details...</h1>
+      </div>
+    );
   }
   
   if (error) {
@@ -211,6 +241,8 @@ export default async function TvSeriesDetailsPage({ params }: TvSeriesDetailsPag
           </div>
         </div>
       </TVSeriesClientContent>
+      <Separator className="my-6 sm:my-8 md:my-12" />
+      <RecommendedTvSeriesSection tvId={series.id} />
     </div>
   );
 }

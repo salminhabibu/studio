@@ -136,15 +136,19 @@ export async function getMovieDetails(movieId: number | string): Promise<TMDBMov
         if (ytsData.status === 'ok' && ytsData.data && ytsData.data.movies && ytsData.data.movies.length > 0) {
           const movie = ytsData.data.movies[0];
           if (movie.torrents && movie.torrents.length > 0) {
+            // Prefer 1080p, then 720p, then highest seeded, then any available torrent
             let bestTorrent = movie.torrents.find(t => t.quality === '1080p' && t.seeds > 0);
             if (!bestTorrent) bestTorrent = movie.torrents.find(t => t.quality === '720p' && t.seeds > 0);
-            if (!bestTorrent) bestTorrent = movie.torrents.filter(t => t.seeds > 0).sort((a, b) => (b.seeds || 0) - (a.seeds || 0))[0];
-            if (!bestTorrent && movie.torrents.length > 0) bestTorrent = movie.torrents.sort((a,b) => (b.seeds || 0) - (a.seeds || 0))[0];
+            if (!bestTorrent) bestTorrent = movie.torrents.filter(t => t.seeds > 0).sort((a, b) => (b.seeds || 0) - (a.seeds || 0))[0]; // highest seeded among those with seeds
+            if (!bestTorrent && movie.torrents.length > 0) bestTorrent = movie.torrents.sort((a,b) => (b.seeds || 0) - (a.seeds || 0))[0]; // highest seeded if no 1080p/720p with seeds
 
             if (bestTorrent) {
               const trackers = [
                 'udp://tracker.openbittorrent.com:80/announce',
                 'udp://tracker.opentrackr.org:1337/announce',
+                'udp://tracker.torrent.eu.org:451/announce',
+                'udp://tracker.dler.org:6969/announce',
+                'udp://open.stealth.si:80/announce',
               ].map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
               const magnet = `magnet:?xt=urn:btih:${bestTorrent.hash}&dn=${encodeURIComponent(movie.title)}${trackers}`;
               return { ...movieDetails, magnetLink: magnet };
@@ -183,11 +187,19 @@ export async function getEpisodeMagnetLink(seriesTitle: string, seasonNumber: nu
   const query = `${seriesTitle} S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`;
   const apiUrl = `/api/torrents/tv?title=${encodeURIComponent(seriesTitle)}&season=${seasonNumber}&episode=${episodeNumber}`;
   try {
-    const response = await fetch(apiUrl);
-    if (!response.ok) return null;
+    const response = await fetch(apiUrl); // Assuming API is hosted on the same domain
+    if (!response.ok) {
+      console.warn(`[getEpisodeMagnetLink] API call failed for ${query}: ${response.status}`);
+      return null;
+    }
     const data = await response.json();
+    if (data.error) {
+      console.warn(`[getEpisodeMagnetLink] API returned error for ${query}: ${data.error}`);
+      return null;
+    }
     return data.magnet || null;
   } catch (error) {
+    console.error(`[getEpisodeMagnetLink] Network error fetching magnet for ${query}:`, error);
     return null;
   }
 }
@@ -199,6 +211,17 @@ export async function searchMulti(query: string, page: number = 1): Promise<TMDB
   return fetchTMDB<TMDBMultiPaginatedResponse>('search/multi', { query, page });
 }
 
+export async function getMovieRecommendations(movieId: number | string, page: number = 1): Promise<TMDBPaginatedResponse<TMDBBaseMovie>> {
+  console.log(`[TMDB Fetch] Movie Recommendations for ID: ${movieId}, Page: ${page}`);
+  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseMovie>>(`movie/${movieId}/recommendations`, { page });
+}
+
+export async function getTvSeriesRecommendations(tvId: number | string, page: number = 1): Promise<TMDBPaginatedResponse<TMDBBaseTVSeries>> {
+  console.log(`[TMDB Fetch] TV Series Recommendations for ID: ${tvId}, Page: ${page}`);
+  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseTVSeries>>(`tv/${tvId}/recommendations`, { page });
+}
+
+
 export function getFullImagePath(filePath: string | null | undefined, size: string = "w500"): string {
   if (!filePath) {
     let width = 300;
@@ -206,8 +229,12 @@ export function getFullImagePath(filePath: string | null | undefined, size: stri
     if (size === "original" || (size.startsWith("w") && parseInt(size.substring(1)) >= 780)) {
         width = 600;
         height = 338;
+    } else if (size === "w200" || size === "w154"){
+        width = size === "w200" ? 200 : 154;
+        height = Math.round(width * 1.5); // Maintain aspect ratio for posters
     }
-    const seed = `placeholder_${size.replace(/\//g, '_')}_${width}x${height}`;
+    // Simple seed based on path and size to get somewhat consistent placeholders
+    const seed = `placeholder_${filePath?.replace(/[\/\.]/g, '_') || 'default'}_${size.replace(/\//g, '_')}`;
     return `https://picsum.photos/seed/${seed}/${width}/${height}?grayscale&blur=1`;
   }
   return `${IMAGE_BASE_URL}${size}${filePath}`;
