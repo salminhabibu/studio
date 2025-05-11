@@ -1,5 +1,5 @@
 // src/app/(main)/tv-series/[id]/page.tsx
-"use client"; // This page uses client-side hooks for fetching data and state management.
+"use client"; 
 
 import React, { useState, useEffect, useCallback, use } from 'react';
 import { getTvSeriesDetails, getFullImagePath } from "@/lib/tmdb";
@@ -14,20 +14,16 @@ import Link from "next/link";
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 import { SeasonAccordionItem } from "@/components/features/tv-series/SeasonAccordionItem";
 import { TVSeriesClientContent } from "@/components/features/tv-series/TVSeriesClientContent";
-import { RecommendedTvSeriesSection } from "@/components/features/tv-series/RecommendedTvSeriesSection"; // Added import
-import { Separator } from "@/components/ui/separator"; // Added import
+import { RecommendedTvSeriesSection } from "@/components/features/tv-series/RecommendedTvSeriesSection";
+import { Separator } from "@/components/ui/separator";
 
 interface TvSeriesDetailsPageProps {
-  params: { id: string };
+  params: Promise<{ id: string }>; // Changed to Promise as per Next.js warning
 }
 
-export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
-  // Since this is a client component now, we use React.use to resolve the promise from params
-  // This is Next.js 13+ App Router way of handling dynamic segment props in client components
-  // Note: Direct access to params.id might still work in some Next.js versions for client components,
-  // but using `use` is the recommended pattern for Promises.
-  // However, `params` itself is not a promise here, it's an object. The warning was likely a general one.
-  // We'll keep direct access for now as it's typical for page props.
+export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesDetailsPageProps) {
+  // Unwrap the params promise using React.use()
+  const params = use(paramsPromise);
   const id = params.id;
 
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
@@ -246,3 +242,4 @@ export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps
     </div>
   );
 }
+
