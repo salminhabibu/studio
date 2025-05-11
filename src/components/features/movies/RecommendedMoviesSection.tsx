@@ -2,7 +2,7 @@
 import { getMovieRecommendations } from "@/lib/tmdb";
 import { RecommendedItemCard } from "@/components/features/common/RecommendedItemCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { FilmIcon, SparklesIcon } from "lucide-react";
+import { FilmIcon, ThumbsUpIcon } from "lucide-react"; // Changed SparklesIcon to ThumbsUpIcon
 
 interface RecommendedMoviesSectionProps {
   movieId: number | string;
@@ -21,7 +21,7 @@ export async function RecommendedMoviesSection({ movieId }: RecommendedMoviesSec
       <Card className="shadow-lg mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <SparklesIcon className="h-6 w-6 text-primary" />
+            <ThumbsUpIcon className="h-6 w-6 text-primary" /> {/* Changed SparklesIcon to ThumbsUpIcon */}
             You Might Also Like
           </CardTitle>
         </CardHeader>

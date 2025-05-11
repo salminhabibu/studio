@@ -6,7 +6,7 @@ import { getTvSeriesRecommendations } from "@/lib/tmdb";
 import type { TMDBBaseTVSeries } from '@/types/tmdb';
 import { RecommendedItemCard } from "@/components/features/common/RecommendedItemCard";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { Tv2Icon, SparklesIcon, Loader2Icon } from "lucide-react";
+import { Tv2Icon, ThumbsUpIcon, Loader2Icon } from "lucide-react"; // Changed SparklesIcon to ThumbsUpIcon
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface RecommendedTvSeriesSectionProps {
@@ -42,7 +42,7 @@ export function RecommendedTvSeriesSection({ tvId }: RecommendedTvSeriesSectionP
       <Card className="shadow-lg mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <SparklesIcon className="h-6 w-6 text-primary" />
+            <ThumbsUpIcon className="h-6 w-6 text-primary" /> {/* Changed SparklesIcon to ThumbsUpIcon */}
             You Might Also Like
           </CardTitle>
         </CardHeader>
@@ -84,7 +84,7 @@ export function RecommendedTvSeriesSection({ tvId }: RecommendedTvSeriesSectionP
     <Card className="shadow-lg mt-8">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
-          <SparklesIcon className="h-6 w-6 text-primary" />
+          <ThumbsUpIcon className="h-6 w-6 text-primary" /> {/* Changed SparklesIcon to ThumbsUpIcon */}
           You Might Also Like
         </CardTitle>
       </CardHeader>
