@@ -59,7 +59,7 @@ export default function DownloadsPage() {
       const storedTasksString = localStorage.getItem(ARIA2_TASKS_STORAGE_KEY);
       const storedTasks: ConceptualAria2Task[] = storedTasksString ? JSON.parse(storedTasksString) : [];
       setConceptualAria2TasksStore(storedTasks);
-      console.log("[DownloadsPage] Loaded conceptual Aria2 tasks from storage:", storedTasks.length);
+      console.log("[DownloadsPage] Loaded Aria2 tasks from storage:", storedTasks.length);
       // Initialize displayedAria2Downloads based on stored tasks
       setDisplayedAria2Downloads(storedTasks.map(task => ({
         taskId: task.taskId,
@@ -87,9 +87,8 @@ export default function DownloadsPage() {
         return;
       }
       
-      // console.log("[DownloadsPage] Polling Aria2 statuses for", conceptualAria2TasksStore.length, "tasks.");
-      setIsLoadingAria2(true); // Potentially set this only if it's the first poll or few items
-      const newDisplayedDownloads: Aria2DownloadItemDisplay[] = [...displayedAria2Downloads]; // Work on a copy
+      setIsLoadingAria2(true);
+      const newDisplayedDownloads: Aria2DownloadItemDisplay[] = [...displayedAria2Downloads]; 
 
       let madeChanges = false;
 
@@ -254,7 +253,6 @@ export default function DownloadsPage() {
           toast({ title: "Retrying Download", description: `Adding ${item.name} back to WebTorrent queue.`});
           removeDownloadFromHistory(item.infoHash); // Remove from history to avoid duplicates if it becomes active
         } else {
-          // This case might mean it was already active or another issue.
           toast({ title: "Retry Not Needed/Issue", description: `${item.name} might already be active or an error occurred during re-add. Check active downloads.`, variant: "default"});
         }
       } catch (error) {
@@ -277,30 +275,30 @@ export default function DownloadsPage() {
   }
 
   const handlePauseAria2 = (taskId: string) => { 
-    // Actual pause would be an API call: await fetch(`/api/aria2/pause/${taskId}`, { method: 'POST' });
-    toast({title: "Aria2 Action", description: `Pausing task ${taskId} (conceptual). Real backend action needed.`});
+    // For a real app: await fetch(`/api/aria2/pause/${taskId}`, { method: 'POST' });
+    toast({title: "Aria2 Action", description: `Pausing task ${taskId}. (Backend action needed)`});
     setDisplayedAria2Downloads(prev => prev.map(d => d.taskId === taskId ? {...d, status: 'paused'} : d));
   };
   const handleResumeAria2 = (taskId: string) => { 
-    // Actual resume: await fetch(`/api/aria2/resume/${taskId}`, { method: 'POST' });
-    toast({title: "Aria2 Action", description: `Resuming task ${taskId} (conceptual). Real backend action needed.`});
+    // For a real app: await fetch(`/api/aria2/resume/${taskId}`, { method: 'POST' });
+    toast({title: "Aria2 Action", description: `Resuming task ${taskId}. (Backend action needed)`});
     setDisplayedAria2Downloads(prev => prev.map(d => d.taskId === taskId ? {...d, status: 'active'} : d));
   };
   const handleRemoveAria2 = (taskId: string) => {
-    // Actual removal: await fetch(`/api/aria2/remove/${taskId}`, { method: 'POST' });
+    // For a real app: await fetch(`/api/aria2/remove/${taskId}`, { method: 'POST' });
     if (typeof window !== 'undefined') {
       const currentTasks: ConceptualAria2Task[] = JSON.parse(localStorage.getItem(ARIA2_TASKS_STORAGE_KEY) || '[]');
       const updatedTasks = currentTasks.filter(task => task.taskId !== taskId);
       localStorage.setItem(ARIA2_TASKS_STORAGE_KEY, JSON.stringify(updatedTasks));
       setConceptualAria2TasksStore(updatedTasks); 
       setDisplayedAria2Downloads(prev => prev.filter(d => d.taskId !== taskId));
-      toast({title: "Aria2 Task Removed", description: `Conceptual task ${taskId} removed from local tracking. Real backend action needed to stop server download.`});
+      toast({title: "Aria2 Task Removed", description: `Task ${taskId} removed from local tracking. (Backend action needed)`});
     }
   };
   const handleOpenAria2File = (downloadUrl?: string) => {
       if (downloadUrl) {
         window.open(downloadUrl, '_blank');
-        toast({title: "Opening File", description: `Attempting to download placeholder from ${downloadUrl}`});
+        toast({title: "Opening File", description: `Attempting to download from ${downloadUrl}`});
       } else {
         toast({title: "Aria2 File Error", description: "Download URL not available or task not complete.", variant: "destructive"});
       }
@@ -390,17 +388,17 @@ export default function DownloadsPage() {
         <TabsContent value="server_downloads" className="mt-8">
           <Card className="shadow-lg border-border/40 overflow-hidden">
             <CardHeader>
-              <CardTitle>Server Downloads (Aria2 - Simulated)</CardTitle>
-              <CardDescription className="text-xs">This section simulates downloads managed by a backend server like Aria2. For actual server downloads, a separate backend server setup is required.</CardDescription>
+              <CardTitle>Server Downloads (Aria2)</CardTitle>
+              <CardDescription className="text-xs">Downloads managed by a backend server (Aria2). Server must be running and configured.</CardDescription>
             </CardHeader>
              <CardContent className="p-0">
               {isLoadingAria2 && displayedAria2Downloads.length === 0 && (
-                <div className="text-center py-12 px-6"><Loader2Icon className="mx-auto h-12 w-12 text-primary animate-spin mb-4" /><p className="text-muted-foreground">Loading server download statuses (simulated)...</p></div>
+                <div className="text-center py-12 px-6"><Loader2Icon className="mx-auto h-12 w-12 text-primary animate-spin mb-4" /><p className="text-muted-foreground">Loading server download statuses...</p></div>
               )}
               {!isLoadingAria2 && displayedAria2Downloads.length === 0 && (
                  <div className="text-center py-12 px-6">
                   <ServerIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-xl font-semibold text-muted-foreground">No Active Server Downloads (Simulated)</h3>
+                  <h3 className="text-xl font-semibold text-muted-foreground">No Active Server Downloads</h3>
                   <p className="text-muted-foreground mt-1">Downloads sent to the server will appear here once initiated.</p>
                 </div>
               )}
@@ -423,10 +421,10 @@ export default function DownloadsPage() {
                              </div>
                            </div>
                            <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
-                             {download.status === 'active' && <Button variant="ghost" size="icon" title="Pause (Conceptual)" onClick={() => handlePauseAria2(download.taskId)}><PauseCircleIcon className="h-5 w-5" /></Button>}
-                             {download.status === 'paused' && <Button variant="ghost" size="icon" title="Resume (Conceptual)" onClick={() => handleResumeAria2(download.taskId)}><PlayCircleIcon className="h-5 w-5" /></Button>}
-                             {download.status === 'complete' && download.downloadUrl && <Button variant="ghost" size="icon" title="Download File (Placeholder)" onClick={() => handleOpenAria2File(download.downloadUrl)}><FolderOpenIcon className="h-5 w-5" /></Button>}
-                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title="Remove Task (Conceptual)" onClick={() => handleRemoveAria2(download.taskId)}><XCircleIcon className="h-5 w-5" /></Button>
+                             {download.status === 'active' && <Button variant="ghost" size="icon" title="Pause" onClick={() => handlePauseAria2(download.taskId)}><PauseCircleIcon className="h-5 w-5" /></Button>}
+                             {download.status === 'paused' && <Button variant="ghost" size="icon" title="Resume" onClick={() => handleResumeAria2(download.taskId)}><PlayCircleIcon className="h-5 w-5" /></Button>}
+                             {download.status === 'complete' && download.downloadUrl && <Button variant="ghost" size="icon" title="Download File" onClick={() => handleOpenAria2File(download.downloadUrl)}><FolderOpenIcon className="h-5 w-5" /></Button>}
+                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title="Remove Task" onClick={() => handleRemoveAria2(download.taskId)}><XCircleIcon className="h-5 w-5" /></Button>
                            </div>
                          </div>
                          <Progress value={download.progress} className="mt-3 h-1.5 md:h-2" indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : (download.status === 'error') ? 'bg-red-500' : (download.status === 'complete') ? 'bg-green-500' : 'bg-primary'}/>
@@ -478,7 +476,7 @@ export default function DownloadsPage() {
                             {item.lastError && <p className="text-xs text-destructive mt-1">Error: {item.lastError}</p>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
-                            {(item.status === 'completed') && item.magnetURI && ( // Keep 'done' for backward compatibility if any old history items exist with it
+                            {(item.status === 'completed') && item.magnetURI && ( 
                                 <Button variant="ghost" size="icon" title="Stream/Play again" onClick={() => handlePlayWebTorrent(item.magnetURI, true)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
                             {(item.status === 'failed' || item.status === 'error' || item.status === 'stalled') && item.magnetURI && (
@@ -505,3 +503,4 @@ export default function DownloadsPage() {
     </div>
   );
 }
+

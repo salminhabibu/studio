@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, ServerIcon, Loader2Icon } from "lucide-react"; 
+import { ServerIcon, Loader2Icon } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -35,7 +35,7 @@ export function DownloadAllSeasonsWithOptionsButton({
     setIsLoading(true);
     const taskDisplayName = `${seriesTitle} - All Seasons`;
     console.log(
-      `[DownloadAllSeasons] Initiating SIMULATED server download for ALL seasons of ${seriesTitle} (ID: ${seriesId}) in ${selectedQuality}`
+      `[DownloadAllSeasons] Initiating server download for ALL seasons of ${seriesTitle} (ID: ${seriesId}) in ${selectedQuality}`
     );
     
     try {
@@ -53,8 +53,8 @@ export function DownloadAllSeasonsWithOptionsButton({
         const result = await response.json();
         if (response.ok && result.taskId) {
             toast({ 
-                title: "Server Download Sent (Simulated)", 
-                description: `All seasons of ${seriesName} (${selectedQuality}) sent to conceptual server. Task ID: ${result.taskId}. Check Downloads page. Note: This is a simulation.` 
+                title: "Sent to Server Download", 
+                description: `All seasons of ${seriesName} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
             });
             
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
@@ -72,11 +72,11 @@ export function DownloadAllSeasonsWithOptionsButton({
                 localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
             }
         } else {
-            toast({ title: "Server Download Error (Simulated)", description: result.error || "Failed to start 'All Seasons' download simulation on server.", variant: "destructive" });
+            toast({ title: "Server Download Error", description: result.error || "Failed to start 'All Seasons' download on server.", variant: "destructive" });
         }
     } catch (error) {
-        console.error("[DownloadAllSeasons] Error calling conceptual Aria2 add API for all seasons:", error);
-        toast({ title: "Server API Error (Simulated)", description: "Could not communicate with conceptual download server for 'All Seasons'.", variant: "destructive" });
+        console.error("[DownloadAllSeasons] Error calling Aria2 add API for all seasons:", error);
+        toast({ title: "Server API Error", description: "Could not communicate with download server for 'All Seasons'.", variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -101,12 +101,13 @@ export function DownloadAllSeasonsWithOptionsButton({
         className="w-full h-12"
         onClick={handleDownloadAllSeasons}
         disabled={isLoading}
-        aria-label={`Download all seasons of ${seriesName} in ${selectedQuality} via Server (Simulated)`}
+        aria-label={`Download all seasons of ${seriesName} in ${selectedQuality} via Server`}
       >
         {isLoading ? <Loader2Icon className="animate-spin h-5 w-5"/> : <ServerIcon className="h-5 w-5" /> } 
-        <span className="ml-2">Download All Seasons (Sim)</span>
+        <span className="ml-2">Download All Seasons</span>
       </Button>
-       <p className="text-xs text-muted-foreground text-center">Note: Downloads full season packs via server (simulated).</p>
+       <p className="text-xs text-muted-foreground text-center">Note: Downloads full season packs via server.</p>
     </div>
   );
 }
+

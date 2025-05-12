@@ -86,7 +86,7 @@ export function DownloadEpisodeButton({
   const handleAria2Download = async () => {
     setIsLoadingAria2(true);
     const taskDisplayName = `${seriesTitle} - ${episodeIdString} - ${episodeName}`;
-    console.log(`[DownloadEpisodeButton] Initiating SIMULATED Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
+    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
     
     try {
         const response = await fetch('/api/aria2/add', {
@@ -105,8 +105,8 @@ export function DownloadEpisodeButton({
 
         if (response.ok && result.taskId) {
             toast({ 
-                title: "Server Download Sent (Simulated)", 
-                description: `${episodeName} (${selectedAriaQuality}) sent to conceptual server. Task ID: ${result.taskId}. Check Downloads page. Note: This is a simulation.` 
+                title: "Sent to Server Download", 
+                description: `${episodeName} (${selectedAriaQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
             });
             
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
@@ -124,11 +124,11 @@ export function DownloadEpisodeButton({
                 localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
             }
         } else {
-            toast({ title: "Server Download Error (Simulated)", description: result.error || "Failed to start server download simulation.", variant: "destructive" });
+            toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
         }
     } catch (error) {
-        console.error("[DownloadEpisodeButton] Error calling conceptual Aria2 add API:", error);
-        toast({ title: "Server API Error (Simulated)", description: "Could not communicate with conceptual download server.", variant: "destructive" });
+        console.error("[DownloadEpisodeButton] Error calling Aria2 add API:", error);
+        toast({ title: "Server API Error", description: "Could not communicate with download server.", variant: "destructive" });
     } finally {
         setIsLoadingAria2(false);
     }
@@ -166,15 +166,16 @@ export function DownloadEpisodeButton({
         className="flex-shrink-0 h-9"
         onClick={handleAria2Download}
         disabled={isLoadingAria2 || isLoadingWebTorrent}
-        aria-label={`Download episode ${episodeIdString} via Server (Simulated): ${episodeName}`}
+        aria-label={`Download episode ${episodeIdString} via Server: ${episodeName}`}
       >
         {isLoadingAria2 ? (
             <Loader2Icon className="animate-spin h-4 w-4" /> 
         ) : (
             <ServerIcon className="h-4 w-4" />
         )}
-         <span className="ml-1.5 hidden sm:inline">Server (Sim)</span>
+         <span className="ml-1.5 hidden sm:inline">Server</span>
       </Button>
     </div>
   );
 }
+

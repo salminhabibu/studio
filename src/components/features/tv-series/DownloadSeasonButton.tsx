@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, ChevronDown, ServerIcon, Loader2Icon } from "lucide-react";
+import { ServerIcon, Loader2Icon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -38,7 +38,7 @@ export function DownloadSeasonButton({
     setIsLoading(true);
     const taskDisplayName = `${seriesTitle} - Season ${seasonNumber} (${seasonName})`;
     console.log(
-      `[DownloadSeasonButton] Initiating SIMULATED server download for ${taskDisplayName} in ${selectedQuality}`
+      `[DownloadSeasonButton] Initiating server download for ${taskDisplayName} in ${selectedQuality}`
     );
 
     try {
@@ -56,8 +56,8 @@ export function DownloadSeasonButton({
         const result = await response.json();
         if (response.ok && result.taskId) {
             toast({ 
-                title: "Server Download Sent (Simulated)", 
-                description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to conceptual server. Task ID: ${result.taskId}. Check Downloads page. Note: This is a simulation.` 
+                title: "Sent to Server Download", 
+                description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
             });
             
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
@@ -75,12 +75,12 @@ export function DownloadSeasonButton({
                 localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
             }
         } else {
-            toast({ title: "Server Download Error (Simulated)", description: result.error || "Failed to start season download simulation on server.", variant: "destructive" });
+            toast({ title: "Server Download Error", description: result.error || "Failed to start season download on server.", variant: "destructive" });
         }
 
     } catch (error) {
-        console.error("[DownloadSeasonButton] Error calling conceptual Aria2 add API for season:", error);
-        toast({ title: "Server API Error (Simulated)", description: "Could not communicate with conceptual download server for season.", variant: "destructive" });
+        console.error("[DownloadSeasonButton] Error calling Aria2 add API for season:", error);
+        toast({ title: "Server API Error", description: "Could not communicate with download server for season.", variant: "destructive" });
     } finally {
         setIsLoading(false);
     }
@@ -96,15 +96,15 @@ export function DownloadSeasonButton({
         <SelectTrigger
           className="w-[150px] h-9 text-xs"
           onClick={(e) => e.stopPropagation()} 
-          onKeyDown={(e) => { // Prevent accordion toggle when using select with keyboard
+          onKeyDown={(e) => { 
             if (e.key === 'Enter' || e.key === ' ') {
               e.stopPropagation();
             }
           }}
           disabled={isLoading}
-          asChild={false} // Ensure it's a button
+          asChild={false} 
         >
-          <span><SelectValue placeholder="Select quality" /></span>
+         <span><SelectValue placeholder="Select quality" /></span>
         </SelectTrigger>
         <SelectContent onClick={(e) => e.stopPropagation()}>
           {qualities.map((quality) => (
@@ -120,11 +120,12 @@ export function DownloadSeasonButton({
         className="h-9"
         onClick={handleDownloadSeason}
         disabled={isLoading}
-        aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality} via Server (Simulated)`}
+        aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality} via Server`}
       >
         {isLoading ? <Loader2Icon className="animate-spin h-4 w-4" /> : <ServerIcon className="h-4 w-4" />}
-        <span className="ml-1.5 hidden sm:inline">Download Season (Sim)</span>
+        <span className="ml-1.5 hidden sm:inline">Download Season</span>
       </Button>
     </div>
   );
 }
+

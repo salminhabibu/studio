@@ -5,8 +5,8 @@ import { useState, useEffect } from "react";
 import type { TMDBMovie } from "@/types/tmdb";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DownloadIcon, ExternalLinkIcon, Loader2Icon, ServerIcon, XCircleIcon } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { DownloadIcon, ExternalLinkIcon, Loader2Icon, ServerIcon } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { getFullImagePath } from "@/lib/tmdb";
@@ -63,10 +63,10 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
 
   const handleAria2Download = async () => {
     setIsAria2Loading(true);
-    console.log(`[MovieDownloadCard] Initiating SIMULATED Aria2 download for ${movie.title} (Quality: ${selectedQuality})`);
+    console.log(`[MovieDownloadCard] Initiating Aria2 download for ${movie.title} (Quality: ${selectedQuality})`);
     
     if (!movie.magnetLink && !movie.imdb_id) {
-        toast({ title: "Server Download Unavailable", description: "No identifier for server download simulation.", variant: "destructive"});
+        toast({ title: "Server Download Unavailable", description: "No identifier for server download.", variant: "destructive"});
         setIsAria2Loading(false);
         return;
     }
@@ -84,8 +84,8 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
 
         if (response.ok && result.taskId) {
             toast({ 
-                title: "Server Download Sent (Simulated)", 
-                description: `${movie.title} (${selectedQuality}) sent to conceptual server. Task ID: ${result.taskId}. Check Downloads page. Note: This is a simulation.` 
+                title: "Sent to Server Download", 
+                description: `${movie.title} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
             });
             
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
@@ -106,11 +106,11 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
             }
 
         } else {
-            toast({ title: "Server Download Error (Simulated)", description: result.error || "Failed to start server download simulation.", variant: "destructive" });
+            toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
         }
     } catch (error) {
-        console.error("[MovieDownloadCard] Error calling conceptual Aria2 add API:", error);
-        toast({ title: "Server API Error (Simulated)", description: "Could not communicate with conceptual download server.", variant: "destructive" });
+        console.error("[MovieDownloadCard] Error calling Aria2 add API:", error);
+        toast({ title: "Server API Error", description: "Could not communicate with download server.", variant: "destructive" });
     } finally {
         setIsAria2Loading(false);
     }
@@ -148,7 +148,7 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
         </div>
         
         <div className="space-y-2 pt-2 border-t border-border/30">
-            <h4 className="text-sm font-medium text-muted-foreground">Server Download (Simulated)</h4>
+            <h4 className="text-sm font-medium text-muted-foreground">Server Download</h4>
              <Select value={selectedQuality} onValueChange={setSelectedQuality} disabled={isAria2Loading}>
                 <SelectTrigger className="w-full h-10 text-xs">
                   <SelectValue placeholder="Select quality" />
@@ -167,7 +167,7 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
                 disabled={isAria2Loading}
             >
                 {isAria2Loading ? <Loader2Icon className="animate-spin h-5 w-5" /> : <ServerIcon className="h-5 w-5" />}
-                <span className="ml-2">Download (Server - Sim)</span>
+                <span className="ml-2">Download (Server)</span>
             </Button>
         </div>
 
@@ -182,3 +182,4 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
     </Card>
   );
 }
+
