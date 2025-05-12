@@ -1,36 +1,39 @@
 // src/components/features/tv-series/SeasonAccordionItem.tsx
 "use client"; 
 
-import { getTvSeasonDetails, getFullImagePath } from "@/lib/tmdb";
-import type { TMDBSeason, TMDBEpisode } from "@/types/tmdb";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ChevronDown, ClapperboardIcon, Loader2Icon } from "lucide-react";
 import Image from "next/image";
+import { cn } from "@/lib/utils";
+import { getFullImagePath, getTvSeasonDetails } from "@/lib/tmdb";
+import type { TMDBEpisode, TMDBSeason } from "@/types/tmdb";
 import { Card, CardContent } from "@/components/ui/card";
-import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { ClapperboardIcon, Loader2Icon } from "lucide-react"; // Added Loader2Icon
 import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSeasonButton";
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
 import { useEffect, useState } from "react";
 
 export function SeasonAccordionItem({ 
     seriesId, 
-    seriesTitle, // Added seriesTitle
+    seriesTitle,
     season, 
     initialOpen 
 }: { 
     seriesId: number | string; 
-    seriesTitle: string; // Added seriesTitle
+    seriesTitle: string;
     season: TMDBSeason, 
     initialOpen?: boolean 
 }) {
   const [episodes, setEpisodes] = useState<TMDBEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpen, setIsOpen] = useState(initialOpen || false);
-  const [preferredQualityForEpisodes, setPreferredQualityForEpisodes] = useState("1080p (FHD)"); // Default, could be parent prop
+  // This state is for our internal logic, like fetching episodes.
+  // Radix UI's AccordionPrimitive.Item will handle its own open/close state for animation.
+  const [isInternallyOpen, setIsInternallyOpen] = useState(initialOpen || false);
 
+  // This effect fetches episodes when the accordion item is considered open by our internal state.
   useEffect(() => {
     async function fetchEpisodes() {
-      if (isOpen && season.episode_count > 0 && episodes.length === 0 && !isLoading) {
+      if (isInternallyOpen && season.episode_count > 0 && episodes.length === 0 && !isLoading) {
         setIsLoading(true);
         setError(null);
         try {
@@ -45,15 +48,19 @@ export function SeasonAccordionItem({
       }
     }
     fetchEpisodes();
-  }, [isOpen, seriesId, season, episodes.length, isLoading]);
+  }, [isInternallyOpen, seriesId, season, episodes.length, isLoading]);
 
   return (
-    <AccordionItem value={`season-${season.season_number}`} className="border-b border-border/30 last:border-b-0">
-      <AccordionTrigger 
-        className="py-4 px-3 sm:px-4 hover:bg-muted/30 transition-colors w-full text-left group data-[state=open]:bg-muted/20"
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        <div className="flex justify-between items-center w-full gap-2">
+    <AccordionPrimitive.Item 
+      value={`season-${season.season_number}`} 
+      className="border-b border-border/30 last:border-b-0"
+    >
+      <AccordionPrimitive.Header className="flex items-center justify-between w-full group data-[state=open]:bg-muted/20 hover:bg-muted/30 transition-colors">
+        {/* Clickable area for toggling accordion */}
+        <AccordionPrimitive.Trigger 
+          className="flex-grow flex items-center text-left py-4 px-3 sm:px-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-l-md"
+          onClick={() => setIsInternallyOpen(prev => !prev)} // Toggles internal state for episode fetching
+        >
           <div className="flex items-center gap-3 min-w-0">
             {season.poster_path ? (
               <div className="relative w-12 h-[72px] rounded overflow-hidden flex-shrink-0 shadow-md bg-muted">
@@ -72,19 +79,31 @@ export function SeasonAccordionItem({
               </p>
             </div>
           </div>
+          <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200 ml-auto group-data-[state=open]:rotate-180" />
+        </AccordionPrimitive.Trigger>
+
+        {/* Action buttons area - sibling to the Trigger, inside the Header */}
+        <div className="py-2 pr-3 sm:pr-2 pl-1 flex-shrink-0 rounded-r-md" onClick={(e) => e.stopPropagation()}>
           <DownloadSeasonButton 
             seriesId={seriesId} 
-            seriesTitle={seriesTitle} // Pass seriesTitle
+            seriesTitle={seriesTitle}
             seasonNumber={season.season_number} 
             seasonName={season.name} 
           />
         </div>
-      </AccordionTrigger>
-      <AccordionContent className="bg-card/50">
-        <div className="p-2 sm:p-3 space-y-2">
-          {isLoading && <div className="flex items-center justify-center p-4"><Loader2Icon className="h-6 w-6 animate-spin text-primary" /><p className="ml-2 text-muted-foreground">Loading episodes...</p></div>}
+      </AccordionPrimitive.Header>
+
+      <AccordionPrimitive.Content className="overflow-hidden text-sm data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+        {/* Matches shadcn's AccordionContent inner div structure */}
+        <div className={cn("pb-4 pt-0", "bg-card/50 p-2 sm:p-3 space-y-2")}>
+          {isLoading && (
+            <div className="flex items-center justify-center p-4">
+              <Loader2Icon className="h-6 w-6 animate-spin text-primary" />
+              <p className="ml-2 text-muted-foreground">Loading episodes...</p>
+            </div>
+          )}
           {error && <p className="text-destructive p-4 text-center">{error}</p>}
-          {!isLoading && !error && episodes.length === 0 && season.episode_count > 0 && (
+          {!isLoading && !error && episodes.length === 0 && season.episode_count > 0 && isInternallyOpen && (
             <p className="text-muted-foreground p-3 text-center text-sm">No episodes found for this season, or data is unavailable.</p>
           )}
           {!isLoading && !error && episodes.map((episode) => (
@@ -109,17 +128,17 @@ export function SeasonAccordionItem({
                 </div>
                 <DownloadEpisodeButton
                   seriesId={seriesId}
-                  seriesTitle={seriesTitle} // Pass seriesTitle
+                  seriesTitle={seriesTitle}
                   seasonNumber={episode.season_number}
                   episodeNumber={episode.episode_number}
                   episodeName={episode.name}
-                  preferredQuality={preferredQualityForEpisodes} // Pass quality
+                  preferredQuality={"1080p (FHD)"} // TODO: Make this dynamic
                 />
               </CardContent>
             </Card>
           ))}
         </div>
-      </AccordionContent>
-    </AccordionItem>
+      </AccordionPrimitive.Content>
+    </AccordionPrimitive.Item>
   );
 }
