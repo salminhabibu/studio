@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ServerIcon, Loader2Icon } from "lucide-react";
+import { ServerIcon, Loader2Icon, ChevronDown } from "lucide-react"; // Added ChevronDown
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -13,19 +13,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ConceptualAria2Task } from "@/types/download";
+import { cn } from "@/lib/utils";
 
 interface DownloadSeasonButtonProps {
   seriesId: number | string;
-  seriesTitle: string; 
+  seriesTitle: string;
   seasonNumber: number;
   seasonName: string;
 }
 
-const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; 
+const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"];
 
 export function DownloadSeasonButton({
   seriesId,
-  seriesTitle, 
+  seriesTitle,
   seasonNumber,
   seasonName,
 }: DownloadSeasonButtonProps) {
@@ -34,7 +35,7 @@ export function DownloadSeasonButton({
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDownloadSeason = async (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
     setIsLoading(true);
     const taskDisplayName = `${seriesTitle} - Season ${seasonNumber} (${seasonName})`;
     console.log(
@@ -50,16 +51,16 @@ export function DownloadSeasonButton({
                 seriesTitle,
                 season: seasonNumber,
                 quality: selectedQuality,
-                type: 'tv_season_pack' 
+                type: 'tv_season_pack'
             })
         });
         const result = await response.json();
         if (response.ok && result.taskId) {
-            toast({ 
-                title: "Sent to Server Download", 
-                description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
+            toast({
+                title: "Sent to Server Download",
+                description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.`
             });
-            
+
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
             const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
             const newTask: ConceptualAria2Task = {
@@ -87,24 +88,36 @@ export function DownloadSeasonButton({
   };
 
   return (
-    <div className="flex items-center gap-2 ml-auto flex-shrink-0"> 
+    <div className="flex items-center gap-2 ml-auto flex-shrink-0">
       <Select
         value={selectedQuality}
         onValueChange={setSelectedQuality}
         disabled={isLoading}
       >
         <SelectTrigger
-          className="w-[150px] h-9 text-xs"
-          onClick={(e) => e.stopPropagation()} 
-          onKeyDown={(e) => { 
+          asChild // Use asChild to render a non-button element as the trigger
+          className="w-[150px] h-9 text-xs" // This className is passed to the child div
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
+              // Allow space/enter to open select, but stop propagation so accordion doesn't toggle
               e.stopPropagation();
             }
           }}
           disabled={isLoading}
-          asChild={false} 
         >
-         <span><SelectValue placeholder="Select quality" /></span>
+          {/* This div becomes the trigger. It will receive styles from SelectTrigger's className. */}
+          {/* Radix Slot correctly applies ARIA attributes and event handlers. */}
+          <div 
+             className={cn(
+                // Replicate essential styles for the trigger look and feel if not fully inherited.
+                // The className from SelectTrigger (w-[150px] h-9 text-xs) will be merged by Radix Slot.
+                // Default shadcn SelectTrigger styles (flex, items-center, etc.) are also applied.
+             )}
+          >
+            <SelectValue placeholder="Select quality" />
+            <ChevronDown className="h-4 w-4 opacity-50" />
+          </div>
         </SelectTrigger>
         <SelectContent onClick={(e) => e.stopPropagation()}>
           {qualities.map((quality) => (
@@ -128,4 +141,3 @@ export function DownloadSeasonButton({
     </div>
   );
 }
-
