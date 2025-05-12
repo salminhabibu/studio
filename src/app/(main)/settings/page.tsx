@@ -78,6 +78,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
 
   const applyThemeColors = useCallback((primaryColor?: PrimaryAccentColorOption, highlightColor?: HighlightAccentOption) => {
+    if (typeof document === 'undefined') return;
     if (primaryColor) {
       document.documentElement.style.setProperty('--primary', primaryColor.primaryHsl);
       document.documentElement.style.setProperty('--primary-foreground', primaryColor.primaryForegroundHsl);
@@ -91,6 +92,8 @@ export default function SettingsPage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof localStorage === 'undefined') return;
+
     const savedPrimaryAccentHex = localStorage.getItem("chillymovies-primary-accent-color");
     const savedHighlightAccentHex = localStorage.getItem("chillymovies-highlight-accent-color");
     const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-download-quality");
@@ -109,19 +112,19 @@ export default function SettingsPage() {
     setSelectedPrimaryAccentHex(color.hex);
     const currentHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === selectedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
     applyThemeColors(color, currentHighlightColor);
-    if (mounted) localStorage.setItem("chillymovies-primary-accent-color", color.hex);
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-primary-accent-color", color.hex);
   }, [mounted, applyThemeColors, selectedHighlightAccentHex]);
 
   const handleHighlightAccentColorChange = useCallback((color: HighlightAccentOption) => {
     setSelectedHighlightAccentHex(color.hex);
     const currentPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === selectedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
     applyThemeColors(currentPrimaryColor, color);
-    if (mounted) localStorage.setItem("chillymovies-highlight-accent-color", color.hex);
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-highlight-accent-color", color.hex);
   }, [mounted, applyThemeColors, selectedPrimaryAccentHex]);
 
   const handlePreferredQualityChange = (qualityValue: string) => {
     setPreferredDownloadQuality(qualityValue);
-    if (mounted) localStorage.setItem("chillymovies-preferred-download-quality", qualityValue);
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-preferred-download-quality", qualityValue);
     toast({
       title: "Preference Saved",
       description: `Preferred download quality set to ${DOWNLOAD_QUALITY_OPTIONS.find(q=>q.value === qualityValue)?.label || qualityValue}.`
@@ -135,6 +138,10 @@ export default function SettingsPage() {
       description: "Your download history has been successfully cleared.",
     });
   };
+
+  if (!mounted) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <div className="space-y-8 max-w-3xl mx-auto">
@@ -191,8 +198,9 @@ export default function SettingsPage() {
                 <div>
                     <h4 className="text-base font-medium">Download Location</h4>
                     <p className="text-sm text-muted-foreground">
-                        Your browser manages all downloads. Files are typically saved to your default &lsquo;Downloads&rsquo; folder.
-                        You can usually change this location in your browser&apos;s settings.
+                        All downloads are handled by your web browser. Files are typically saved to your browser&apos;s default &lsquo;Downloads&rsquo; folder.
+                        You can change this default location in your browser&apos;s settings. This application cannot directly control the download path due to browser security restrictions.
+                        Each download may also prompt you with a &quot;Save As&quot; dialog depending on your browser configuration.
                     </p>
                 </div>
             </div>
@@ -214,7 +222,7 @@ export default function SettingsPage() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-2">
-                  This sets your general preference for new downloads. Actual availability depends on the source and may be overridden by specific quality selectors on download pages.
+                  This sets your general preference for new downloads (e.g., for TV series episodes or movies). Actual availability depends on the source and may be overridden by specific quality selectors on download pages.
                 </p>
               </div>
             </div>
