@@ -14,6 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { ConceptualAria2Task } from "@/types/download";
 
 interface DownloadEpisodeButtonProps {
   seriesId: number | string; 
@@ -21,10 +22,9 @@ interface DownloadEpisodeButtonProps {
   seasonNumber: number;
   episodeNumber: number;
   episodeName: string;
-  preferredQuality: string; // Added to receive preferred quality from parent
+  preferredQuality: string;
 }
 
-// Shared qualities with season button, could be a constant
 const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"];
 
 export function DownloadEpisodeButton({
@@ -33,21 +33,18 @@ export function DownloadEpisodeButton({
   seasonNumber,
   episodeNumber,
   episodeName,
-  preferredQuality, // Use this prop
+  preferredQuality,
 }: DownloadEpisodeButtonProps) {
   const { toast } = useToast();
   const { addTorrent, isClientReady } = useWebTorrent(); 
   const [isLoadingWebTorrent, setIsLoadingWebTorrent] = useState(false);
   const [isLoadingAria2, setIsLoadingAria2] = useState(false);
-  // Quality for Aria2, WebTorrent will take whatever magnet is found
   const [selectedAriaQuality, setSelectedAriaQuality] = useState(preferredQuality || qualities[0]);
-
 
   const episodeIdString = `S${String(seasonNumber).padStart(2, "0")}E${String(
     episodeNumber
   ).padStart(2, "0")}`;
-  const uniqueItemId = `${seriesId}-${episodeIdString}`; // Used for history and tracking
-
+  const uniqueItemId = `${seriesId}-${episodeIdString}`;
 
   const handleWebTorrentDownload = async () => {
     if (!isClientReady) {
@@ -60,16 +57,15 @@ export function DownloadEpisodeButton({
     );
 
     try {
-      // Quality parameter for getEpisodeMagnetLink is conceptual for now, as API doesn't use it yet
       const fetchedMagnetLink = await getEpisodeMagnetLink(
         seriesTitle,
         seasonNumber,
         episodeNumber,
-        // selectedAriaQuality // Or a specific quality for WebTorrent if API supports
+        selectedAriaQuality // Pass current quality selection for magnet search consistency
       );
 
       if (fetchedMagnetLink) {
-        console.log(`[DownloadEpisodeButton] Adding WebTorrent: ${fetchedMagnetLink}`);
+        console.log(`[DownloadEpisodeButton] Adding WebTorrent: ${fetchedMagnetLink.substring(0,60)}...`);
         const torrent = await addTorrent(fetchedMagnetLink, `${seriesTitle} - ${episodeIdString} - ${episodeName}`, uniqueItemId);
         if (torrent) {
           toast({ title: "Download Queued (WebTorrent)", description: `${episodeName} is being added.` });
@@ -77,7 +73,7 @@ export function DownloadEpisodeButton({
           toast({ title: "WebTorrent Issue", description: `${episodeName} might already be in downloads or failed to add.`, variant: "default" });
         }
       } else {
-        toast({ title: "Download Failed", description: `Could not find a WebTorrent link for ${episodeName}.`, variant: "destructive" });
+        toast({ title: "Download Failed", description: `Could not find a WebTorrent link for ${episodeName}. Try a different quality or check source.`, variant: "destructive" });
       }
     } catch (error) {
       console.error("[DownloadEpisodeButton] WebTorrent Error:", error);
@@ -89,25 +85,41 @@ export function DownloadEpisodeButton({
 
   const handleAria2Download = async () => {
     setIsLoadingAria2(true);
-    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${seriesTitle} ${episodeIdString} (Quality: ${selectedAriaQuality})`);
+    const taskDisplayName = `${seriesTitle} - ${episodeIdString} - ${episodeName}`;
+    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
     
     try {
         const response = await fetch('/api/aria2/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
-                name: `${seriesTitle} - ${episodeIdString} - ${episodeName}`,
-                seriesTitle, // Send individual parts for backend to construct search query
+                name: taskDisplayName,
+                seriesTitle, 
                 season: seasonNumber,
                 episode: episodeNumber,
                 quality: selectedAriaQuality,
-                type: 'tv_episode' // Indicate to backend this is a TV episode
+                type: 'tv_episode'
             })
         });
         const result = await response.json();
 
         if (response.ok && result.taskId) {
-            toast({ title: "Server Download Started", description: `${episodeName} (Quality: ${selectedAriaQuality}) sent to server. Task ID: ${result.taskId}` });
+            toast({ title: "Server Download Sent", description: `${episodeName} (${selectedAriaQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` });
+            
+            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+            const newTask: ConceptualAria2Task = {
+                taskId: result.taskId,
+                name: result.taskName || taskDisplayName,
+                quality: selectedAriaQuality,
+                addedTime: Date.now(),
+                sourceUrlOrIdentifier: `${seriesTitle} S${seasonNumber}E${episodeNumber}`,
+                type: 'tv_episode',
+            };
+            if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
+                conceptualTasks.push(newTask);
+                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+            }
         } else {
             toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
         }
@@ -119,11 +131,9 @@ export function DownloadEpisodeButton({
     }
   };
   
-
   return (
     <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 mt-2 sm:mt-0 self-start sm:self-center">
-      {/* Quality selection for Aria2 - WebTorrent uses whatever magnet is found */}
-       <Select value={selectedAriaQuality} onValueChange={setSelectedAriaQuality}>
+       <Select value={selectedAriaQuality} onValueChange={setSelectedAriaQuality} disabled={isLoadingAria2 || isLoadingWebTorrent}>
         <SelectTrigger className="h-9 text-xs w-full sm:w-[140px] flex-shrink-0">
           <SelectValue placeholder="Quality" />
         </SelectTrigger>
@@ -137,28 +147,28 @@ export function DownloadEpisodeButton({
         variant="ghost"
         className="flex-shrink-0 text-primary hover:text-primary/80 h-9"
         onClick={handleWebTorrentDownload}
-        disabled={isLoadingWebTorrent || !isClientReady}
+        disabled={isLoadingWebTorrent || !isClientReady || isLoadingAria2}
         aria-label={`Download episode ${episodeIdString} via WebTorrent: ${episodeName}`}
       >
         {isLoadingWebTorrent ? (
-            <Loader2Icon className="animate-spin" /> 
+            <Loader2Icon className="animate-spin h-4 w-4" /> 
         ) : (
-            <DownloadIcon />
+            <DownloadIcon className="h-4 w-4" />
         )}
-        <span className="ml-1.5 hidden sm:inline">WebTorrent</span>
+        <span className="ml-1.5 hidden sm:inline">{isClientReady ? 'WebTorrent' : 'WT Init...'}</span>
       </Button>
       <Button
         size="sm"
         variant="outline"
         className="flex-shrink-0 h-9"
         onClick={handleAria2Download}
-        disabled={isLoadingAria2}
+        disabled={isLoadingAria2 || isLoadingWebTorrent}
         aria-label={`Download episode ${episodeIdString} via Server: ${episodeName}`}
       >
         {isLoadingAria2 ? (
-            <Loader2Icon className="animate-spin" /> 
+            <Loader2Icon className="animate-spin h-4 w-4" /> 
         ) : (
-            <ServerIcon />
+            <ServerIcon className="h-4 w-4" />
         )}
          <span className="ml-1.5 hidden sm:inline">Server</span>
       </Button>

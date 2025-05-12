@@ -12,33 +12,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// import { useWebTorrent } from "@/contexts/WebTorrentContext"; // WebTorrent for full seasons is complex, focusing on Aria2 for now
+import type { ConceptualAria2Task } from "@/types/download";
 
 interface DownloadSeasonButtonProps {
   seriesId: number | string;
-  seriesTitle: string; // Added seriesTitle
+  seriesTitle: string; 
   seasonNumber: number;
   seasonName: string;
 }
 
-const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; // Simplified from 4K/2K for season packs
+const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; 
 
 export function DownloadSeasonButton({
   seriesId,
-  seriesTitle, // Use this
+  seriesTitle, 
   seasonNumber,
   seasonName,
 }: DownloadSeasonButtonProps) {
   const { toast } = useToast();
-  // const { addTorrent, isClientReady } = useWebTorrent(); // Defer WebTorrent for full seasons
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleDownloadSeason = async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation(); 
     setIsLoading(true);
+    const taskDisplayName = `${seriesTitle} - Season ${seasonNumber} (${seasonName})`;
     console.log(
-      `[DownloadSeasonButton] Initiating server download for ${seriesTitle} Season ${seasonNumber} (${seasonName}) in ${selectedQuality}`
+      `[DownloadSeasonButton] Initiating server download for ${taskDisplayName} in ${selectedQuality}`
     );
 
     try {
@@ -46,16 +46,31 @@ export function DownloadSeasonButton({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                name: `${seriesTitle} - Season ${seasonNumber} (${seasonName})`,
+                name: taskDisplayName,
                 seriesTitle,
                 season: seasonNumber,
                 quality: selectedQuality,
-                type: 'tv_season_pack' // Indicate to backend this is a season pack
+                type: 'tv_season_pack' 
             })
         });
         const result = await response.json();
         if (response.ok && result.taskId) {
-            toast({ title: "Server Download Started (Season)", description: `Season ${seasonNumber} of ${seriesTitle} sent to server. Task ID: ${result.taskId}` });
+            toast({ title: "Server Download Sent (Season)", description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` });
+            
+            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+            const newTask: ConceptualAria2Task = {
+                taskId: result.taskId,
+                name: result.taskName || taskDisplayName,
+                quality: selectedQuality,
+                addedTime: Date.now(),
+                sourceUrlOrIdentifier: `${seriesTitle} S${seasonNumber}`,
+                type: 'tv_season_pack',
+            };
+            if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
+                conceptualTasks.push(newTask);
+                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+            }
         } else {
             toast({ title: "Server Download Error", description: result.error || "Failed to start season download on server.", variant: "destructive" });
         }
@@ -69,7 +84,7 @@ export function DownloadSeasonButton({
   };
 
   return (
-    <div className="flex items-center gap-2 ml-auto flex-shrink-0"> {/* Changed margin to ml-auto */}
+    <div className="flex items-center gap-2 ml-auto flex-shrink-0"> 
       <Select
         value={selectedQuality}
         onValueChange={setSelectedQuality}
@@ -77,7 +92,8 @@ export function DownloadSeasonButton({
       >
         <SelectTrigger
           className="w-[150px] h-9 text-xs"
-          onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
+          onClick={(e) => e.stopPropagation()} 
+          disabled={isLoading}
         >
           <SelectValue placeholder="Select quality" />
         </SelectTrigger>
@@ -97,7 +113,7 @@ export function DownloadSeasonButton({
         disabled={isLoading}
         aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality} via Server`}
       >
-        {isLoading ? <Loader2Icon className="animate-spin" /> : <ServerIcon />}
+        {isLoading ? <Loader2Icon className="animate-spin h-4 w-4" /> : <ServerIcon className="h-4 w-4" />}
         <span className="ml-1.5 hidden sm:inline">Download Season</span>
       </Button>
     </div>

@@ -12,13 +12,12 @@ import Image from "next/image";
 import { getFullImagePath } from "@/lib/tmdb";
 import { useWebTorrent } from "@/contexts/WebTorrentContext";
 import { useToast } from "@/hooks/use-toast";
+import type { ConceptualAria2Task } from "@/types/download";
 
 interface MovieDownloadCardProps {
   movie: TMDBMovie & { magnetLink?: string; torrentQuality?: string }; 
 }
 
-// Qualities are more of a user preference if the backend (Aria2) supports searching by quality.
-// For WebTorrent with a single magnet, this is less relevant.
 const qualities = ["1080p (FHD)", "720p (HD)", "Any Available"]; 
 
 export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
@@ -29,7 +28,6 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
   const [isAria2Loading, setIsAria2Loading] = useState(false);
 
   useEffect(() => {
-    // If movie has a specific torrentQuality, set it as default
     if (movie.torrentQuality) {
       setSelectedQuality(movie.torrentQuality);
     }
@@ -46,7 +44,7 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
       return;
     }
     setIsWebTorrentLoading(true);
-    console.log(`[MovieDownloadCard] Adding WebTorrent for ${movie.title}`);
+    console.log(`[MovieDownloadCard] Adding WebTorrent for ${movie.title}, Magnet: ${movie.magnetLink ? movie.magnetLink.substring(0,50) + '...' : 'N/A'}`);
     
     try {
       const torrent = await addTorrent(movie.magnetLink, movie.title, movie.id);
@@ -64,21 +62,19 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
   };
 
   const handleAria2Download = async () => {
-    // This is a placeholder for Aria2 backend integration
     setIsAria2Loading(true);
     console.log(`[MovieDownloadCard] Initiating Aria2 download for ${movie.title} (Quality: ${selectedQuality})`);
     
-    if (!movie.magnetLink && !movie.imdb_id) { // Need some identifier for backend
+    if (!movie.magnetLink && !movie.imdb_id) {
         toast({ title: "Server Download Unavailable", description: "No identifier for server download.", variant: "destructive"});
         setIsAria2Loading(false);
         return;
     }
 
-    try {
-        // Example: use magnet link if available, otherwise IMDB ID for backend to search
-        const identifier = movie.magnetLink || movie.imdb_id;
-        const type = movie.magnetLink ? 'magnet' : 'imdb_id';
+    const identifier = movie.magnetLink || movie.imdb_id!;
+    const type = movie.magnetLink ? 'magnet' : 'imdb_id';
 
+    try {
         const response = await fetch('/api/aria2/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -87,7 +83,27 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
         const result = await response.json();
 
         if (response.ok && result.taskId) {
-            toast({ title: "Server Download Started", description: `${movie.title} (Quality: ${selectedQuality}) sent to server. Task ID: ${result.taskId}` });
+            toast({ title: "Server Download Sent", description: `${movie.title} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` });
+            
+            // Store in localStorage for DownloadsPage to pick up
+            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+            
+            const newTask: ConceptualAria2Task = {
+                taskId: result.taskId,
+                name: result.taskName || movie.title,
+                quality: selectedQuality,
+                addedTime: Date.now(),
+                sourceUrlOrIdentifier: identifier,
+                type: type,
+            };
+            
+            // Avoid duplicates
+            if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
+                conceptualTasks.push(newTask);
+                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+            }
+
         } else {
             toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
         }
@@ -125,14 +141,14 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
             onClick={handleWebTorrentDownload} 
             disabled={isWebTorrentLoading || !movie.magnetLink || !isClientReady}
           >
-            {isWebTorrentLoading ? <Loader2Icon className="animate-spin" /> : <DownloadIcon />}
-            {isClientReady ? 'Download (WebTorrent)' : 'WebTorrent Loading...'}
+            {isWebTorrentLoading ? <Loader2Icon className="animate-spin h-5 w-5" /> : <DownloadIcon className="h-5 w-5" />}
+            <span className="ml-2">{isClientReady ? 'Download (WebTorrent)' : 'WebTorrent Loading...'}</span>
           </Button>
         </div>
         
         <div className="space-y-2 pt-2 border-t border-border/30">
             <h4 className="text-sm font-medium text-muted-foreground">Server Download (Conceptual)</h4>
-             <Select value={selectedQuality} onValueChange={setSelectedQuality}>
+             <Select value={selectedQuality} onValueChange={setSelectedQuality} disabled={isAria2Loading}>
                 <SelectTrigger className="w-full h-10 text-xs">
                   <SelectValue placeholder="Select quality" />
                 </SelectTrigger>
@@ -149,15 +165,15 @@ export function MovieDownloadCard({ movie }: MovieDownloadCardProps) {
                 onClick={handleAria2Download}
                 disabled={isAria2Loading}
             >
-                {isAria2Loading ? <Loader2Icon className="animate-spin" /> : <ServerIcon />}
-                Download (Server)
+                {isAria2Loading ? <Loader2Icon className="animate-spin h-5 w-5" /> : <ServerIcon className="h-5 w-5" />}
+                <span className="ml-2">Download (Server)</span>
             </Button>
         </div>
 
         {movie.homepage && (
           <Button variant="outline" className="w-full h-10 text-sm mt-2" asChild>
             <Link href={movie.homepage} target="_blank" rel="noopener noreferrer">
-              <ExternalLinkIcon /> Visit Homepage
+              <ExternalLinkIcon className="h-4 w-4 mr-2" /> Visit Homepage
             </Link>
           </Button>
         )}
