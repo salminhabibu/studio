@@ -35,7 +35,8 @@ export interface TMDBMovie extends TMDBBaseMovie {
   videos?: {
     results: TMDBVideo[];
   };
-  imdb_id?: string; // Often available, useful for other APIs
+  imdb_id?: string; 
+  torrentQuality?: string; // Added for YTS torrent quality
 }
 
 export interface TMDBPaginatedResponse<T> {
@@ -70,7 +71,7 @@ export interface TMDBEpisode {
 }
 
 export interface TMDBSeason {
-  air_date: string | null; // Usually the air date of the first episode
+  air_date: string | null; 
   episode_count: number; 
   id: number;
   name: string;
@@ -143,10 +144,9 @@ export interface TMDBVideoResponse {
 }
 
 export interface TMDBDiscoverFilters {
-  with_genres?: string | string[]; // Comma-separated string of genre IDs or array
-  primary_release_year?: number;   // For movies
-  first_air_date_year?: number;    // For TV series
-  with_origin_country?: string;    // ISO 3166-1 code
-  sort_by?: string;                // e.g., 'popularity.desc', 'release_date.desc'
-  // Add other relevant filters as needed from TMDB discover docs
+  with_genres?: string | string[]; 
+  primary_release_year?: number;   
+  first_air_date_year?: number;    
+  with_origin_country?: string;    
+  sort_by?: string;                
 }

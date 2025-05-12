@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, ChevronDown } from "lucide-react";
+import { DownloadIcon, ChevronDown, ServerIcon, Loader2Icon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Select,
@@ -12,59 +12,76 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+// import { useWebTorrent } from "@/contexts/WebTorrentContext"; // WebTorrent for full seasons is complex, focusing on Aria2 for now
 
 interface DownloadSeasonButtonProps {
   seriesId: number | string;
+  seriesTitle: string; // Added seriesTitle
   seasonNumber: number;
   seasonName: string;
 }
 
-const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "4K (UHD)", "2K (QHD)"];
+const qualities = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; // Simplified from 4K/2K for season packs
 
 export function DownloadSeasonButton({
   seriesId,
+  seriesTitle, // Use this
   seasonNumber,
   seasonName,
 }: DownloadSeasonButtonProps) {
   const { toast } = useToast();
+  // const { addTorrent, isClientReady } = useWebTorrent(); // Defer WebTorrent for full seasons
   const [selectedQuality, setSelectedQuality] = useState(qualities[0]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleDownloadSeason = (e: React.MouseEvent | React.KeyboardEvent) => {
-    e.stopPropagation(); // Prevent AccordionTrigger from toggling
+  const handleDownloadSeason = async (e: React.MouseEvent | React.KeyboardEvent) => {
+    e.stopPropagation(); 
+    setIsLoading(true);
     console.log(
-      `Download season ${seasonNumber} (${seasonName}) for series ${seriesId} in ${selectedQuality}`
+      `[DownloadSeasonButton] Initiating server download for ${seriesTitle} Season ${seasonNumber} (${seasonName}) in ${selectedQuality}`
     );
-    toast({
-      title: "Download Started (Season)",
-      description: `Season ${seasonNumber}: ${seasonName} (${selectedQuality}) of series ${seriesId} is being prepared for download.`,
-    });
+
+    try {
+        const response = await fetch('/api/aria2/add', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name: `${seriesTitle} - Season ${seasonNumber} (${seasonName})`,
+                seriesTitle,
+                season: seasonNumber,
+                quality: selectedQuality,
+                type: 'tv_season_pack' // Indicate to backend this is a season pack
+            })
+        });
+        const result = await response.json();
+        if (response.ok && result.taskId) {
+            toast({ title: "Server Download Started (Season)", description: `Season ${seasonNumber} of ${seriesTitle} sent to server. Task ID: ${result.taskId}` });
+        } else {
+            toast({ title: "Server Download Error", description: result.error || "Failed to start season download on server.", variant: "destructive" });
+        }
+
+    } catch (error) {
+        console.error("[DownloadSeasonButton] Error calling Aria2 add API for season:", error);
+        toast({ title: "Server API Error", description: "Could not communicate with download server for season.", variant: "destructive" });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex items-center gap-2 ml-4 flex-shrink-0">
+    <div className="flex items-center gap-2 ml-auto flex-shrink-0"> {/* Changed margin to ml-auto */}
       <Select
         value={selectedQuality}
         onValueChange={setSelectedQuality}
+        disabled={isLoading}
       >
         <SelectTrigger
-          asChild
           className="w-[150px] h-9 text-xs"
-          onClick={(e) => {
-            // Stop propagation to prevent AccordionTrigger from toggling
-            // and Select from opening when clicking on the trigger button from accordion.
-            e.stopPropagation();
-          }}
+          onClick={(e) => e.stopPropagation()} // Prevent accordion toggle
         >
-          {/* This div receives merged classes from SelectTrigger and custom ones.
-              Radix Slot component handles merging props and className.
-              It acts as the visual trigger for the Select component.
-           */}
-          <div>
-            <SelectValue placeholder="Select quality" />
-            <ChevronDown className="h-4 w-4 opacity-50" />
-          </div>
+          <SelectValue placeholder="Select quality" />
         </SelectTrigger>
-        <SelectContent onClick={(e) => e.stopPropagation()}> {/* Prevent clicks in content from toggling accordion */}
+        <SelectContent onClick={(e) => e.stopPropagation()}>
           {qualities.map((quality) => (
             <SelectItem key={quality} value={quality} className="text-xs">
               {quality}
@@ -73,26 +90,15 @@ export function DownloadSeasonButton({
         </SelectContent>
       </Select>
       <Button
-        asChild // Render the child component instead of a <button> element
         size="sm"
         variant="outline"
-        className="h-9" // Styling from buttonVariants will be applied to the div
-        onClick={handleDownloadSeason} // onClick handler will be passed to the div via Slot
-        aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality}`}
+        className="h-9"
+        onClick={handleDownloadSeason}
+        disabled={isLoading}
+        aria-label={`Download season ${seasonNumber}: ${seasonName} in ${selectedQuality} via Server`}
       >
-        <div // This div will be rendered, styled like a button, but is not a <button> tag
-          role="button" // Accessibility: announce as a button
-          tabIndex={0}  // Accessibility: make it focusable
-          onKeyDown={(e) => {
-            // Accessibility: allow activation with Enter or Space key
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault(); // Prevent default spacebar scroll
-              handleDownloadSeason(e); // Trigger the same action as click
-            }
-          }}
-        >
-          <DownloadIcon className="mr-2 h-4 w-4" /> Download Season
-        </div>
+        {isLoading ? <Loader2Icon className="animate-spin" /> : <ServerIcon />}
+        <span className="ml-1.5 hidden sm:inline">Download Season</span>
       </Button>
     </div>
   );

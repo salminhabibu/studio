@@ -6,16 +6,27 @@ import type { TMDBSeason, TMDBEpisode } from "@/types/tmdb";
 import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { ClapperboardIcon } from "lucide-react";
+import { ClapperboardIcon, Loader2Icon } from "lucide-react"; // Added Loader2Icon
 import { DownloadSeasonButton } from "@/components/features/tv-series/DownloadSeasonButton";
 import { DownloadEpisodeButton } from "@/components/features/tv-series/DownloadEpisodeButton";
 import { useEffect, useState } from "react";
 
-export function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesId: number | string; season: TMDBSeason, initialOpen?: boolean }) {
+export function SeasonAccordionItem({ 
+    seriesId, 
+    seriesTitle, // Added seriesTitle
+    season, 
+    initialOpen 
+}: { 
+    seriesId: number | string; 
+    seriesTitle: string; // Added seriesTitle
+    season: TMDBSeason, 
+    initialOpen?: boolean 
+}) {
   const [episodes, setEpisodes] = useState<TMDBEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(initialOpen || false);
+  const [preferredQualityForEpisodes, setPreferredQualityForEpisodes] = useState("1080p (FHD)"); // Default, could be parent prop
 
   useEffect(() => {
     async function fetchEpisodes() {
@@ -61,12 +72,17 @@ export function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesI
               </p>
             </div>
           </div>
-          <DownloadSeasonButton seriesId={seriesId} seasonNumber={season.season_number} seasonName={season.name} />
+          <DownloadSeasonButton 
+            seriesId={seriesId} 
+            seriesTitle={seriesTitle} // Pass seriesTitle
+            seasonNumber={season.season_number} 
+            seasonName={season.name} 
+          />
         </div>
       </AccordionTrigger>
       <AccordionContent className="bg-card/50">
         <div className="p-2 sm:p-3 space-y-2">
-          {isLoading && <p className="text-muted-foreground p-3 text-center text-sm">Loading episodes...</p>}
+          {isLoading && <div className="flex items-center justify-center p-4"><Loader2Icon className="h-6 w-6 animate-spin text-primary" /><p className="ml-2 text-muted-foreground">Loading episodes...</p></div>}
           {error && <p className="text-destructive p-4 text-center">{error}</p>}
           {!isLoading && !error && episodes.length === 0 && season.episode_count > 0 && (
             <p className="text-muted-foreground p-3 text-center text-sm">No episodes found for this season, or data is unavailable.</p>
@@ -93,9 +109,11 @@ export function SeasonAccordionItem({ seriesId, season, initialOpen }: { seriesI
                 </div>
                 <DownloadEpisodeButton
                   seriesId={seriesId}
+                  seriesTitle={seriesTitle} // Pass seriesTitle
                   seasonNumber={episode.season_number}
                   episodeNumber={episode.episode_number}
                   episodeName={episode.name}
+                  preferredQuality={preferredQualityForEpisodes} // Pass quality
                 />
               </CardContent>
             </Card>

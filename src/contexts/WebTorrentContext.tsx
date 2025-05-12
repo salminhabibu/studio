@@ -1,10 +1,11 @@
+// src/contexts/WebTorrentContext.tsx
 import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import webTorrentService, { Torrent, TorrentProgress, HistoryItem } from '@/lib/webtorrent-service';
 import type { TorrentFile as WebTorrentFile } from 'webtorrent';
 
 
 interface WebTorrentContextType {
-  torrents: TorrentProgress[]; // Active torrents
+  torrents: TorrentProgress[];
   history: HistoryItem[];
   addTorrent: (magnetURI: string, itemName?: string, itemId?: string | number) => Promise<Torrent | null>;
   removeTorrent: (infoHashOrMagnetURI: string) => Promise<void>;
@@ -14,6 +15,7 @@ interface WebTorrentContextType {
   getLargestFileForStreaming: (infoHashOrMagnetURI: string) => Promise<{ file: WebTorrentFile, streamUrl: string } | null>;
   clearDownloadHistory: () => void;
   removeDownloadFromHistory: (infoHash: string) => void;
+  isClientReady: boolean;
 }
 
 const WebTorrentContext = createContext<WebTorrentContextType | undefined>(undefined);
@@ -31,8 +33,10 @@ interface WebTorrentProviderProps {
 }
 
 export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children }) => {
-  const [torrents, setTorrents] = useState<TorrentProgress[]>(() => webTorrentService.getAllTorrentsProgress());
-  const [history, setHistory] = useState<HistoryItem[]>(() => webTorrentService.getDownloadHistory());
+  const [torrents, setTorrents] = useState<TorrentProgress[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [isClientReady, setIsClientReady] = useState(false);
+
 
   const updateTorrentProgressList = useCallback(() => {
     setTorrents([...webTorrentService.getAllTorrentsProgress()]);
@@ -43,20 +47,45 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
   }, []);
 
   useEffect(() => {
-    // Ensure service client is initialized if needed, especially for any startup logic.
-    // For now, getClient() in service methods handles lazy initialization.
-    // webTorrentService.getClient(); // Could be called here to kick off init early
+    // Initialize client and set ready state
+    const initClient = async () => {
+        try {
+            await webTorrentService.getClient(); // Ensures client is initialized
+            setIsClientReady(true);
+            console.log("[WebTorrentContext] WebTorrent client is ready.");
+             // Initial sync after client is ready
+            updateTorrentProgressList();
+            updateHistoryList();
+        } catch (error) {
+            console.error("[WebTorrentContext] Failed to initialize WebTorrent client in provider:", error);
+            setIsClientReady(false); // Explicitly set to false on error
+        }
+    };
+    initClient();
 
-    const unsubscribeProgress = webTorrentService.onTorrentProgress(() => updateTorrentProgressList());
-    const unsubscribeAdded = webTorrentService.onTorrentAdded(() => updateTorrentProgressList());
-    const unsubscribeRemoved = webTorrentService.onTorrentRemoved(() => updateTorrentProgressList());
-    const unsubscribeDone = webTorrentService.onTorrentDone(() => updateTorrentProgressList());
-    const unsubscribeError = webTorrentService.onTorrentError(() => updateTorrentProgressList());
-    const unsubscribeHistory = webTorrentService.onHistoryUpdated(() => updateHistoryList());
+    const unsubscribeProgress = webTorrentService.onTorrentProgress(updateTorrentProgressList);
+    const unsubscribeAdded = webTorrentService.onTorrentAdded((torrent) => {
+        console.log("[WebTorrentContext] Torrent added listener triggered:", torrent.customName);
+        updateTorrentProgressList();
+    });
+    const unsubscribeRemoved = webTorrentService.onTorrentRemoved((infoHash) => {
+        console.log("[WebTorrentContext] Torrent removed listener triggered:", infoHash);
+        updateTorrentProgressList();
+        updateHistoryList(); // History might also change (status to 'removed')
+    });
+    const unsubscribeDone = webTorrentService.onTorrentDone((torrent) => {
+        console.log("[WebTorrentContext] Torrent done listener triggered:", torrent.customName);
+        updateTorrentProgressList();
+        updateHistoryList();
+    });
+    const unsubscribeError = webTorrentService.onTorrentError((torrent, error) => {
+        const name = torrent && 'customName' in torrent ? torrent.customName : (torrent?.infoHash || 'Unknown');
+        console.error(`[WebTorrentContext] Torrent error listener triggered for ${name}:`, error);
+        updateTorrentProgressList();
+        updateHistoryList(); // Update history for error status
+    });
+    const unsubscribeHistory = webTorrentService.onHistoryUpdated(updateHistoryList);
 
-    // Initial sync
-    updateTorrentProgressList();
-    updateHistoryList();
 
     return () => {
       unsubscribeProgress();
@@ -69,14 +98,23 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
   }, [updateTorrentProgressList, updateHistoryList]);
 
   const addTorrent = useCallback(async (magnetURI: string, itemName?: string, itemId?: string | number): Promise<Torrent | null> => {
+    if (!isClientReady) {
+        console.warn("[WebTorrentContext] addTorrent called before client is ready. Trying to initialize...");
+        try {
+            await webTorrentService.getClient(); // Attempt to ensure client is ready
+            setIsClientReady(true); // Should be set by useEffect, but as a fallback
+        } catch (e) {
+            console.error("[WebTorrentContext] Failed to ensure client readiness on addTorrent:", e);
+            return null;
+        }
+    }
     const torrent = await webTorrentService.addTorrent(magnetURI, itemName, itemId);
-    // History and progress lists are updated by listeners.
+    // Lists are updated by listeners.
     return torrent;
-  }, []);
+  }, [isClientReady]);
 
   const removeTorrent = useCallback(async (infoHashOrMagnetURI: string): Promise<void> => {
     await webTorrentService.removeTorrent(infoHashOrMagnetURI);
-    // Active list and history are updated within the service via listeners
   }, []);
 
 
@@ -93,58 +131,43 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
   }, []);
   
   const getLargestFileForStreaming = useCallback(async (infoHashOrMagnetURI: string): Promise<{ file: WebTorrentFile, streamUrl: string } | null> => {
-    const torrent = webTorrentService.getTorrent(infoHashOrMagnetURI); // This is sync
+    const torrent = webTorrentService.getTorrent(infoHashOrMagnetURI);
     if (!torrent) {
         console.warn("[WebTorrentContext] Torrent instance not found for streaming.");
-        // Attempt to initialize client and then get torrent if it was just added.
-        // This scenario is tricky; usually, torrent should be in activeTorrents map after addTorrent resolves.
-        const client = await webTorrentService.getClient(); // Ensure client is ready
-        if (!client) {
-             console.warn("[WebTorrentContext] WebTorrent client not available.");
-             return null;
-        }
-        const freshTorrent = webTorrentService.getTorrent(infoHashOrMagnetURI);
-        if(!freshTorrent || !freshTorrent.ready){
-            console.warn("[WebTorrentContext] Torrent not ready or not found for streaming even after client check.");
-            return null;
-        }
-         if (!freshTorrent.files || freshTorrent.files.length === 0) {
-            console.warn("[WebTorrentContext] No files in torrent yet (checked after client init).");
-            return null;
-        }
-         const videoFile = freshTorrent.files.reduce((largest, file) => {
-            return file.length > (largest ? largest.length : 0) ? file : largest;
-        }, null as WebTorrentFile | null);
-
-        if (!videoFile) {
-            console.warn("[WebTorrentContext] No suitable video file found for streaming (checked after client init).");
-            return null;
-        }
-         return new Promise((resolve) => {
-            videoFile.getBlobURL((err, url) => {
-                if (err || !url) {
-                    console.error('[WebTorrentContext] Error getting blob URL for file (checked after client init):', err);
-                    resolve(null);
-                } else {
-                    resolve({ file: videoFile, streamUrl: url });
-                }
-            });
-        });
+        return null;
     }
-
 
     if (!torrent.ready) {
-        console.warn("[WebTorrentContext] Torrent not ready for streaming (metadata pending).");
-        // Optional: Wait for 'ready' event, but this complicates the immediate return promise.
-        // For now, if not ready, assume it's still fetching metadata.
-        return null; 
+        console.warn("[WebTorrentContext] Torrent not ready for streaming (metadata pending). Waiting for ready state...");
+        // Wait for the 'ready' event for this specific torrent
+        await new Promise<void>(resolve => {
+            if (torrent.ready) { // Check again in case it became ready
+                resolve();
+            } else {
+                torrent.once('ready', () => {
+                    console.log(`[WebTorrentContext] Torrent ${torrent.infoHash} is now ready for streaming.`);
+                    resolve();
+                });
+                // Timeout for waiting for ready state
+                setTimeout(() => {
+                    console.warn(`[WebTorrentContext] Timeout waiting for torrent ${torrent.infoHash} to become ready.`);
+                    resolve(); // Resolve anyway to avoid hanging, next checks will fail
+                }, 30000); // 30 seconds timeout
+            }
+        });
+        if (!torrent.ready) return null; // Still not ready after wait
     }
+
     if (!torrent.files || torrent.files.length === 0) {
         console.warn("[WebTorrentContext] No files in torrent yet.");
         return null;
     }
 
     const videoFile = torrent.files.reduce((largest, file) => {
+        // Basic video file extension check
+        const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
+        const isVideo = videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext));
+        if (!isVideo) return largest;
         return file.length > (largest ? largest.length : 0) ? file : largest;
     }, null as WebTorrentFile | null);
 
@@ -153,12 +176,13 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
         return null;
     }
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         videoFile.getBlobURL((err, url) => {
             if (err || !url) {
                 console.error('[WebTorrentContext] Error getting blob URL for file:', err);
-                resolve(null);
+                reject(err || new Error("Failed to get Blob URL"));
             } else {
+                console.log(`[WebTorrentContext] Blob URL for ${videoFile.name}: ${url.substring(0,100)}...`);
                 resolve({ file: videoFile, streamUrl: url });
             }
         });
@@ -184,7 +208,8 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
       getTorrentInstance,
       getLargestFileForStreaming,
       clearDownloadHistory,
-      removeDownloadFromHistory
+      removeDownloadFromHistory,
+      isClientReady,
     }}>
       {children}
     </WebTorrentContext.Provider>

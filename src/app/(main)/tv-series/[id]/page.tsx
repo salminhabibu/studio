@@ -18,11 +18,10 @@ import { RecommendedTvSeriesSection } from "@/components/features/tv-series/Reco
 import { Separator } from "@/components/ui/separator";
 
 interface TvSeriesDetailsPageProps {
-  params: Promise<{ id: string }>; // Changed to Promise as per Next.js warning
+  params: Promise<{ id: string }>;
 }
 
 export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesDetailsPageProps) {
-  // Unwrap the params promise using React.use()
   const params = use(paramsPromise);
   const id = params.id;
 
@@ -122,10 +121,15 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
                   className="object-cover"
                   data-ai-hint="tv series poster"
                   sizes="(max-width: 767px) 100vw, (max-width: 1023px) 33vw, 25vw"
+                  priority
                 />
               </div>
                <CardContent className="p-3 sm:p-4 space-y-3">
-                  <DownloadAllSeasonsWithOptionsButton seriesId={series.id} seriesName={series.name} />
+                  <DownloadAllSeasonsWithOptionsButton 
+                    seriesId={series.id} 
+                    seriesName={series.name} 
+                    seriesTitle={series.name} // Pass series.name as seriesTitle
+                  />
                   {series.homepage && (
                   <Button variant="outline" className="w-full h-11 text-sm" asChild>
                     <Link href={series.homepage} target="_blank" rel="noopener noreferrer">
@@ -192,6 +196,7 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
                       <SeasonAccordionItem 
                           key={season.id} 
                           seriesId={series!.id} 
+                          seriesTitle={series!.name} // Pass series name
                           season={season} 
                           initialOpen={defaultAccordionValue === `season-${season.season_number}`}
                       />
@@ -242,4 +247,3 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
     </div>
   );
 }
-
