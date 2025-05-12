@@ -41,10 +41,19 @@ if (typeof window !== 'undefined') {
       homedir: function () { return '/'; },
       cpus: function () { return []; },
       arch: function () { return typeof navigator !== 'undefined' ? navigator.platform : 'unknown'; },
-      networkInterfaces: function () { return {}; }, // Common os method used by some network libs
-      // Add any other os methods/properties if they are reported as missing by errors
+      networkInterfaces: function () { return {}; }, 
     };
     console.warn('[WebTorrentService Polyfill] Defined a minimal global "os" object.');
+  }
+  // Add polyfill for 'ConnPool'
+  if (typeof (window as any).ConnPool === 'undefined') {
+    (window as any).ConnPool = class ConnPool {
+      // Add minimal placeholder methods if specific ones are reported as missing by later errors
+      // constructor() {}
+      // request() {}
+      // ...
+    };
+    console.warn('[WebTorrentService Polyfill] Defined a minimal global "ConnPool" object.');
   }
 }
 
@@ -107,21 +116,23 @@ class WebTorrentService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      this.initializationPromise = this.initializeClient();
+      // Don't await here; let initialization happen in getClient or explicitly
+      // this.initializationPromise = this.initializeClient(); 
     }
   }
 
   private async initializeClient(): Promise<void> {
-    if (this.client || typeof window === 'undefined') {
-      console.log('[WebTorrentService] Client already initialized or not in browser.');
-      return;
+    if (this.client && this.initializationPromise) {
+      console.log('[WebTorrentService] Client already initialized or initialization in progress.');
+      return this.initializationPromise;
     }
-    if (this.initializationPromise && this.client) { // Check if client is already set by a concurrent call
-        console.log('[WebTorrentService] Initialization already completed or in progress by another call.');
-        return this.initializationPromise;
+    if (typeof window === 'undefined') {
+      console.log('[WebTorrentService] Not in browser, skipping client initialization.');
+      return Promise.resolve(); // Resolve immediately if not in browser
     }
+
     // Create a new promise if one doesn't exist or if client is not set
-    if (!this.initializationPromise || !this.client) {
+    if (!this.initializationPromise) {
         this.initializationPromise = (async () => {
             console.log('[WebTorrentService] Initializing WebTorrent client...');
             try {
@@ -147,7 +158,7 @@ class WebTorrentService {
 
   public async getClient(): Promise<WebTorrentInstance | null> {
     if (!this.client && typeof window !== 'undefined') {
-      await this.initializeClient(); // Ensure initialization is complete
+      await this.initializeClient(); 
     }
     return this.client;
   }
@@ -189,9 +200,9 @@ class WebTorrentService {
       if (errorMessage) {
           history[existingIndex].lastError = errorMessage;
       }
-    } else { // Only add if new or status implies it should be added
+    } else { 
       history.unshift({
-        infoHash: torrent.infoHash || torrent.magnetURI, // Use magnet as fallback if infoHash not yet available
+        infoHash: torrent.infoHash || torrent.magnetURI, 
         magnetURI: torrent.magnetURI,
         name: torrent.customName || torrent.name || 'Unknown Torrent',
         itemId: torrent.itemId,
@@ -252,8 +263,8 @@ class WebTorrentService {
               enhancedTorrent.statusForHistory = 'active';
 
               console.log(`[WebTorrentService] Torrent metadata ready for: ${enhancedTorrent.customName} (InfoHash: ${enhancedTorrent.infoHash})`);
-              this.activeTorrents.set(magnetURI, enhancedTorrent); // Store by magnetURI for initial lookup
-              if (enhancedTorrent.infoHash) { // Also store by infoHash once available
+              this.activeTorrents.set(magnetURI, enhancedTorrent); 
+              if (enhancedTorrent.infoHash) { 
                 this.activeTorrents.set(enhancedTorrent.infoHash, enhancedTorrent);
               }
               this.updateHistoryItem(enhancedTorrent, 'active');
@@ -389,17 +400,14 @@ class WebTorrentService {
   }
 
   getTorrent(infoHashOrMagnetURI: string): Torrent | undefined {
-    // Prioritize infoHash if it's likely an infoHash
     if (infoHashOrMagnetURI.length === 40 && /^[a-f0-9]+$/i.test(infoHashOrMagnetURI)) {
       for (const torrent of this.activeTorrents.values()) {
         if (torrent.infoHash === infoHashOrMagnetURI) return torrent;
       }
     }
-    // Then check by magnet URI (which might also be used as infoHash key if infoHash wasn't ready initially)
     if (this.activeTorrents.has(infoHashOrMagnetURI)) { 
         return this.activeTorrents.get(infoHashOrMagnetURI);
     }
-    // Fallback to client.get() if infoHash was provided
     if (this.client && infoHashOrMagnetURI.length === 40 && /^[a-f0-9]+$/i.test(infoHashOrMagnetURI)) { 
         const clientTorrent = this.client.get(infoHashOrMagnetURI);
         if (clientTorrent) return clientTorrent as Torrent;
@@ -410,7 +418,6 @@ class WebTorrentService {
   getAllTorrentsProgress(): TorrentProgress[] {
     const progressList: TorrentProgress[] = [];
     this.activeTorrents.forEach(torrent => {
-      // Only consider unique torrents by infoHash if available, otherwise magnetURI
       const id = torrent.infoHash || torrent.magnetURI;
       if (!id || progressList.some(p => p.torrentId === id && torrent.infoHash)) return;
 
@@ -467,7 +474,6 @@ class WebTorrentService {
         }
       });
 
-      // Remove from our activeTorrents map by both magnet and infoHash
       this.activeTorrents.delete(magnetToRemove);
       if(infoHashToRemove) this.activeTorrents.delete(infoHashToRemove);
 
@@ -509,7 +515,6 @@ class WebTorrentService {
     }
   }
 
-  // --- Event Listener Subscriptions ---
   onTorrentProgress(listener: (progress: TorrentProgress) => void): () => void {
     this.progressListeners.push(listener);
     return () => { this.progressListeners = this.progressListeners.filter(l => l !== listener); };
@@ -539,3 +544,5 @@ class WebTorrentService {
 const webTorrentService = new WebTorrentService();
 export default webTorrentService;
 
+// Ensure this file is treated as a module
+export {};
