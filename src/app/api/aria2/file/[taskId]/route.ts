@@ -8,30 +8,36 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: { taskId: string } } // Default dynamic segment name is `taskId` as per folder structure.
 ) {
   try {
     const taskId = params.taskId;
+    // The filename might be passed as part of the dynamic route if using [...slug]
+    // For a simple [taskId] route, the client might pass filename as query param, or we derive it.
+    const url = new URL(request.url);
+    const segments = url.pathname.split('/');
+    // Assuming URL is /api/aria2/file/[taskId]/[filename.ext]
+    // Or if filename is not in path, it must be known by taskId or passed as query
+    const encodedFileNameFromPath = segments[segments.length -1]; // Last segment could be filename
+    
+    let conceptualFileName = `task_${taskId}_file.txt`; // Default
+    if (encodedFileNameFromPath && encodedFileNameFromPath !== taskId) {
+        conceptualFileName = decodeURIComponent(encodedFileNameFromPath);
+    }
+
 
     if (!taskId) {
       return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
     }
 
-    console.log(`[API Aria2 File] Received file request for Task ID: ${taskId}`);
+    console.log(`[API Aria2 File] Received file request for Task ID: ${taskId}, Conceptual Filename: ${conceptualFileName}`);
 
-    // In a real scenario:
-    // 1. Query Aria2 for task status: aria2.tellStatus(taskId)
-    // 2. If complete, get file path(s) from status.files[0].path
-    // 3. Serve the file.
-
-    // For this stub, we'll serve a placeholder text file.
-    const conceptualFileName = `task_${taskId}_completed_file.txt`;
-    const fileContent = `This is a placeholder file for conceptual Aria2 download task ${taskId}.\nIn a real application, this would be the actual downloaded movie or TV show file.`;
+    const fileContent = `This is a placeholder file for ChillyMovies Aria2 download simulation.\n\nTask ID: ${taskId}\nConceptual Filename: ${conceptualFileName}\n\nIn a real application, this would be the actual downloaded movie or TV show file. This simulation confirms that the download completion and file access flow is conceptually working.`;
     
     const headers = new Headers();
-    headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(conceptualFileName)}"`);
+    headers.set('Content-Disposition', `attachment; filename="${encodeURIComponent(conceptualFileName)}"`); // Use the resolved filename
     headers.set('Content-Type', 'text/plain; charset=utf-8');
-    headers.set('Content-Length', String(new TextEncoder().encode(fileContent).length));
+    // Content-Length will be set automatically by NextResponse for simple string bodies
 
     return new NextResponse(fileContent, { status: 200, headers });
 

@@ -1,8 +1,20 @@
 // src/app/api/aria2/status/[taskId]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 
-// This is a conceptual API route. In a real application, this would query
-// an Aria2 instance for the status of a specific task.
+// In-memory store for simulated task progress (for dev only, resets on server restart)
+const taskSimulations: Record<string, { startTime: number; totalLength: number; name: string; type?: string }> = {};
+
+function getDeterministicRandom(seed: string, max: number, min = 0) {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  const random = Math.abs(hash);
+  return min + (random % (max - min + 1));
+}
+
 
 export async function GET(
   request: NextRequest,
@@ -12,41 +24,93 @@ export async function GET(
     const taskId = params.taskId;
 
     if (!taskId) {
+      console.warn('[API Aria2 Status] Task ID is required in request.');
       return NextResponse.json({ error: 'Task ID is required' }, { status: 400 });
     }
 
-    console.log(`[API Aria2 Status] Received status request for Task ID: ${taskId}`);
+    // console.log(`[API Aria2 Status] Received status request for Task ID: ${taskId}`);
 
-    // Here, you would make an RPC call to your Aria2 server to get task status.
-    // Example: aria2.tellStatus(taskId)
+    if (!taskSimulations[taskId]) {
+      // If task not in simulation, maybe it was just added or from old localStorage.
+      // Initialize a basic simulation for it.
+      const conceptualTasksString = request.cookies.get('chillymovies-conceptual-tasks-for-sim')?.value; // Not ideal, but for demo
+      let conceptualTaskName = `Task ${taskId.substring(0,8)}`;
+      let conceptualTaskType = 'magnet';
+      if (conceptualTasksString) {
+          try {
+            const conceptualTasks = JSON.parse(conceptualTasksString);
+            const foundTask = conceptualTasks.find((t: any) => t.taskId === taskId);
+            if (foundTask) {
+                conceptualTaskName = foundTask.name;
+                conceptualTaskType = foundTask.type;
+            }
+          } catch (e) { /* ignore parsing error */ }
+      }
+      
+      taskSimulations[taskId] = { 
+        startTime: Date.now() - getDeterministicRandom(taskId, 60000, 5000), // Simulate it started some time ago
+        totalLength: getDeterministicRandom(taskId, 2 * 1e9, 0.5 * 1e8), // 0.5GB to 2GB
+        name: conceptualTaskName,
+        type: conceptualTaskType,
+      };
+      console.log(`[API Aria2 Status] Initialized new simulation for unknown task ID: ${taskId}`);
+    }
 
-    // For now, simulate some status updates.
-    // This is highly simplified. A real status would include much more detail.
-    const randomProgress = Math.floor(Math.random() * 101);
-    const possibleStatuses = ['active', 'waiting', 'paused', 'complete', 'error', 'removed'];
-    const randomStatus = possibleStatuses[Math.floor(Math.random() * possibleStatuses.length)];
-    
-    const simulatedStatus = {
-      gid: taskId,
-      status: randomStatus,
-      totalLength: (Math.random() * 1e9 + 1e8).toString(), // Simulated total size in bytes
-      completedLength: (randomProgress / 100 * (Math.random() * 1e9 + 1e8)).toString(), // Simulated downloaded size
-      downloadSpeed: (Math.random() * 1e6).toString(), // Simulated speed in bytes/s
-      uploadSpeed: (Math.random() * 1e5).toString(),
-      connections: Math.floor(Math.random() * 50).toString(),
-      numSeeders: Math.floor(Math.random() * 20).toString(), // if applicable
-      errorCode: randomStatus === 'error' ? Math.floor(Math.random() * 10 + 1).toString() : '0',
-      errorMessage: randomStatus === 'error' ? 'Simulated download error' : '',
-      // ... and many more fields from Aria2: dir, files,bittorrent, etc.
-    };
+    const simulation = taskSimulations[taskId];
+    const elapsedTimeMs = Date.now() - simulation.startTime;
+    const totalSimulatedDurationMs = getDeterministicRandom(taskId, 120000, 30000); // 30s to 2min to complete
 
-    if (randomStatus === 'complete') {
-        // Simulate a download URL (this would come from your server/storage)
-        (simulatedStatus as any).downloadUrl = `/api/aria2/file/${taskId}`; // Conceptual
+    let progressRatio = elapsedTimeMs / totalSimulatedDurationMs;
+    let status = 'active';
+    let errorCode = '0';
+    let errorMessage = '';
+
+    if (progressRatio >= 1) {
+      progressRatio = 1;
+      status = 'complete';
+    } else if (progressRatio < 0) { // Should not happen with startTime logic
+        progressRatio = 0;
+        status = 'waiting';
+    }
+
+    // Simulate occasional errors or pauses for variety based on taskId
+    const taskNumericalId = parseInt(taskId.replace(/-/g, '').substring(0, 5), 16) || 0;
+    if (taskNumericalId % 15 === 0 && progressRatio > 0.3 && progressRatio < 0.7) {
+        status = 'error';
+        errorCode = getDeterministicRandom(taskId.substring(0,3), 10, 1).toString();
+        errorMessage = `Simulated download error type ${errorCode}`;
+        progressRatio = Math.min(progressRatio, 0.7); // Cap progress on error
+    } else if (taskNumericalId % 10 === 0 && progressRatio > 0.2 && progressRatio < 0.8 && status !== 'error') {
+        status = 'paused';
     }
 
 
-    console.log(`[API Aria2 Status] Conceptual status for ${taskId}: Progress ${randomProgress}%, Status ${randomStatus}`);
+    const completedLength = Math.floor(simulation.totalLength * progressRatio);
+    const downloadSpeed = status === 'active' ? getDeterministicRandom(taskId, 1.5 * 1e6, 0.5 * 1e5) : 0; // 0.5MB/s to 1.5MB/s
+
+    const simulatedStatus: any = {
+      gid: taskId,
+      status: status,
+      totalLength: simulation.totalLength.toString(),
+      completedLength: completedLength.toString(),
+      downloadSpeed: downloadSpeed.toString(),
+      uploadSpeed: (status === 'active' || status === 'complete' ? getDeterministicRandom(taskId, 1e5, 1e4) : 0).toString(),
+      connections: (status === 'active' ? getDeterministicRandom(taskId, 50, 5) : 0).toString(),
+      numSeeders: (status === 'active' ? getDeterministicRandom(taskId, 20, 1) : 0).toString(),
+      errorCode: errorCode,
+      errorMessage: errorMessage,
+      bitTorrent: { // Simulate this part for magnet-like downloads
+        info: {
+          name: simulation.type === 'magnet' || simulation.type === 'tv_episode' || simulation.type === 'tv_season_pack' || simulation.type === 'tv_season_pack_all' ? simulation.name : `File_${taskId.substring(0,6)}`
+        }
+      }
+    };
+    
+    if (status === 'complete') {
+        simulatedStatus.downloadUrl = `/api/aria2/file/${taskId}/${encodeURIComponent(simulatedStatus.bitTorrent.info.name)}.txt`; // Placeholder served by file API
+    }
+
+    // console.log(`[API Aria2 Status] Conceptual status for ${taskId}: Progress ${Math.round(progressRatio*100)}%, Status ${status}`);
     return NextResponse.json(simulatedStatus, { status: 200 });
 
   } catch (error) {

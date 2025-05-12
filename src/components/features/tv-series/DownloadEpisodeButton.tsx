@@ -48,12 +48,12 @@ export function DownloadEpisodeButton({
 
   const handleWebTorrentDownload = async () => {
     if (!isClientReady) {
-      toast({ title: "WebTorrent Not Ready", description: "Please wait...", variant: "destructive" });
+      toast({ title: "WebTorrent Not Ready", description: "Please wait for the client to initialize...", variant: "destructive" });
       return;
     }
     setIsLoadingWebTorrent(true);
     console.log(
-      `[DownloadEpisodeButton] Fetching magnet for WebTorrent: ${seriesTitle} ${episodeIdString}`
+      `[DownloadEpisodeButton] Fetching magnet for WebTorrent: ${seriesTitle} ${episodeIdString} (Quality hint: ${selectedAriaQuality})`
     );
 
     try {
@@ -61,7 +61,7 @@ export function DownloadEpisodeButton({
         seriesTitle,
         seasonNumber,
         episodeNumber,
-        selectedAriaQuality // Pass current quality selection for magnet search consistency
+        selectedAriaQuality 
       );
 
       if (fetchedMagnetLink) {
@@ -70,10 +70,10 @@ export function DownloadEpisodeButton({
         if (torrent) {
           toast({ title: "Download Queued (WebTorrent)", description: `${episodeName} is being added.` });
         } else {
-          toast({ title: "WebTorrent Issue", description: `${episodeName} might already be in downloads or failed to add.`, variant: "default" });
+          toast({ title: "WebTorrent Issue", description: `${episodeName} might already be in downloads or failed to add. Check active downloads or try again.`, variant: "default" });
         }
       } else {
-        toast({ title: "Download Failed", description: `Could not find a WebTorrent link for ${episodeName}. Try a different quality or check source.`, variant: "destructive" });
+        toast({ title: "Download Failed (WebTorrent)", description: `Could not find a WebTorrent link for ${episodeName} (${selectedAriaQuality}). Try a different quality or source.`, variant: "destructive" });
       }
     } catch (error) {
       console.error("[DownloadEpisodeButton] WebTorrent Error:", error);
@@ -86,7 +86,7 @@ export function DownloadEpisodeButton({
   const handleAria2Download = async () => {
     setIsLoadingAria2(true);
     const taskDisplayName = `${seriesTitle} - ${episodeIdString} - ${episodeName}`;
-    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
+    console.log(`[DownloadEpisodeButton] Initiating SIMULATED Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
     
     try {
         const response = await fetch('/api/aria2/add', {
@@ -104,7 +104,10 @@ export function DownloadEpisodeButton({
         const result = await response.json();
 
         if (response.ok && result.taskId) {
-            toast({ title: "Server Download Sent", description: `${episodeName} (${selectedAriaQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` });
+            toast({ 
+                title: "Server Download Sent (Simulated)", 
+                description: `${episodeName} (${selectedAriaQuality}) sent to conceptual server. Task ID: ${result.taskId}. Check Downloads page. Note: This is a simulation.` 
+            });
             
             const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
             const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
@@ -113,7 +116,7 @@ export function DownloadEpisodeButton({
                 name: result.taskName || taskDisplayName,
                 quality: selectedAriaQuality,
                 addedTime: Date.now(),
-                sourceUrlOrIdentifier: `${seriesTitle} S${seasonNumber}E${episodeNumber}`,
+                sourceUrlOrIdentifier: `${seriesTitle} S${String(seasonNumber).padStart(2,'0')}E${String(episodeNumber).padStart(2,'0')}`,
                 type: 'tv_episode',
             };
             if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
@@ -121,11 +124,11 @@ export function DownloadEpisodeButton({
                 localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
             }
         } else {
-            toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
+            toast({ title: "Server Download Error (Simulated)", description: result.error || "Failed to start server download simulation.", variant: "destructive" });
         }
     } catch (error) {
-        console.error("[DownloadEpisodeButton] Error calling Aria2 add API:", error);
-        toast({ title: "Server API Error", description: "Could not communicate with download server.", variant: "destructive" });
+        console.error("[DownloadEpisodeButton] Error calling conceptual Aria2 add API:", error);
+        toast({ title: "Server API Error (Simulated)", description: "Could not communicate with conceptual download server.", variant: "destructive" });
     } finally {
         setIsLoadingAria2(false);
     }
@@ -163,14 +166,14 @@ export function DownloadEpisodeButton({
         className="flex-shrink-0 h-9"
         onClick={handleAria2Download}
         disabled={isLoadingAria2 || isLoadingWebTorrent}
-        aria-label={`Download episode ${episodeIdString} via Server: ${episodeName}`}
+        aria-label={`Download episode ${episodeIdString} via Server (Simulated): ${episodeName}`}
       >
         {isLoadingAria2 ? (
             <Loader2Icon className="animate-spin h-4 w-4" /> 
         ) : (
             <ServerIcon className="h-4 w-4" />
         )}
-         <span className="ml-1.5 hidden sm:inline">Server</span>
+         <span className="ml-1.5 hidden sm:inline">Server (Sim)</span>
       </Button>
     </div>
   );
