@@ -41,6 +41,7 @@ interface DiscoveryPageState {
   };
   currentPage: number;
   scrollY: number;
+  seriesList: TMDBBaseTVSeries[]; // Store fetched series for full restoration
 }
 
 export default function TvSeriesPage() {
@@ -58,6 +59,11 @@ export default function TvSeriesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver>();
+  
+  // Refs for restoring state
+  const hasRestoredStateRef = useRef(false);
+  const scrollYToRestoreRef = useRef<number | null>(null);
+
   const lastSeriesElementRef = useCallback((node: HTMLElement | null) => {
     if (isLoading || isLoadingInitial) return;
     if (observer.current) observer.current.disconnect();
@@ -69,20 +75,13 @@ export default function TvSeriesPage() {
     if (node) observer.current.observe(node);
   }, [isLoading, isLoadingInitial, currentPage, totalPages]);
 
-  // Refs for restoring state
-  const initialScrollYRef = useRef<number | null>(null);
-  const targetPageRef = useRef<number | null>(null);
-  const restoredStateRef = useRef(false);
 
-  const fetchTvSeriesData = useCallback(async (page: number, filtersChanged: boolean = false) => {
-    if (filtersChanged) {
-       setSeriesList([]); 
-       setError(null);
-       setIsLoadingInitial(true);
-    } else if (page > 1) {
-       setIsLoading(true); 
+  const fetchTvSeriesData = useCallback(async (page: number) => {
+    if (page === 1) {
+      setIsLoadingInitial(true);
+      setError(null);
     } else {
-       setIsLoadingInitial(true);
+      setIsLoading(true);
     }
     
     try {
@@ -93,7 +92,7 @@ export default function TvSeriesPage() {
 
       const data = await discoverTvSeries(page, apiFilters);
       
-      setSeriesList(prevSeries => filtersChanged ? data.results : [...prevSeries, ...data.results]);
+      setSeriesList(prevSeries => page === 1 ? data.results : [...prevSeries, ...data.results]);
       setTotalPages(data.total_pages);
       if (data.results.length === 0 && page === 1) setError("No TV series found matching your criteria.");
       else setError(null);
@@ -101,8 +100,8 @@ export default function TvSeriesPage() {
     } catch (err) {
       console.error("Failed to fetch TV series:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to load TV series.";
-      setError(filtersChanged || page === 1 ? errorMessage : "Failed to load more TV series.");
-      if (filtersChanged || page === 1) setSeriesList([]);
+      setError(page === 1 ? errorMessage : "Failed to load more TV series.");
+      if (page === 1) setSeriesList([]);
     } finally {
       setIsLoading(false);
       setIsLoadingInitial(false);
@@ -123,55 +122,57 @@ export default function TvSeriesPage() {
   
   // Restore state on mount
   useEffect(() => {
-    if (restoredStateRef.current) return;
+    if (hasRestoredStateRef.current || typeof window === 'undefined') return;
 
     const savedStateString = sessionStorage.getItem(TVSERIES_STATE_KEY);
     if (savedStateString) {
       try {
         const savedState: DiscoveryPageState = JSON.parse(savedStateString);
-        sessionStorage.removeItem(TVSERIES_STATE_KEY); 
-
         console.log("[TvSeriesPage] Restoring state:", savedState);
 
         setSelectedGenre(savedState.filters.genre);
         setSelectedYear(savedState.filters.year);
         setSelectedOrigin(savedState.filters.origin);
-        
-        targetPageRef.current = savedState.currentPage;
-        initialScrollYRef.current = savedState.scrollY;
-        
-        if (
-            selectedGenre === savedState.filters.genre &&
-            selectedYear === savedState.filters.year &&
-            selectedOrigin === savedState.filters.origin
-        ) {
-            if (targetPageRef.current && targetPageRef.current > 1) {
-                 setCurrentPage(1);
-            } else {
-                 setCurrentPage(savedState.currentPage);
-            }
-        }
+        setSeriesList(savedState.seriesList); // Restore series directly
+        setCurrentPage(savedState.currentPage); // Restore current page
+        scrollYToRestoreRef.current = savedState.scrollY;
+        setTotalPages(savedState.seriesList.length > 0 ? Math.ceil(savedState.seriesList.length / 20)+1 : 1); // Estimate
+
+        hasRestoredStateRef.current = true;
+        setIsLoadingInitial(false);
+
+        setTimeout(() => {
+          if (scrollYToRestoreRef.current !== null) {
+            console.log(`[TvSeriesPage] Attempting scroll to ${scrollYToRestoreRef.current}`);
+            window.scrollTo({ top: scrollYToRestoreRef.current, behavior: 'auto' });
+            scrollYToRestoreRef.current = null;
+          }
+        }, 100);
+        return; 
       } catch (e) {
         console.error("[TvSeriesPage] Error parsing saved state:", e);
         sessionStorage.removeItem(TVSERIES_STATE_KEY);
       }
     }
-    restoredStateRef.current = true;
+    hasRestoredStateRef.current = true;
+    fetchTvSeriesData(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Main data fetching useEffect for subsequent pages (infinite scroll)
   useEffect(() => {
-    if (targetPageRef.current && currentPage > targetPageRef.current) {
-        // Stop fetching beyond target page during restoration
-    } else {
-        fetchTvSeriesData(currentPage, currentPage === 1 && !initialScrollYRef.current);
+    if (hasRestoredStateRef.current && currentPage > 1) {
+      const isRestoringFurther = seriesList.length > 0 && currentPage > Math.ceil(seriesList.length / 20);
+       if(isRestoringFurther || !sessionStorage.getItem(TVSERIES_STATE_KEY)){
+            fetchTvSeriesData(currentPage);
+        }
     }
-  }, [currentPage, fetchTvSeriesData]);
+  }, [currentPage, fetchTvSeriesData, seriesList.length]);
 
-  // Save state on unmount
+  // Save state on unmount or before navigation
   useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined') {
+    const handleBeforeUnload = () => {
+      if (typeof window !== 'undefined' && seriesList.length > 0) {
         const stateToSave: DiscoveryPageState = {
           filters: {
             genre: selectedGenre,
@@ -180,27 +181,24 @@ export default function TvSeriesPage() {
           },
           currentPage: currentPage,
           scrollY: window.scrollY,
+          seriesList: seriesList, // Save the fetched series
         };
         sessionStorage.setItem(TVSERIES_STATE_KEY, JSON.stringify(stateToSave));
-        console.log("[TvSeriesPage] Saved state on unmount:", stateToSave);
+        console.log("[TvSeriesPage] Saved state on unmount/beforeunload:", stateToSave);
       }
     };
-  }, [selectedGenre, selectedYear, selectedOrigin, currentPage]);
-
-  // Scroll to position after content is loaded up to the target page
-  useEffect(() => {
-    if (!isLoading && !isLoadingInitial && seriesList.length > 0 && targetPageRef.current && currentPage === targetPageRef.current && initialScrollYRef.current !== null) {
-      console.log(`[TvSeriesPage] Restoring scroll to ${initialScrollYRef.current} for page ${currentPage}`);
-      window.scrollTo({ top: initialScrollYRef.current, behavior: 'smooth' });
-      initialScrollYRef.current = null;
-    }
-  }, [seriesList, isLoading, isLoadingInitial, currentPage]);
-
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      handleBeforeUnload();
+    };
+  }, [selectedGenre, selectedYear, selectedOrigin, currentPage, seriesList]);
 
   const handleFilterChange = () => {
-    targetPageRef.current = null; 
-    initialScrollYRef.current = null;
+    sessionStorage.removeItem(TVSERIES_STATE_KEY);
+    hasRestoredStateRef.current = true; // So it knows to fetch page 1 fresh
     setCurrentPage(1);
+    fetchTvSeriesData(1);
   };
   
   const handleGenreChange = (genreId: string) => {
@@ -281,12 +279,12 @@ export default function TvSeriesPage() {
             </Select>
           </div>
            <Button onClick={handleFilterChange} className="h-10 w-full sm:w-auto mt-auto" disabled={isLoadingInitial || isLoading}>
-            <ListFilterIcon className="mr-2 h-4 w-4" /> Apply Filters
+            <ListFilterIcon className="mr-2 h-4 w-4" /> Refresh Results
           </Button>
         </div>
       </Card>
 
-      {isLoadingInitial && (
+      {isLoadingInitial && seriesList.length === 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {[...Array(12)].map((_, i) => (
              <Card key={i} className="overflow-hidden shadow-lg flex flex-col h-full bg-card">
@@ -305,7 +303,7 @@ export default function TvSeriesPage() {
           <Tv2Icon className="w-20 h-20 text-destructive mb-4" />
           <h2 className="text-2xl font-semibold text-destructive">Error Loading TV Series</h2>
           <p className="text-muted-foreground max-w-sm">{error}</p>
-           <Button variant="outline" onClick={() => fetchTvSeriesData(1, true)}>
+           <Button variant="outline" onClick={() => fetchTvSeriesData(1)}>
             <RefreshCwIcon className="mr-2 h-4 w-4" /> Retry
           </Button>
         </div>
@@ -321,7 +319,7 @@ export default function TvSeriesPage() {
         </div>
       )}
 
-      {!isLoadingInitial && seriesList.length > 0 && (
+      {seriesList.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {seriesList.map((series, index) => {
             const isLastSeries = seriesList.length === index + 1;
@@ -339,6 +337,7 @@ export default function TvSeriesPage() {
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       data-ai-hint="tv series poster"
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+                      priority={index < 6} // Prioritize loading first few images
                     />
                     {series.vote_average > 0 && (
                       <Badge variant="default" className="absolute top-2 right-2 bg-primary/80 backdrop-blur-sm text-xs">

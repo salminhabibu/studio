@@ -41,6 +41,7 @@ interface DiscoveryPageState {
   };
   currentPage: number;
   scrollY: number;
+  movies: TMDBBaseMovie[]; // Store fetched movies for full restoration
 }
 
 
@@ -59,6 +60,12 @@ export default function MoviesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver>();
+  
+  // Refs for restoring state
+  const hasRestoredStateRef = useRef(false);
+  const scrollYToRestoreRef = useRef<number | null>(null);
+  // targetPageToRestoreRef is implicitly handled by setting currentPage and letting observer load
+
   const lastMovieElementRef = useCallback((node: HTMLElement | null) => {
     if (isLoading || isLoadingInitial) return;
     if (observer.current) observer.current.disconnect();
@@ -70,21 +77,13 @@ export default function MoviesPage() {
     if (node) observer.current.observe(node);
   }, [isLoading, isLoadingInitial, currentPage, totalPages]);
 
-  // Refs for restoring state
-  const initialScrollYRef = useRef<number | null>(null);
-  const targetPageRef = useRef<number | null>(null);
-  const restoredStateRef = useRef(false);
 
-
-  const fetchMovieData = useCallback(async (page: number, filtersChanged: boolean = false) => {
-    if (filtersChanged) {
-       setMovies([]); 
-       setError(null);
-       setIsLoadingInitial(true); 
-    } else if (page > 1) {
-       setIsLoading(true); 
+  const fetchMovieData = useCallback(async (page: number) => {
+    if (page === 1) {
+      setIsLoadingInitial(true);
+      setError(null); 
     } else {
-       setIsLoadingInitial(true);
+      setIsLoading(true);
     }
     
     try {
@@ -95,7 +94,7 @@ export default function MoviesPage() {
 
       const data = await discoverMovies(page, apiFilters);
       
-      setMovies(prevMovies => filtersChanged ? data.results : [...prevMovies, ...data.results]);
+      setMovies(prevMovies => page === 1 ? data.results : [...prevMovies, ...data.results]);
       setTotalPages(data.total_pages);
       if (data.results.length === 0 && page === 1) setError("No movies found matching your criteria.");
       else setError(null);
@@ -103,8 +102,8 @@ export default function MoviesPage() {
     } catch (err) {
       console.error("Failed to fetch movies:", err);
       const errorMessage = err instanceof Error ? err.message : "Failed to load movies.";
-      setError(filtersChanged || page === 1 ? errorMessage : "Failed to load more movies.");
-      if (filtersChanged || page === 1) setMovies([]);
+      setError(page === 1 ? errorMessage : "Failed to load more movies.");
+      if (page === 1) setMovies([]);
     } finally {
       setIsLoading(false);
       setIsLoadingInitial(false);
@@ -125,67 +124,67 @@ export default function MoviesPage() {
   
   // Restore state on mount
   useEffect(() => {
-    if (restoredStateRef.current) return;
+    if (hasRestoredStateRef.current || typeof window === 'undefined') return;
 
     const savedStateString = sessionStorage.getItem(MOVIES_STATE_KEY);
     if (savedStateString) {
       try {
         const savedState: DiscoveryPageState = JSON.parse(savedStateString);
-        sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear after attempting to restore
-
         console.log("[MoviesPage] Restoring state:", savedState);
 
         setSelectedGenre(savedState.filters.genre);
         setSelectedYear(savedState.filters.year);
         setSelectedOrigin(savedState.filters.origin);
+        setMovies(savedState.movies); // Restore movies directly
+        setCurrentPage(savedState.currentPage); // Restore current page
+        scrollYToRestoreRef.current = savedState.scrollY;
+        setTotalPages(savedState.movies.length > 0 ? Math.ceil(savedState.movies.length / 20) +1 : 1); // Estimate total pages based on restored, adjust if needed
+
+
+        // Mark as restored and set initial loading to false since data is restored
+        hasRestoredStateRef.current = true;
+        setIsLoadingInitial(false); 
         
-        targetPageRef.current = savedState.currentPage;
-        initialScrollYRef.current = savedState.scrollY;
-        
-        // Setting filters will trigger handleFilterChange, which resets currentPage to 1.
-        // The fetch useEffect will then fetch page 1.
-        // Subsequent pages up to targetPageRef.current will be loaded by intersection observer.
-        // If filters haven't changed, but page was > 1, we need to ensure it fetches.
-        // The `setCurrentPage(1)` in handleFilterChange (or directly if filters same) will initiate loading.
-        if (
-            selectedGenre === savedState.filters.genre &&
-            selectedYear === savedState.filters.year &&
-            selectedOrigin === savedState.filters.origin
-        ) {
-            // Filters haven't changed, manually set currentPage to trigger fetch up to target.
-            // Start from page 1 to allow IntersectionObserver to load sequentially.
-            if (targetPageRef.current && targetPageRef.current > 1) {
-                 setCurrentPage(1); // This will load page 1. Others will follow.
-            } else {
-                 setCurrentPage(savedState.currentPage); // If target is 1, just set it.
-            }
-        } else {
-            // Filter change handlers will call setCurrentPage(1)
-        }
+        // Attempt to scroll after a short delay to allow DOM updates
+        // This is a common pattern for scroll restoration with restored content
+        setTimeout(() => {
+          if (scrollYToRestoreRef.current !== null) {
+            console.log(`[MoviesPage] Attempting scroll to ${scrollYToRestoreRef.current}`);
+            window.scrollTo({ top: scrollYToRestoreRef.current, behavior: 'auto' });
+            scrollYToRestoreRef.current = null; // Clear after attempting
+          }
+        }, 100); // Small delay
+
+        return; // Exit early as state is restored
       } catch (e) {
         console.error("[MoviesPage] Error parsing saved state:", e);
-        sessionStorage.removeItem(MOVIES_STATE_KEY);
+        sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear corrupted state
       }
     }
-    restoredStateRef.current = true;
+    // If no saved state, proceed with normal initial load
+    hasRestoredStateRef.current = true; // Mark attempt even if no state found
+    fetchMovieData(1); // Fetch page 1 if no state was restored
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
 
+  // Main data fetching useEffect for subsequent pages (infinite scroll)
   useEffect(() => {
-    // Only fetch if not restoring or if restoration needs page 1 specifically
-    if (targetPageRef.current && currentPage > targetPageRef.current) {
-        // If current page due to observer is already past target, don't fetch further for restoration
-    } else {
-        fetchMovieData(currentPage, currentPage === 1 && !initialScrollYRef.current); // filtersChanged is true if it's a "fresh" page 1 load
+    // This effect should only run for page > 1 if state wasn't restored,
+    // or if user scrolls past the restored content.
+    if (hasRestoredStateRef.current && currentPage > 1) {
+        const isRestoringFurther = movies.length > 0 && currentPage > Math.ceil(movies.length / 20); // Simple check
+        if(isRestoringFurther || !sessionStorage.getItem(MOVIES_STATE_KEY)){ // Fetch if scrolling beyond initially restored or no restoration happened
+            fetchMovieData(currentPage);
+        }
     }
-  }, [currentPage, fetchMovieData]);
+  }, [currentPage, fetchMovieData, movies.length]);
 
 
-  // Save state on unmount
+  // Save state on unmount or before navigation
   useEffect(() => {
-    return () => {
-      if (typeof window !== 'undefined') { // Ensure sessionStorage is available
+    const handleBeforeUnload = () => {
+      if (typeof window !== 'undefined' && movies.length > 0) { // Only save if there's something to save
         const stateToSave: DiscoveryPageState = {
           filters: {
             genre: selectedGenre,
@@ -194,28 +193,27 @@ export default function MoviesPage() {
           },
           currentPage: currentPage,
           scrollY: window.scrollY,
+          movies: movies, // Save the fetched movies
         };
         sessionStorage.setItem(MOVIES_STATE_KEY, JSON.stringify(stateToSave));
-        console.log("[MoviesPage] Saved state on unmount:", stateToSave);
+        console.log("[MoviesPage] Saved state on unmount/beforeunload:", stateToSave);
       }
     };
-  }, [selectedGenre, selectedYear, selectedOrigin, currentPage]);
 
-  // Scroll to position after content is loaded up to the target page
-  useEffect(() => {
-    if (!isLoading && !isLoadingInitial && movies.length > 0 && targetPageRef.current && currentPage === targetPageRef.current && initialScrollYRef.current !== null) {
-      console.log(`[MoviesPage] Restoring scroll to ${initialScrollYRef.current} for page ${currentPage}`);
-      window.scrollTo({ top: initialScrollYRef.current, behavior: 'smooth' });
-      initialScrollYRef.current = null; 
-      // targetPageRef.current = null; // Keep targetPageRef until a new filter action or full unmount
-    }
-  }, [movies, isLoading, isLoadingInitial, currentPage]);
+    window.addEventListener('beforeunload', handleBeforeUnload);
 
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // Also call on component unmount (e.g. route change)
+      handleBeforeUnload(); 
+    };
+  }, [selectedGenre, selectedYear, selectedOrigin, currentPage, movies]);
 
   const handleFilterChange = () => {
-    targetPageRef.current = null; // New filter action, clear restoration target
-    initialScrollYRef.current = null;
+    sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear saved state on new filter action
+    hasRestoredStateRef.current = true; // Treat as a new session for fetching
     setCurrentPage(1); 
+    fetchMovieData(1); // Pass page 1 to fetchMovieData, it will handle isLoadingInitial
   };
   
   const handleGenreChange = (genreId: string) => {
@@ -295,13 +293,14 @@ export default function MoviesPage() {
               </SelectContent>
             </Select>
           </div>
+          {/* "Apply Filters" button is effectively handled by individual filter changes calling handleFilterChange */}
           <Button onClick={handleFilterChange} className="h-10 w-full sm:w-auto mt-auto" disabled={isLoadingInitial || isLoading}>
-            <ListFilterIcon className="mr-2 h-4 w-4" /> Apply Filters
+            <ListFilterIcon className="mr-2 h-4 w-4" /> Refresh Results
           </Button>
         </div>
       </Card>
 
-      {isLoadingInitial && (
+      {isLoadingInitial && movies.length === 0 && ( // Show skeleton only if movies array is empty during initial load
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {[...Array(12)].map((_, i) => (
             <Card key={i} className="overflow-hidden shadow-lg flex flex-col h-full bg-card">
@@ -320,7 +319,7 @@ export default function MoviesPage() {
           <FilmIcon className="w-20 h-20 text-destructive mb-4" />
           <h2 className="text-2xl font-semibold text-destructive">Error Loading Movies</h2>
           <p className="text-muted-foreground max-w-sm">{error}</p>
-          <Button variant="outline" onClick={() => fetchMovieData(1, true)}>
+          <Button variant="outline" onClick={() => fetchMovieData(1)}>
             <RefreshCwIcon className="mr-2 h-4 w-4" /> Retry
           </Button>
         </div>
@@ -336,7 +335,7 @@ export default function MoviesPage() {
         </div>
       )}
 
-      {!isLoadingInitial && movies.length > 0 && (
+      {movies.length > 0 && ( // Always render movies if they exist, even if isLoadingInitial is true (for restored state)
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {movies.map((movie, index) => {
             const isLastMovie = movies.length === index + 1;
@@ -354,6 +353,7 @@ export default function MoviesPage() {
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       data-ai-hint="movie poster"
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
+                      priority={index < 6} // Prioritize loading first few images
                     />
                     {movie.vote_average > 0 && (
                       <Badge variant="default" className="absolute top-2 right-2 bg-primary/80 backdrop-blur-sm text-xs">
