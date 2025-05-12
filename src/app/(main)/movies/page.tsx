@@ -17,7 +17,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); // Last 50 years
 
 const ORIGIN_COUNTRIES = [
-  { label: "Any Origin", value: "0" }, // Changed from "" to "0"
+  { label: "Any Origin", value: "0" },
   { label: "Hollywood (US)", value: "US" },
   { label: "Nollywood (NG)", value: "NG" },
   { label: "Bollywood (IN)", value: "IN" },
@@ -29,6 +29,20 @@ const ORIGIN_COUNTRIES = [
   { label: "Japan", value: "JP" },
   { label: "South Korea", value: "KR" },
 ];
+
+const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
+const MOVIES_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-movies-discovery-state`;
+
+interface DiscoveryPageState {
+  filters: {
+    genre: string;
+    year: string;
+    origin: string;
+  };
+  currentPage: number;
+  scrollY: number;
+}
+
 
 export default function MoviesPage() {
   const [movies, setMovies] = useState<TMDBBaseMovie[]>([]);
@@ -56,13 +70,19 @@ export default function MoviesPage() {
     if (node) observer.current.observe(node);
   }, [isLoading, isLoadingInitial, currentPage, totalPages]);
 
+  // Refs for restoring state
+  const initialScrollYRef = useRef<number | null>(null);
+  const targetPageRef = useRef<number | null>(null);
+  const restoredStateRef = useRef(false);
+
+
   const fetchMovieData = useCallback(async (page: number, filtersChanged: boolean = false) => {
     if (filtersChanged) {
-       setMovies([]); // Clear existing movies if filters change
+       setMovies([]); 
        setError(null);
-       setIsLoadingInitial(true); // Show initial skeleton loader
+       setIsLoadingInitial(true); 
     } else if (page > 1) {
-       setIsLoading(true); // Show pagination loader
+       setIsLoading(true); 
     } else {
        setIsLoadingInitial(true);
     }
@@ -95,37 +115,121 @@ export default function MoviesPage() {
     const fetchInitialGenres = async () => {
       try {
         const genreData = await getMovieGenres();
-        setGenres([{ id: 0, name: "All Genres" }, ...genreData.genres]); // Add "All Genres" option
+        setGenres([{ id: 0, name: "All Genres" }, ...genreData.genres]); 
       } catch (err) {
         console.error("Failed to fetch genres:", err);
-        // Silently fail or show small error for genres
       }
     };
     fetchInitialGenres();
   }, []);
   
+  // Restore state on mount
   useEffect(() => {
-    fetchMovieData(currentPage, currentPage === 1);
+    if (restoredStateRef.current) return;
+
+    const savedStateString = sessionStorage.getItem(MOVIES_STATE_KEY);
+    if (savedStateString) {
+      try {
+        const savedState: DiscoveryPageState = JSON.parse(savedStateString);
+        sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear after attempting to restore
+
+        console.log("[MoviesPage] Restoring state:", savedState);
+
+        setSelectedGenre(savedState.filters.genre);
+        setSelectedYear(savedState.filters.year);
+        setSelectedOrigin(savedState.filters.origin);
+        
+        targetPageRef.current = savedState.currentPage;
+        initialScrollYRef.current = savedState.scrollY;
+        
+        // Setting filters will trigger handleFilterChange, which resets currentPage to 1.
+        // The fetch useEffect will then fetch page 1.
+        // Subsequent pages up to targetPageRef.current will be loaded by intersection observer.
+        // If filters haven't changed, but page was > 1, we need to ensure it fetches.
+        // The `setCurrentPage(1)` in handleFilterChange (or directly if filters same) will initiate loading.
+        if (
+            selectedGenre === savedState.filters.genre &&
+            selectedYear === savedState.filters.year &&
+            selectedOrigin === savedState.filters.origin
+        ) {
+            // Filters haven't changed, manually set currentPage to trigger fetch up to target.
+            // Start from page 1 to allow IntersectionObserver to load sequentially.
+            if (targetPageRef.current && targetPageRef.current > 1) {
+                 setCurrentPage(1); // This will load page 1. Others will follow.
+            } else {
+                 setCurrentPage(savedState.currentPage); // If target is 1, just set it.
+            }
+        } else {
+            // Filter change handlers will call setCurrentPage(1)
+        }
+      } catch (e) {
+        console.error("[MoviesPage] Error parsing saved state:", e);
+        sessionStorage.removeItem(MOVIES_STATE_KEY);
+      }
+    }
+    restoredStateRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+
+  useEffect(() => {
+    // Only fetch if not restoring or if restoration needs page 1 specifically
+    if (targetPageRef.current && currentPage > targetPageRef.current) {
+        // If current page due to observer is already past target, don't fetch further for restoration
+    } else {
+        fetchMovieData(currentPage, currentPage === 1 && !initialScrollYRef.current); // filtersChanged is true if it's a "fresh" page 1 load
+    }
   }, [currentPage, fetchMovieData]);
 
 
+  // Save state on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') { // Ensure sessionStorage is available
+        const stateToSave: DiscoveryPageState = {
+          filters: {
+            genre: selectedGenre,
+            year: selectedYear,
+            origin: selectedOrigin,
+          },
+          currentPage: currentPage,
+          scrollY: window.scrollY,
+        };
+        sessionStorage.setItem(MOVIES_STATE_KEY, JSON.stringify(stateToSave));
+        console.log("[MoviesPage] Saved state on unmount:", stateToSave);
+      }
+    };
+  }, [selectedGenre, selectedYear, selectedOrigin, currentPage]);
+
+  // Scroll to position after content is loaded up to the target page
+  useEffect(() => {
+    if (!isLoading && !isLoadingInitial && movies.length > 0 && targetPageRef.current && currentPage === targetPageRef.current && initialScrollYRef.current !== null) {
+      console.log(`[MoviesPage] Restoring scroll to ${initialScrollYRef.current} for page ${currentPage}`);
+      window.scrollTo({ top: initialScrollYRef.current, behavior: 'smooth' });
+      initialScrollYRef.current = null; 
+      // targetPageRef.current = null; // Keep targetPageRef until a new filter action or full unmount
+    }
+  }, [movies, isLoading, isLoadingInitial, currentPage]);
+
+
   const handleFilterChange = () => {
-    setCurrentPage(1); // Reset to page 1 triggers the useEffect for fetchMovieData
-    // The actual fetch will happen in the useEffect due to currentPage change
+    targetPageRef.current = null; // New filter action, clear restoration target
+    initialScrollYRef.current = null;
+    setCurrentPage(1); 
   };
   
   const handleGenreChange = (genreId: string) => {
-    setSelectedGenre(genreId === "0" ? "" : genreId); // "0" for "All Genres"
+    setSelectedGenre(genreId === "0" ? "" : genreId); 
     handleFilterChange();
   };
 
   const handleYearChange = (year: string) => {
-    setSelectedYear(year === "0" ? "" : year); // "0" for "All Years"
+    setSelectedYear(year === "0" ? "" : year); 
     handleFilterChange();
   };
 
   const handleOriginChange = (originCode: string) => {
-    setSelectedOrigin(originCode === "0" ? "" : originCode); // Treat "0" as "Any Origin"
+    setSelectedOrigin(originCode === "0" ? "" : originCode); 
     handleFilterChange();
   };
 
@@ -133,18 +237,10 @@ export default function MoviesPage() {
     setSelectedGenre('');
     setSelectedYear('');
     setSelectedOrigin('');
-    // This will trigger handleFilterChange via individual state setters if we want immediate refetch
-    // or we can call handleFilterChange once after all states are set.
-    // For simplicity and to ensure fetchMovieData is called with cleared state:
-    if (currentPage === 1) { // If already on page 1, force refetch
-        fetchMovieData(1, true);
-    } else {
-        setCurrentPage(1); // This will trigger refetch with new empty filters
-    }
+    handleFilterChange();
   };
 
   const activeFilterCount = [selectedGenre, selectedYear, selectedOrigin].filter(Boolean).length;
-
 
   return (
     <div className="space-y-8">
@@ -294,4 +390,3 @@ export default function MoviesPage() {
     </div>
   );
 }
-

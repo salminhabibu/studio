@@ -17,7 +17,7 @@ const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); // Last 50 years
 
 const ORIGIN_COUNTRIES = [
-  { label: "Any Origin", value: "0" }, // Changed from "" to "0"
+  { label: "Any Origin", value: "0" }, 
   { label: "Hollywood (US)", value: "US" },
   { label: "Nollywood (NG)", value: "NG" },
   { label: "Bollywood (IN)", value: "IN" },
@@ -29,6 +29,19 @@ const ORIGIN_COUNTRIES = [
   { label: "Japan", value: "JP" },
   { label: "South Korea", value: "KR" },
 ];
+
+const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
+const TVSERIES_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-tvseries-discovery-state`;
+
+interface DiscoveryPageState {
+  filters: {
+    genre: string;
+    year: string;
+    origin: string;
+  };
+  currentPage: number;
+  scrollY: number;
+}
 
 export default function TvSeriesPage() {
   const [seriesList, setSeriesList] = useState<TMDBBaseTVSeries[]>([]);
@@ -55,6 +68,11 @@ export default function TvSeriesPage() {
     });
     if (node) observer.current.observe(node);
   }, [isLoading, isLoadingInitial, currentPage, totalPages]);
+
+  // Refs for restoring state
+  const initialScrollYRef = useRef<number | null>(null);
+  const targetPageRef = useRef<number | null>(null);
+  const restoredStateRef = useRef(false);
 
   const fetchTvSeriesData = useCallback(async (page: number, filtersChanged: boolean = false) => {
     if (filtersChanged) {
@@ -103,11 +121,85 @@ export default function TvSeriesPage() {
     fetchInitialGenres();
   }, []);
   
+  // Restore state on mount
   useEffect(() => {
-    fetchTvSeriesData(currentPage, currentPage === 1);
+    if (restoredStateRef.current) return;
+
+    const savedStateString = sessionStorage.getItem(TVSERIES_STATE_KEY);
+    if (savedStateString) {
+      try {
+        const savedState: DiscoveryPageState = JSON.parse(savedStateString);
+        sessionStorage.removeItem(TVSERIES_STATE_KEY); 
+
+        console.log("[TvSeriesPage] Restoring state:", savedState);
+
+        setSelectedGenre(savedState.filters.genre);
+        setSelectedYear(savedState.filters.year);
+        setSelectedOrigin(savedState.filters.origin);
+        
+        targetPageRef.current = savedState.currentPage;
+        initialScrollYRef.current = savedState.scrollY;
+        
+        if (
+            selectedGenre === savedState.filters.genre &&
+            selectedYear === savedState.filters.year &&
+            selectedOrigin === savedState.filters.origin
+        ) {
+            if (targetPageRef.current && targetPageRef.current > 1) {
+                 setCurrentPage(1);
+            } else {
+                 setCurrentPage(savedState.currentPage);
+            }
+        }
+      } catch (e) {
+        console.error("[TvSeriesPage] Error parsing saved state:", e);
+        sessionStorage.removeItem(TVSERIES_STATE_KEY);
+      }
+    }
+    restoredStateRef.current = true;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (targetPageRef.current && currentPage > targetPageRef.current) {
+        // Stop fetching beyond target page during restoration
+    } else {
+        fetchTvSeriesData(currentPage, currentPage === 1 && !initialScrollYRef.current);
+    }
   }, [currentPage, fetchTvSeriesData]);
 
+  // Save state on unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined') {
+        const stateToSave: DiscoveryPageState = {
+          filters: {
+            genre: selectedGenre,
+            year: selectedYear,
+            origin: selectedOrigin,
+          },
+          currentPage: currentPage,
+          scrollY: window.scrollY,
+        };
+        sessionStorage.setItem(TVSERIES_STATE_KEY, JSON.stringify(stateToSave));
+        console.log("[TvSeriesPage] Saved state on unmount:", stateToSave);
+      }
+    };
+  }, [selectedGenre, selectedYear, selectedOrigin, currentPage]);
+
+  // Scroll to position after content is loaded up to the target page
+  useEffect(() => {
+    if (!isLoading && !isLoadingInitial && seriesList.length > 0 && targetPageRef.current && currentPage === targetPageRef.current && initialScrollYRef.current !== null) {
+      console.log(`[TvSeriesPage] Restoring scroll to ${initialScrollYRef.current} for page ${currentPage}`);
+      window.scrollTo({ top: initialScrollYRef.current, behavior: 'smooth' });
+      initialScrollYRef.current = null;
+    }
+  }, [seriesList, isLoading, isLoadingInitial, currentPage]);
+
+
   const handleFilterChange = () => {
+    targetPageRef.current = null; 
+    initialScrollYRef.current = null;
     setCurrentPage(1);
   };
   
@@ -122,7 +214,7 @@ export default function TvSeriesPage() {
   };
 
   const handleOriginChange = (originCode: string) => {
-    setSelectedOrigin(originCode === "0" ? "" : originCode); // Treat "0" as "Any Origin"
+    setSelectedOrigin(originCode === "0" ? "" : originCode); 
     handleFilterChange();
   };
   
@@ -130,11 +222,7 @@ export default function TvSeriesPage() {
     setSelectedGenre('');
     setSelectedYear('');
     setSelectedOrigin('');
-    if (currentPage === 1) {
-        fetchTvSeriesData(1, true);
-    } else {
-        setCurrentPage(1); 
-    }
+    handleFilterChange();
   };
 
   const activeFilterCount = [selectedGenre, selectedYear, selectedOrigin].filter(Boolean).length;
@@ -287,4 +375,3 @@ export default function TvSeriesPage() {
     </div>
   );
 }
-
