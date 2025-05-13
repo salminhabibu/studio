@@ -12,7 +12,7 @@ import { MovieDownloadCard } from "@/components/features/movies/MovieDownloadCar
 import { RecommendedMoviesSection } from "@/components/features/movies/RecommendedMoviesSection";
 import { Separator } from "@/components/ui/separator";
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary';
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 

@@ -8,16 +8,18 @@ import { RecommendedItemCard } from "@/components/features/common/RecommendedIte
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tv2Icon, ThumbsUpIcon, Loader2Icon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Locale } from '@/config/i18n.config'; // Import Locale
 
 interface RecommendedTvSeriesSectionProps {
   tvId: number | string;
+  locale: Locale; // Add locale prop
 }
 
-export function RecommendedTvSeriesSection({ tvId }: RecommendedTvSeriesSectionProps) {
+export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeriesSectionProps) {
   const [recommendations, setRecommendations] = useState<TMDBBaseTVSeries[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [isLoading, setIsLoading] = useState(false); // Changed from loading to isLoading for consistency
+  const [isLoading, setIsLoading] = useState(false); 
   const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver>();
@@ -105,7 +107,7 @@ export function RecommendedTvSeriesSection({ tvId }: RecommendedTvSeriesSectionP
           {recommendations.length > 0 && (
             <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mb-2">
               {recommendations.map((series) => (
-                <RecommendedItemCard key={series.id} item={series} mediaType="tv" />
+                <RecommendedItemCard key={series.id} item={series} mediaType="tv" locale={locale} />
               ))}
               {currentPage < totalPages && !isLoading && (
                 <div ref={loadMoreRef} className="w-1 h-1 flex-shrink-0"></div>

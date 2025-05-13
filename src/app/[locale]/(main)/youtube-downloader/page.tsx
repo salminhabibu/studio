@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react"; // Added use
 import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary'; 
 
 const youtubeUrlFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid YouTube URL (video or playlist)." })
@@ -105,10 +105,13 @@ function formatDuration(secondsStr: string, dict: any): string {
 }
 
 interface YouTubeDownloaderPageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function YouTubeDownloaderPage({ params: { locale } }: YouTubeDownloaderPageProps) {
+export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const { toast } = useToast();
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -126,8 +129,10 @@ export default function YouTubeDownloaderPage({ params: { locale } }: YouTubeDow
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.youtubeDownloaderPage); // Assuming structure for page-specific dict
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.youtubeDownloaderPage); 
+      }
     };
     fetchDictionary();
   }, [locale]);
@@ -302,7 +307,7 @@ export default function YouTubeDownloaderPage({ params: { locale } }: YouTubeDow
         ? getFilteredFormats(currentContent.items[0].audioFormats, 'audioonly')
         : []);
 
-  if (!dictionary) {
+  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -464,7 +469,7 @@ interface DownloadOptionsProps {
     selectedAudioFormat: 'aac' | 'opus';
     setSelectedAudioFormat: (format: 'aac' | 'opus') => void;
     sectionTitle?: string;
-    dictionary: any; // For localized labels
+    dictionary: any; 
 }
 
 function DownloadOptionsFields({

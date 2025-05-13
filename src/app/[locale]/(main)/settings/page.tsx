@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, FolderDownIcon, DownloadCloudIcon, ListChecksIcon } from "lucide-react";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, use } from "react"; // Added use
 import { cn } from "@/lib/utils";
 import { useWebTorrent } from "@/contexts/WebTorrentContext";
 import { useToast } from "@/hooks/use-toast";
@@ -23,7 +23,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary'; 
 import { Loader2Icon } from "lucide-react";
 
 
@@ -72,10 +72,13 @@ const DOWNLOAD_QUALITY_OPTIONS = [
 const DEFAULT_DOWNLOAD_QUALITY = DOWNLOAD_QUALITY_OPTIONS[0].value;
 
 interface SettingsPageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function SettingsPage({ params: { locale } }: SettingsPageProps) {
+export default function SettingsPage(props: SettingsPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const [mounted, setMounted] = useState(false);
   const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);
   const [selectedHighlightAccentHex, setSelectedHighlightAccentHex] = useState<string>(DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION.hex);
@@ -87,8 +90,10 @@ export default function SettingsPage({ params: { locale } }: SettingsPageProps) 
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.settingsPage);
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.settingsPage);
+      }
     };
     fetchDictionary();
   }, [locale]);
@@ -155,7 +160,7 @@ export default function SettingsPage({ params: { locale } }: SettingsPageProps) 
     });
   };
 
-  if (!mounted || !dictionary) {
+  if (!mounted || !dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary" />

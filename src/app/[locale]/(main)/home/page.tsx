@@ -1,8 +1,8 @@
 // src/app/[locale]/(main)/home/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getPopularMovies, getPopularTvSeries } from "@/lib/tmdb";
+import React, { useState, useEffect, useCallback, useRef, use } from 'react';
+import { getPopularMovies, getPopularTvSeries, getMovieDetails } from "@/lib/tmdb";
 import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { HeroSection, type HeroItem } from '@/components/features/home/HeroSection';
 import { RecommendedItemCard } from '@/components/features/common/RecommendedItemCard';
@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary';
 
 const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
 const HOME_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-home-page-state`;
@@ -29,10 +29,13 @@ interface HomePageState {
 }
 
 interface HomePageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function HomePage({ params: { locale } }: HomePageProps) {
+export default function HomePage(props: HomePageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const [heroItems, setHeroItems] = useState<HeroItem[]>([]);
   const [popularMovies, setPopularMovies] = useState<TMDBBaseMovie[]>([]);
   const [popularTvSeries, setPopularTvSeries] = useState<TMDBBaseTVSeries[]>([]);
@@ -57,8 +60,10 @@ export default function HomePage({ params: { locale } }: HomePageProps) {
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict);
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict);
+      }
     };
     fetchDictionary();
   }, [locale]);
@@ -68,7 +73,7 @@ export default function HomePage({ params: { locale } }: HomePageProps) {
   const fetchHeroData = useCallback(async () => {
     setIsLoadingHero(true);
     try {
-      const moviesData = await getPopularMovies(1); // Ensure this uses the correct API version
+      const moviesData = await getPopularMovies(1); 
       const potentialHeroMovies = moviesData.results.filter(movie => movie.backdrop_path).slice(0, 10);
       
       const heroItemsDataPromises = potentialHeroMovies.map(async (movie) => {
@@ -217,7 +222,7 @@ export default function HomePage({ params: { locale } }: HomePageProps) {
     if (node) tvSeriesObserver.current.observe(node);
   }, [isLoadingTvSeries, tvSeriesPage, tvSeriesTotalPages]);
 
-  if (!dictionary) {
+  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -257,6 +262,7 @@ export default function HomePage({ params: { locale } }: HomePageProps) {
                 item={movie}
                 mediaType="movie"
                 ref={index === popularMovies.length - 1 ? lastMovieElementRef : null}
+                locale={locale} // Pass locale
               />
             ))}
           </div>
@@ -287,6 +293,7 @@ export default function HomePage({ params: { locale } }: HomePageProps) {
                 item={series}
                 mediaType="tv"
                 ref={index === popularTvSeries.length - 1 ? lastTvSeriesElementRef : null}
+                locale={locale} // Pass locale
               />
             ))}
           </div>

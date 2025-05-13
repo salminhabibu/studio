@@ -20,11 +20,12 @@ import type { Locale } from '@/config/i18n.config';
 import { getDictionary } from '@/lib/getDictionary';
 
 interface TvSeriesDetailsPageProps {
-  params: { id: string; locale: Locale };
+  params: Promise<{ id: string; locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
-  const { id, locale } = params;
+export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const { id, locale } = resolvedParams;
 
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
@@ -34,8 +35,10 @@ export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps
 
   useEffect(() => {
     const fetchDict = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.tvSeriesDetailsPage);
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.tvSeriesDetailsPage);
+      }
     };
     fetchDict();
   }, [locale]);
@@ -66,15 +69,15 @@ export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, dictionary]); // Added dictionary
+  }, [id, dictionary]); 
 
   useEffect(() => {
-    if (dictionary) { // Only fetch data once dictionary is loaded
+    if (dictionary && id) { 
         fetchData();
     }
-  }, [fetchData, dictionary]);
+  }, [fetchData, dictionary, id]);
   
-  if (isLoading || !dictionary) {
+  if (isLoading || !dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Loader2Icon className="w-16 h-16 text-primary animate-spin mb-6" />
@@ -257,7 +260,7 @@ export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps
         </div>
       </TVSeriesClientContent>
       <Separator className="my-6 sm:my-8 md:my-12" />
-      <RecommendedTvSeriesSection tvId={series.id} locale={locale} />
+      <RecommendedTvSeriesSection tvId={series.id} locale={locale}/>
     </div>
   );
 }

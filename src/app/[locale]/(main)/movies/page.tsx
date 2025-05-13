@@ -1,7 +1,7 @@
 // src/app/[locale]/(main)/movies/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, use } from 'react'; // Added use
 import { discoverMovies, getMovieGenres, getFullImagePath } from "@/lib/tmdb";
 import type { TMDBBaseMovie, TMDBGenre } from "@/types/tmdb";
 import Image from "next/image";
@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, FilmIcon, ListFilterIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary'; 
+import { Label } from "@/components/ui/label";
+
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); 
@@ -47,10 +49,13 @@ interface DiscoveryPageState {
 }
 
 interface MoviesPageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
+export default function MoviesPage(props: MoviesPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const [movies, setMovies] = useState<TMDBBaseMovie[]>([]);
   const [genres, setGenres] = useState<TMDBGenre[]>([]);
   
@@ -74,9 +79,11 @@ export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
 
   useEffect(() => {
     const fetchDict = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.moviesPage);
-      setLocalizedOriginCountries(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: dict.moviesPage.originCountries[oc.labelKey] || oc.labelKey })));
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.moviesPage);
+        setLocalizedOriginCountries(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: dict.moviesPage.originCountries[oc.labelKey] || oc.labelKey })));
+      }
     };
     fetchDict();
   }, [locale]);
@@ -125,7 +132,7 @@ export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
       setIsLoadingInitial(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedGenre, selectedYear, selectedOrigin, dictionary]); // Added dictionary
+  }, [selectedGenre, selectedYear, selectedOrigin, dictionary]); 
 
   useEffect(() => {
     const fetchInitialGenres = async () => {
@@ -175,7 +182,7 @@ export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
     hasRestoredStateRef.current = true; 
     fetchMovieData(1); 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dictionary]); // Trigger on dictionary load as well
+  }, [dictionary]); 
 
 
   // Main data fetching useEffect for subsequent pages (infinite scroll)
@@ -244,7 +251,7 @@ export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
     handleFilterChange();
   };
 
-  if (!dictionary) {
+  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary" />

@@ -6,19 +6,21 @@ import type { TMDBBaseMovie, TMDBBaseTVSeries } from '@/types/tmdb';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getFullImagePath } from '@/lib/tmdb';
+import type { Locale } from '@/config/i18n.config'; // Import Locale
 
 interface RecommendedItemCardProps {
   item: TMDBBaseMovie | TMDBBaseTVSeries;
   mediaType: 'movie' | 'tv';
+  locale: Locale; // Add locale prop
 }
 
 // eslint-disable-next-line react/display-name
 export const RecommendedItemCard = React.forwardRef<HTMLAnchorElement, RecommendedItemCardProps>(
-  ({ item, mediaType }, ref) => {
+  ({ item, mediaType, locale }, ref) => {
     const title = mediaType === 'movie' ? (item as TMDBBaseMovie).title : (item as TMDBBaseTVSeries).name;
     const releaseDate = mediaType === 'movie' ? (item as TMDBBaseMovie).release_date : (item as TMDBBaseTVSeries).first_air_date;
     const year = releaseDate ? new Date(releaseDate).getFullYear() : 'N/A';
-    const href = mediaType === 'movie' ? `/movies/${item.id}` : `/tv-series/${item.id}`;
+    const href = mediaType === 'movie' ? `/${locale}/movies/${item.id}` : `/${locale}/tv-series/${item.id}`; // Use locale in href
     const category = mediaType === 'movie' ? 'Movie' : 'TV Series';
     const dataAiHint = mediaType === 'movie' ? 'movie poster' : 'tv series poster';
 

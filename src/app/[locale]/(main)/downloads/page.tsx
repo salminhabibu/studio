@@ -1,7 +1,7 @@
 // src/app/[locale]/(main)/downloads/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, use } from 'react'; // Added use
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -36,10 +36,13 @@ import { getDictionary } from '@/lib/getDictionary';
 const ARIA2_TASKS_STORAGE_KEY = 'chillymovies-aria2-tasks';
 
 interface DownloadsPageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function DownloadsPage({ params: { locale } }: DownloadsPageProps) {
+export default function DownloadsPage(props: DownloadsPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const {
     torrents: activeWebTorrents,
     history: webTorrentHistory,
@@ -62,8 +65,10 @@ export default function DownloadsPage({ params: { locale } }: DownloadsPageProps
 
   useEffect(() => {
     const fetchDict = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.downloadsPage);
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.downloadsPage);
+      }
     };
     fetchDict();
   }, [locale]);
@@ -301,7 +306,7 @@ export default function DownloadsPage({ params: { locale } }: DownloadsPageProps
       }
   };
 
-  if (!dictionary) {
+  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -425,7 +430,6 @@ export default function DownloadsPage({ params: { locale } }: DownloadsPageProps
                                {download.status === 'active' && download.downloadSpeed > 0 && <span>{formatBytes(download.downloadSpeed)}/s</span>}
                                {download.status === 'active' && download.connections !== undefined && <><span className="hidden sm:inline">&bull;</span>{dictionary.peersLabel}: {download.connections}</>}
                              </div>
-                           </div>
                            <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
                              {download.status === 'active' && <Button variant="ghost" size="icon" title={dictionary.pauseLabel} onClick={() => handlePauseAria2(download.taskId)}><PauseCircleIcon className="h-5 w-5" /></Button>}
                              {download.status === 'paused' && <Button variant="ghost" size="icon" title={dictionary.resumeLabel} onClick={() => handleResumeAria2(download.taskId)}><PlayCircleIcon className="h-5 w-5" /></Button>}

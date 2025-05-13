@@ -1,7 +1,7 @@
 // src/app/[locale]/(main)/tv-series/page.tsx
 "use client";
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, use } from 'react'; // Added use
 import { discoverTvSeries, getTvGenres, getFullImagePath } from "@/lib/tmdb";
 import type { TMDBBaseTVSeries, TMDBGenre } from "@/types/tmdb";
 import Image from "next/image";
@@ -13,7 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Loader2Icon, Tv2Icon, ListFilterIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; // To be created
+import { getDictionary } from '@/lib/getDictionary'; 
+import { Label } from "@/components/ui/label";
+
 
 const CURRENT_YEAR = new Date().getFullYear();
 const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i);
@@ -48,10 +50,13 @@ interface DiscoveryPageState {
 }
 
 interface TvSeriesPageProps {
-  params: { locale: Locale };
+  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
 }
 
-export default function TvSeriesPage({ params: { locale } }: TvSeriesPageProps) {
+export default function TvSeriesPage(props: TvSeriesPageProps) {
+  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const locale = resolvedParams.locale;
+
   const [seriesList, setSeriesList] = useState<TMDBBaseTVSeries[]>([]);
   const [genres, setGenres] = useState<TMDBGenre[]>([]);
   
@@ -74,9 +79,11 @@ export default function TvSeriesPage({ params: { locale } }: TvSeriesPageProps) 
 
   useEffect(() => {
     const fetchDict = async () => {
-      const dict = await getDictionary(locale);
-      setDictionary(dict.tvSeriesPage); // Assuming structure tvSeriesPage for this page
-      setLocalizedOriginCountries(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: dict.tvSeriesPage.originCountries[oc.labelKey] || oc.labelKey })));
+      if (locale) { // Ensure locale is available
+        const dict = await getDictionary(locale);
+        setDictionary(dict.tvSeriesPage); 
+        setLocalizedOriginCountries(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: dict.tvSeriesPage.originCountries[oc.labelKey] || oc.labelKey })));
+      }
     };
     fetchDict();
   }, [locale]);
@@ -237,7 +244,7 @@ export default function TvSeriesPage({ params: { locale } }: TvSeriesPageProps) 
     handleFilterChange();
   };
 
-  if (!dictionary) {
+  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary" />

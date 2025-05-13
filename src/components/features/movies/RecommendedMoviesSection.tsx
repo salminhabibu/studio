@@ -8,12 +8,14 @@ import { RecommendedItemCard } from "@/components/features/common/RecommendedIte
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FilmIcon, ThumbsUpIcon, Loader2Icon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Locale } from '@/config/i18n.config'; // Import Locale
 
 interface RecommendedMoviesSectionProps {
   movieId: number | string;
+  locale: Locale; // Add locale prop
 }
 
-export function RecommendedMoviesSection({ movieId }: RecommendedMoviesSectionProps) {
+export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesSectionProps) {
   const [recommendations, setRecommendations] = useState<TMDBBaseMovie[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -111,7 +113,7 @@ export function RecommendedMoviesSection({ movieId }: RecommendedMoviesSectionPr
           {recommendations.length > 0 && (
             <div className="flex space-x-4 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-muted scrollbar-track-transparent -mb-2">
               {recommendations.map((movie) => (
-                <RecommendedItemCard key={movie.id} item={movie} mediaType="movie" />
+                <RecommendedItemCard key={movie.id} item={movie} mediaType="movie" locale={locale} />
               ))}
               {/* Invisible div to trigger loading more */}
               {currentPage < totalPages && !isLoading && (
