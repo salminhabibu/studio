@@ -1,6 +1,6 @@
 // src/app/[locale]/(main)/home/loading.tsx
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card"; // Added CardHeader import
 import { FilmIcon, Tv2Icon, YoutubeIcon } from "lucide-react";
 
 export default function HomeLoading() {
