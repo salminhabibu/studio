@@ -12,7 +12,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary';
+import { getDictionary } from '@/lib/getDictionary'; 
 
 const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
 const HOME_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-home-page-state`;
@@ -29,12 +29,11 @@ interface HomePageState {
 }
 
 interface HomePageProps {
-  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
+  params: { locale: Locale }; 
 }
 
 export default function HomePage(props: HomePageProps) {
-  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
-  const locale = resolvedParams.locale;
+  const { locale } = use(props.params); 
 
   const [heroItems, setHeroItems] = useState<HeroItem[]>([]);
   const [popularMovies, setPopularMovies] = useState<TMDBBaseMovie[]>([]);
@@ -60,7 +59,7 @@ export default function HomePage(props: HomePageProps) {
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      if (locale) { // Ensure locale is available
+      if (locale) { 
         const dict = await getDictionary(locale);
         setDictionary(dict);
       }
@@ -222,7 +221,7 @@ export default function HomePage(props: HomePageProps) {
     if (node) tvSeriesObserver.current.observe(node);
   }, [isLoadingTvSeries, tvSeriesPage, tvSeriesTotalPages]);
 
-  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
+  if (!dictionary || !locale) { 
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -231,20 +230,20 @@ export default function HomePage(props: HomePageProps) {
   }
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-10 overflow-x-hidden"> {/* Added overflow-x-hidden */}
       <HeroSection items={heroItems} />
 
       <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
         <CardHeader className="flex flex-row items-center justify-between">
             <div>
                 <CardTitle className="text-2xl flex items-center gap-2">
-                    <YoutubeIcon className="h-7 w-7 text-red-500"/> {dictionary.youtubeDownloader.title}
+                    <YoutubeIcon className="h-7 w-7 text-red-500"/> {dictionary.youtubeDownloaderPage.mainTitle}
                 </CardTitle>
-                <CardDescription>{dictionary.youtubeDownloader.description}</CardDescription>
+                <CardDescription>{dictionary.youtubeDownloaderPage.mainDescription}</CardDescription>
             </div>
             <Button asChild variant="ghost" size="sm">
                 <Link href={`/${locale}/youtube-downloader`} className="flex items-center">
-                    {dictionary.youtubeDownloader.buttonText} <ArrowRightIcon className="ml-1.5 h-4 w-4"/>
+                    {dictionary.sidebar.youtubeDownloader} <ArrowRightIcon className="ml-1.5 h-4 w-4"/>
                 </Link>
             </Button>
         </CardHeader>
@@ -262,7 +261,7 @@ export default function HomePage(props: HomePageProps) {
                 item={movie}
                 mediaType="movie"
                 ref={index === popularMovies.length - 1 ? lastMovieElementRef : null}
-                locale={locale} // Pass locale
+                locale={locale} 
               />
             ))}
           </div>
@@ -293,7 +292,7 @@ export default function HomePage(props: HomePageProps) {
                 item={series}
                 mediaType="tv"
                 ref={index === popularTvSeries.length - 1 ? lastTvSeriesElementRef : null}
-                locale={locale} // Pass locale
+                locale={locale} 
               />
             ))}
           </div>
