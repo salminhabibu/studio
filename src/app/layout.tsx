@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Poppins } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
+import type { Locale } from '@/config/i18n.config';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -15,13 +16,17 @@ export const metadata: Metadata = {
   description: 'Download movies and TV series with a premium experience.',
 };
 
+interface RootLayoutProps {
+  children: React.ReactNode;
+  params: { locale: Locale };
+}
+
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+  params: { locale },
+}: Readonly<RootLayoutProps>) {
   return (
-    <html lang="en" className="dark">
+    <html lang={locale} className="dark">
       <body className={`${poppins.variable} font-sans antialiased bg-background text-foreground`}>
         {children}
         <Toaster />

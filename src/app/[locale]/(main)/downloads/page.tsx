@@ -1,4 +1,4 @@
-// src/app/(main)/downloads/page.tsx
+// src/app/[locale]/(main)/downloads/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -30,11 +30,16 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import type { ConceptualAria2Task, Aria2DownloadItemDisplay } from "@/types/download";
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary';
 
 const ARIA2_TASKS_STORAGE_KEY = 'chillymovies-aria2-tasks';
 
+interface DownloadsPageProps {
+  params: { locale: Locale };
+}
 
-export default function DownloadsPage() {
+export default function DownloadsPage({ params: { locale } }: DownloadsPageProps) {
   const {
     torrents: activeWebTorrents,
     history: webTorrentHistory,
@@ -53,14 +58,22 @@ export default function DownloadsPage() {
   const [conceptualAria2TasksStore, setConceptualAria2TasksStore] = useState<ConceptualAria2Task[]>([]);
   const [displayedAria2Downloads, setDisplayedAria2Downloads] = useState<Aria2DownloadItemDisplay[]>([]);
   const [isLoadingAria2, setIsLoadingAria2] = useState(false);
+  const [dictionary, setDictionary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDict = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.downloadsPage);
+    };
+    fetchDict();
+  }, [locale]);
+
 
   const loadConceptualTasksFromStorage = useCallback(() => {
     if (typeof window !== 'undefined') {
       const storedTasksString = localStorage.getItem(ARIA2_TASKS_STORAGE_KEY);
       const storedTasks: ConceptualAria2Task[] = storedTasksString ? JSON.parse(storedTasksString) : [];
       setConceptualAria2TasksStore(storedTasks);
-      console.log("[DownloadsPage] Loaded Aria2 tasks from storage:", storedTasks.length);
-      // Initialize displayedAria2Downloads based on stored tasks
       setDisplayedAria2Downloads(storedTasks.map(task => ({
         taskId: task.taskId,
         name: task.name,
@@ -89,7 +102,6 @@ export default function DownloadsPage() {
       
       setIsLoadingAria2(true);
       const newDisplayedDownloads: Aria2DownloadItemDisplay[] = [...displayedAria2Downloads]; 
-
       let madeChanges = false;
 
       for (const conceptualTask of conceptualAria2TasksStore) {
@@ -126,7 +138,6 @@ export default function DownloadsPage() {
               madeChanges = true;
             }
           } else {
-            console.warn(`[DownloadsPage] Failed to fetch status for Aria2 task ${conceptualTask.taskId}, status: ${response.status}`);
              const existingIndex = newDisplayedDownloads.findIndex(d => d.taskId === conceptualTask.taskId);
              if (existingIndex > -1 && newDisplayedDownloads[existingIndex].status !== 'error') {
                 newDisplayedDownloads[existingIndex].status = 'error';
@@ -140,7 +151,6 @@ export default function DownloadsPage() {
              }
           }
         } catch (error) {
-          console.error(`[DownloadsPage] Network error fetching Aria2 status for ${conceptualTask.taskId}:`, error);
            const existingIndex = newDisplayedDownloads.findIndex(d => d.taskId === conceptualTask.taskId);
            if (existingIndex > -1 && newDisplayedDownloads[existingIndex].status !== 'error') {
               newDisplayedDownloads[existingIndex].status = 'error';
@@ -162,7 +172,7 @@ export default function DownloadsPage() {
 
     if (conceptualAria2TasksStore.length > 0) {
         fetchAria2Statuses(); 
-        const interval = setInterval(fetchAria2Statuses, 5000); // Poll every 5s
+        const interval = setInterval(fetchAria2Statuses, 5000); 
         return () => clearInterval(interval);
     } else {
         if (displayedAria2Downloads.length > 0) setDisplayedAria2Downloads([]); 
@@ -171,51 +181,46 @@ export default function DownloadsPage() {
   }, [conceptualAria2TasksStore]); 
 
   const getStatusInfo = (status: TorrentProgressStatus | HistoryItem['status'] | Aria2DownloadItemDisplay['status'], noPeersReason?: string) => {
+    const statusKey = status?.toLowerCase().replace(/_/g, '') || 'unknown';
+    const label = dictionary?.statusLabels?.[statusKey] || `Unknown (${status})`;
+    
     switch (status) {
-      case "downloading":
-      case "active": 
-        return { badge: <Badge variant="default" className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30">Downloading</Badge>, icon: <Loader2Icon className="h-4 w-4 text-blue-400 animate-spin" /> };
+      case "downloading": case "active": 
+        return { badge: <Badge variant="default" className="bg-blue-500/20 text-blue-400 border-blue-500/30 hover:bg-blue-500/30">{label}</Badge>, icon: <Loader2Icon className="h-4 w-4 text-blue-400 animate-spin" /> };
       case "paused":
-        return { badge: <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30">Paused</Badge>, icon: <PauseCircleIcon className="h-4 w-4 text-yellow-400" /> };
-      case "completed":
-      case "done":
-      case "seeding": 
-      case "complete": 
-        return { badge: <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30">Completed</Badge>, icon: <CheckCircle2Icon className="h-4 w-4 text-green-400" /> };
-      case "failed":
-      case "error":
-        return { badge: <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">Failed</Badge>, icon: <AlertTriangleIcon className="h-4 w-4 text-red-400" /> };
-      case "connecting":
-      case "metadata":
-      case "waiting": 
-        return { badge: <Badge variant="outline" className="animate-pulse">Connecting...</Badge>, icon: <Loader2Icon className="h-4 w-4 text-muted-foreground animate-spin" /> };
+        return { badge: <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/30">{label}</Badge>, icon: <PauseCircleIcon className="h-4 w-4 text-yellow-400" /> };
+      case "completed": case "done": case "seeding": case "complete": 
+        return { badge: <Badge variant="default" className="bg-green-500/20 text-green-400 border-green-500/30 hover:bg-green-500/30">{label}</Badge>, icon: <CheckCircle2Icon className="h-4 w-4 text-green-400" /> };
+      case "failed": case "error":
+        return { badge: <Badge variant="destructive" className="bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30">{label}</Badge>, icon: <AlertTriangleIcon className="h-4 w-4 text-red-400" /> };
+      case "connecting": case "metadata": case "waiting": 
+        return { badge: <Badge variant="outline" className="animate-pulse">{label}</Badge>, icon: <Loader2Icon className="h-4 w-4 text-muted-foreground animate-spin" /> };
       case "stalled":
-        return { badge: <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30">Stalled</Badge>, icon: <PowerOffIcon className="h-4 w-4 text-orange-400" /> };
+        return { badge: <Badge variant="outline" className="bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30">{label}</Badge>, icon: <PowerOffIcon className="h-4 w-4 text-orange-400" /> };
       case "no_peers":
-        return { badge: <Badge variant="outline" className="bg-gray-500/20 text-gray-400 border-gray-500/30 hover:bg-gray-500/30" title={noPeersReason}>No Peers</Badge>, icon: <WifiOffIcon className="h-4 w-4 text-gray-400" /> };
+        return { badge: <Badge variant="outline" className="bg-gray-500/20 text-gray-400 border-gray-500/30 hover:bg-gray-500/30" title={noPeersReason}>{label}</Badge>, icon: <WifiOffIcon className="h-4 w-4 text-gray-400" /> };
       case "removed":
-        return { badge: <Badge variant="outline">Removed</Badge>, icon: <Trash2Icon className="h-4 w-4 text-muted-foreground" /> };
+        return { badge: <Badge variant="outline">{label}</Badge>, icon: <Trash2Icon className="h-4 w-4 text-muted-foreground" /> };
       default:
-        return { badge: <Badge variant="outline">Unknown ({status})</Badge>, icon: <InfoIcon className="h-4 w-4 text-muted-foreground" /> };
+        return { badge: <Badge variant="outline">{label}</Badge>, icon: <InfoIcon className="h-4 w-4 text-muted-foreground" /> };
     }
   };
 
   const handlePlayWebTorrent = async (torrentIdOrMagnet: string, isMagnet = false) => {
-    toast({ title: "Preparing Stream", description: "Attempting to stream the largest file..." });
+    toast({ title: dictionary?.toastPreparingStreamTitle || "Preparing Stream", description: dictionary?.toastPreparingStreamDesc || "Attempting to stream the largest file..." });
     let infoHash = torrentIdOrMagnet;
     
     if (isMagnet) {
         let torrent = getTorrentInstance(torrentIdOrMagnet); 
         if (!torrent) { 
-            const allActive = activeWebTorrents.find(t => t.torrentId === torrentIdOrMagnet || t.torrentId.startsWith(torrentIdOrMagnet.substring(0,20))); // check magnet too
+            const allActive = activeWebTorrents.find(t => t.torrentId === torrentIdOrMagnet || t.torrentId.startsWith(torrentIdOrMagnet.substring(0,20)));
             if (allActive) torrent = getTorrentInstance(allActive.torrentId);
         }
 
         if (!torrent) { 
-            console.log(`[DownloadsPage] Torrent for magnet ${torrentIdOrMagnet.substring(0,20)}... not active, attempting to re-add for streaming.`);
             const newTorrent = await addWebTorrent(torrentIdOrMagnet, "Streaming item (from history)"); 
             if (!newTorrent || !newTorrent.infoHash) {
-                toast({ title: "Stream Failed", description: "Could not start torrent for streaming. Ensure it's a valid magnet with seeders.", variant: "destructive" });
+                toast({ title: dictionary?.toastStreamFailedTitle || "Stream Failed", description: dictionary?.toastStreamFailedDescNoStart || "Could not start torrent for streaming. Ensure it's a valid magnet with seeders.", variant: "destructive" });
                 return;
             }
             infoHash = newTorrent.infoHash;
@@ -225,105 +230,106 @@ export default function DownloadsPage() {
     }
     
     let attempt = 0;
-    const maxAttempts = 30; // Wait up to 30 seconds
+    const maxAttempts = 30; 
     while(attempt < maxAttempts) { 
         const currentTorrentInstance = getTorrentInstance(infoHash);
         if (currentTorrentInstance && currentTorrentInstance.ready && currentTorrentInstance.files.length > 0) break;
-        console.log(`[DownloadsPage] Waiting for torrent ${infoHash.substring(0,8)} to be ready... Attempt ${attempt+1}/${maxAttempts}`);
         await new Promise(resolve => setTimeout(resolve, 1000));
         attempt++;
     }
 
     const streamData = await getLargestFileForStreaming(infoHash);
     if (streamData && streamData.streamUrl) {
-      console.log("[DownloadsPage] Stream URL for WebTorrent:", streamData.streamUrl);
-      toast({ title: "Streaming Ready", description: `Opening player for ${streamData.file.name}.` });
+      toast({ title: dictionary?.toastStreamingReadyTitle || "Streaming Ready", description: `${dictionary?.toastStreamingReadyDescOpening || "Opening player for"} ${streamData.file.name}.` });
       window.open(streamData.streamUrl, '_blank');
     } else {
-      toast({ title: "Stream Failed", description: "Could not prepare the file for streaming. Ensure torrent has files, is active, and has seeders.", variant: "destructive" });
+      toast({ title: dictionary?.toastStreamFailedTitle || "Stream Failed", description: dictionary?.toastStreamFailedDescNoPrepare || "Could not prepare the file for streaming. Ensure torrent has files, is active, and has seeders.", variant: "destructive" });
     }
   };
   
   const handleRetryWebTorrentDownload = async (item: HistoryItem) => {
     if (item.magnetURI) {
       try {
-        console.log(`[DownloadsPage] Retrying WebTorrent download for: ${item.name}, Magnet: ${item.magnetURI.substring(0,30)}...`);
         const torrent = await addWebTorrent(item.magnetURI, item.name, item.itemId);
         if (torrent) {
-          toast({ title: "Retrying Download", description: `Adding ${item.name} back to WebTorrent queue.`});
-          removeDownloadFromHistory(item.infoHash); // Remove from history to avoid duplicates if it becomes active
+          toast({ title: dictionary?.toastRetryingDownloadTitle || "Retrying Download", description: `${dictionary?.toastAdding || "Adding"} ${item.name} ${dictionary?.toastToWebTorrentQueue || "back to WebTorrent queue."}`});
+          removeDownloadFromHistory(item.infoHash); 
         } else {
-          toast({ title: "Retry Not Needed/Issue", description: `${item.name} might already be active or an error occurred during re-add. Check active downloads.`, variant: "default"});
+          toast({ title: dictionary?.toastRetryNotNeededTitle || "Retry Not Needed/Issue", description: `${item.name} ${dictionary?.toastRetryNotNeededDesc || "might already be active or an error occurred during re-add. Check active downloads."}`, variant: "default"});
         }
       } catch (error) {
-        console.error("[DownloadsPage] Error retrying WebTorrent download:", error);
-        toast({ title: "Retry Error", description: `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}`, variant: "destructive"});
+        toast({ title: dictionary?.toastRetryErrorTitle || "Retry Error", description: `${dictionary?.toastUnexpectedError || "An unexpected error occurred"}: ${error instanceof Error ? error.message : "Unknown error"}`, variant: "destructive"});
       }
     } else {
-      toast({ title: "Retry Failed", description: "Magnet URI not found for this item.", variant: "destructive"});
+      toast({ title: dictionary?.toastRetryFailedTitle || "Retry Failed", description: dictionary?.toastRetryFailedNoMagnet || "Magnet URI not found for this item.", variant: "destructive"});
     }
   };
 
   const handleRemoveWebTorrent = async (torrentId: string) => {
     try {
       await removeTorrent(torrentId);
-      toast({title: "WebTorrent Removed", description: "The torrent has been removed from active queue."});
+      toast({title: dictionary?.toastWebTorrentRemovedTitle || "WebTorrent Removed", description: dictionary?.toastWebTorrentRemovedDesc || "The torrent has been removed from active queue."});
     } catch (error) {
-      console.error("[DownloadsPage] Error removing WebTorrent:", error);
-      toast({title: "Removal Error", description: "Could not remove the WebTorrent.", variant: "destructive"});
+      toast({title: dictionary?.toastRemovalErrorTitle || "Removal Error", description: dictionary?.toastRemovalErrorDescWebTorrent || "Could not remove the WebTorrent.", variant: "destructive"});
     }
   }
 
   const handlePauseAria2 = (taskId: string) => { 
-    // For a real app: await fetch(`/api/aria2/pause/${taskId}`, { method: 'POST' });
-    toast({title: "Aria2 Action", description: `Pausing task ${taskId}. (Backend action needed)`});
+    toast({title: dictionary?.toastAria2ActionTitle || "Aria2 Action", description: `${dictionary?.toastPausingTask || "Pausing task"} ${taskId}. (Backend action needed)`});
     setDisplayedAria2Downloads(prev => prev.map(d => d.taskId === taskId ? {...d, status: 'paused'} : d));
   };
   const handleResumeAria2 = (taskId: string) => { 
-    // For a real app: await fetch(`/api/aria2/resume/${taskId}`, { method: 'POST' });
-    toast({title: "Aria2 Action", description: `Resuming task ${taskId}. (Backend action needed)`});
+    toast({title: dictionary?.toastAria2ActionTitle || "Aria2 Action", description: `${dictionary?.toastResumingTask || "Resuming task"} ${taskId}. (Backend action needed)`});
     setDisplayedAria2Downloads(prev => prev.map(d => d.taskId === taskId ? {...d, status: 'active'} : d));
   };
   const handleRemoveAria2 = (taskId: string) => {
-    // For a real app: await fetch(`/api/aria2/remove/${taskId}`, { method: 'POST' });
     if (typeof window !== 'undefined') {
       const currentTasks: ConceptualAria2Task[] = JSON.parse(localStorage.getItem(ARIA2_TASKS_STORAGE_KEY) || '[]');
       const updatedTasks = currentTasks.filter(task => task.taskId !== taskId);
       localStorage.setItem(ARIA2_TASKS_STORAGE_KEY, JSON.stringify(updatedTasks));
       setConceptualAria2TasksStore(updatedTasks); 
       setDisplayedAria2Downloads(prev => prev.filter(d => d.taskId !== taskId));
-      toast({title: "Aria2 Task Removed", description: `Task ${taskId} removed from local tracking. (Backend action needed)`});
+      toast({title: dictionary?.toastAria2TaskRemovedTitle || "Aria2 Task Removed", description: `${dictionary?.toastTask || "Task"} ${taskId} ${dictionary?.toastAria2TaskRemovedDesc || "removed from local tracking. (Backend action needed)"}`});
     }
   };
   const handleOpenAria2File = (downloadUrl?: string) => {
       if (downloadUrl) {
         window.open(downloadUrl, '_blank');
-        toast({title: "Opening File", description: `Attempting to download from ${downloadUrl}`});
+        toast({title: dictionary?.toastOpeningFileTitle || "Opening File", description: `${dictionary?.toastOpeningFileDesc || "Attempting to download from"} ${downloadUrl}`});
       } else {
-        toast({title: "Aria2 File Error", description: "Download URL not available or task not complete.", variant: "destructive"});
+        toast({title: dictionary?.toastAria2FileErrorTitle || "Aria2 File Error", description: dictionary?.toastAria2FileErrorDesc || "Download URL not available or task not complete.", variant: "destructive"});
       }
   };
+
+  if (!dictionary) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-4xl font-bold tracking-tight">Downloads</h1>
-          <p className="text-muted-foreground mt-1">Manage your active and completed downloads.</p>
+          <h1 className="text-4xl font-bold tracking-tight">{dictionary.mainTitle}</h1>
+          <p className="text-muted-foreground mt-1">{dictionary.mainDescription}</p>
         </div>
-        {!isClientReady && <Badge variant="destructive" className="animate-pulse p-2 text-sm">WebTorrent Client Initializing...</Badge>}
+        {!isClientReady && <Badge variant="destructive" className="animate-pulse p-2 text-sm">{dictionary.webTorrentInitializing}</Badge>}
       </div>
 
       <Tabs defaultValue="webtorrent_active" className="w-full">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 gap-x-1.5 rounded-lg p-1.5 bg-muted h-auto md:h-12 text-base">
-          <TabsTrigger value="webtorrent_active" className="h-full py-2.5 px-2 md:px-3">WebTorrents</TabsTrigger>
-          <TabsTrigger value="server_downloads" className="h-full py-2.5 px-2 md:px-3">Server (Aria2)</TabsTrigger>
-          <TabsTrigger value="history" className="h-full py-2.5 px-2 md:px-3 col-span-2 md:col-span-1">History</TabsTrigger>
+          <TabsTrigger value="webtorrent_active" className="h-full py-2.5 px-2 md:px-3">{dictionary.tabs.webTorrents}</TabsTrigger>
+          <TabsTrigger value="server_downloads" className="h-full py-2.5 px-2 md:px-3">{dictionary.tabs.serverDownloads}</TabsTrigger>
+          <TabsTrigger value="history" className="h-full py-2.5 px-2 md:px-3 col-span-2 md:col-span-1">{dictionary.tabs.history}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="webtorrent_active" className="mt-8">
           <Card className="shadow-lg border-border/40 overflow-hidden">
-            <CardHeader><CardTitle>Active WebTorrents</CardTitle></CardHeader>
+            <CardHeader><CardTitle>{dictionary.activeWebTorrents.title}</CardTitle></CardHeader>
             <CardContent className="p-0">
               {activeWebTorrents.length > 0 ? (
                 <div className="divide-y divide-border/30">
@@ -333,30 +339,30 @@ export default function DownloadsPage() {
                       <div key={download.torrentId} className="p-4 md:p-6 hover:bg-muted/30">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                           <div className="flex-grow min-w-0">
-                            <h3 className="font-semibold text-md md:text-lg truncate mb-1" title={download.customName || download.torrentId}>{download.customName || 'Fetching name...'}</h3>
+                            <h3 className="font-semibold text-md md:text-lg truncate mb-1" title={download.customName || download.torrentId}>{download.customName || dictionary.fetchingName}</h3>
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs md:text-sm text-muted-foreground">
                               <span className="flex items-center gap-1.5">{statusIcon}{statusBadge}</span>
-                              <span>{formatBytes(download.downloaded)} / {download.length ? formatBytes(download.length) : 'N/A'}</span>
+                              <span>{formatBytes(download.downloaded)} / {download.length ? formatBytes(download.length) : dictionary.na}</span>
                               {(download.status === 'downloading' || download.status === 'connecting' || download.status === 'metadata') && download.downloadSpeed > 0 && (
                                 <><span className="hidden sm:inline">&bull;</span><span>{formatBytes(download.downloadSpeed)}/s</span></>
                               )}
                               {download.status === 'downloading' && download.remainingTime !== undefined && Number.isFinite(download.remainingTime) && download.remainingTime > 0 && (
-                                <><span className="hidden sm:inline">&bull;</span><span>ETA: {new Date(download.remainingTime).toISOString().substr(11, 8)}</span></>
+                                <><span className="hidden sm:inline">&bull;</span><span>{dictionary.etaLabel}: {new Date(download.remainingTime).toISOString().substr(11, 8)}</span></>
                               )}
-                              <span className="hidden sm:inline">&bull;</span><span>Peers: {download.peers}</span>
+                              <span className="hidden sm:inline">&bull;</span><span>{dictionary.peersLabel}: {download.peers}</span>
                             </div>
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
                             {(download.status === 'downloading' || download.status === 'connecting' || download.status === 'metadata' || download.status === 'stalled' || download.status === 'no_peers') && (
-                              <Button variant="ghost" size="icon" aria-label="Pause" onClick={() => pauseTorrent(download.torrentId)}><PauseCircleIcon className="h-5 w-5" /></Button>
+                              <Button variant="ghost" size="icon" aria-label={dictionary.pauseLabel} onClick={() => pauseTorrent(download.torrentId)}><PauseCircleIcon className="h-5 w-5" /></Button>
                             )}
                             {download.status === 'paused' && (
-                              <Button variant="ghost" size="icon" aria-label="Resume" onClick={() => resumeTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                              <Button variant="ghost" size="icon" aria-label={dictionary.resumeLabel} onClick={() => resumeTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
                             {(download.status === 'done' || download.status === 'seeding' || (download.status === 'downloading' && download.progress > 0.01)) && (
-                              <Button variant="ghost" size="icon" aria-label="Play/Stream" onClick={() => handlePlayWebTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                              <Button variant="ghost" size="icon" aria-label={dictionary.playStreamLabel} onClick={() => handlePlayWebTorrent(download.torrentId)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" aria-label="Remove" onClick={() => handleRemoveWebTorrent(download.torrentId)}><XCircleIcon className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" aria-label={dictionary.removeLabel} onClick={() => handleRemoveWebTorrent(download.torrentId)}><XCircleIcon className="h-5 w-5" /></Button>
                           </div>
                         </div>
                         <Progress value={download.progress * 100} className="mt-3 h-1.5 md:h-2" indicatorClassName={
@@ -366,7 +372,7 @@ export default function DownloadsPage() {
                             (download.status === 'stalled' || download.status === 'no_peers') ? 'bg-orange-500' :
                             'bg-primary'} />
                         {download.status === 'no_peers' && download.noPeersReason && <p className="text-xs text-orange-400 mt-1">{download.noPeersReason}</p>}
-                        {download.status === 'stalled' && <p className="text-xs text-orange-400 mt-1">Download stalled. Check connection or seeders.</p>}
+                        {download.status === 'stalled' && <p className="text-xs text-orange-400 mt-1">{dictionary.downloadStalledMessage}</p>}
                       </div>
                     );
                   })}
@@ -374,10 +380,10 @@ export default function DownloadsPage() {
               ) : (
                 <div className="text-center py-12 px-6">
                   <DownloadCloudIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-xl font-semibold text-muted-foreground">No Active WebTorrents</h3>
+                  <h3 className="text-xl font-semibold text-muted-foreground">{dictionary.activeWebTorrents.noActiveTitle}</h3>
                   {isClientReady ? 
-                    <Button variant="outline" className="mt-4" asChild><Link href="/home">Find Something to Download</Link></Button> 
-                    : <p className="text-muted-foreground mt-2">WebTorrent client is initializing. Please wait...</p> 
+                    <Button variant="outline" className="mt-4" asChild><Link href={`/${locale}/home`}>{dictionary.activeWebTorrents.findSomethingButton}</Link></Button> 
+                    : <p className="text-muted-foreground mt-2">{dictionary.webTorrentInitializing}</p> 
                   }
                 </div>
               )}
@@ -388,18 +394,18 @@ export default function DownloadsPage() {
         <TabsContent value="server_downloads" className="mt-8">
           <Card className="shadow-lg border-border/40 overflow-hidden">
             <CardHeader>
-              <CardTitle>Server Downloads (Aria2)</CardTitle>
-              <CardDescription className="text-xs">Downloads managed by a backend server (Aria2). Server must be running and configured.</CardDescription>
+              <CardTitle>{dictionary.serverDownloads.title}</CardTitle>
+              <CardDescription className="text-xs">{dictionary.serverDownloads.description}</CardDescription>
             </CardHeader>
              <CardContent className="p-0">
               {isLoadingAria2 && displayedAria2Downloads.length === 0 && (
-                <div className="text-center py-12 px-6"><Loader2Icon className="mx-auto h-12 w-12 text-primary animate-spin mb-4" /><p className="text-muted-foreground">Loading server download statuses...</p></div>
+                <div className="text-center py-12 px-6"><Loader2Icon className="mx-auto h-12 w-12 text-primary animate-spin mb-4" /><p className="text-muted-foreground">{dictionary.serverDownloads.loadingStatus}</p></div>
               )}
               {!isLoadingAria2 && displayedAria2Downloads.length === 0 && (
                  <div className="text-center py-12 px-6">
                   <ServerIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-xl font-semibold text-muted-foreground">No Active Server Downloads</h3>
-                  <p className="text-muted-foreground mt-1">Downloads sent to the server will appear here once initiated.</p>
+                  <h3 className="text-xl font-semibold text-muted-foreground">{dictionary.serverDownloads.noActiveTitle}</h3>
+                  <p className="text-muted-foreground mt-1">{dictionary.serverDownloads.noActiveDescription}</p>
                 </div>
               )}
               {displayedAria2Downloads.length > 0 && (
@@ -415,16 +421,16 @@ export default function DownloadsPage() {
                                <span className="flex items-center gap-1.5">{statusIcon}{statusBadge}</span>
                                {download.quality && <span>{download.quality}</span>}
                                <span className="hidden sm:inline">&bull;</span>
-                               <span>{formatBytes(download.completedLength || 0)} / {download.totalLength ? formatBytes(download.totalLength) : 'N/A'}</span>
+                               <span>{formatBytes(download.completedLength || 0)} / {download.totalLength ? formatBytes(download.totalLength) : dictionary.na}</span>
                                {download.status === 'active' && download.downloadSpeed > 0 && <span>{formatBytes(download.downloadSpeed)}/s</span>}
-                               {download.status === 'active' && download.connections !== undefined && <><span className="hidden sm:inline">&bull;</span>Peers: {download.connections}</>}
+                               {download.status === 'active' && download.connections !== undefined && <><span className="hidden sm:inline">&bull;</span>{dictionary.peersLabel}: {download.connections}</>}
                              </div>
                            </div>
                            <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
-                             {download.status === 'active' && <Button variant="ghost" size="icon" title="Pause" onClick={() => handlePauseAria2(download.taskId)}><PauseCircleIcon className="h-5 w-5" /></Button>}
-                             {download.status === 'paused' && <Button variant="ghost" size="icon" title="Resume" onClick={() => handleResumeAria2(download.taskId)}><PlayCircleIcon className="h-5 w-5" /></Button>}
-                             {download.status === 'complete' && download.downloadUrl && <Button variant="ghost" size="icon" title="Download File" onClick={() => handleOpenAria2File(download.downloadUrl)}><FolderOpenIcon className="h-5 w-5" /></Button>}
-                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title="Remove Task" onClick={() => handleRemoveAria2(download.taskId)}><XCircleIcon className="h-5 w-5" /></Button>
+                             {download.status === 'active' && <Button variant="ghost" size="icon" title={dictionary.pauseLabel} onClick={() => handlePauseAria2(download.taskId)}><PauseCircleIcon className="h-5 w-5" /></Button>}
+                             {download.status === 'paused' && <Button variant="ghost" size="icon" title={dictionary.resumeLabel} onClick={() => handleResumeAria2(download.taskId)}><PlayCircleIcon className="h-5 w-5" /></Button>}
+                             {download.status === 'complete' && download.downloadUrl && <Button variant="ghost" size="icon" title={dictionary.downloadFileLabel} onClick={() => handleOpenAria2File(download.downloadUrl)}><FolderOpenIcon className="h-5 w-5" /></Button>}
+                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title={dictionary.removeTaskLabel} onClick={() => handleRemoveAria2(download.taskId)}><XCircleIcon className="h-5 w-5" /></Button>
                            </div>
                          </div>
                          <Progress value={download.progress} className="mt-3 h-1.5 md:h-2" indicatorClassName={download.status === 'paused' ? 'bg-yellow-500' : (download.status === 'error') ? 'bg-red-500' : (download.status === 'complete') ? 'bg-green-500' : 'bg-primary'}/>
@@ -441,17 +447,17 @@ export default function DownloadsPage() {
         <TabsContent value="history" className="mt-8">
           <Card className="shadow-lg border-border/40 overflow-hidden">
             <CardHeader className="flex flex-row justify-between items-center">
-                <CardTitle>Download History</CardTitle>
+                <CardTitle>{dictionary.history.title}</CardTitle>
                 {webTorrentHistory.length > 0 && (
                     <AlertDialog>
                         <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm"><Trash2Icon className="mr-2 h-4 w-4"/> Clear All History</Button>
+                            <Button variant="destructive" size="sm"><Trash2Icon className="mr-2 h-4 w-4"/> {dictionary.history.clearAllButton}</Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
-                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete your entire download history. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogHeader><AlertDialogTitle>{dictionary.history.alertTitle}</AlertDialogTitle><AlertDialogDescription>{dictionary.history.alertDescription}</AlertDialogDescription></AlertDialogHeader>
                             <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={clearDownloadHistory}>Confirm Clear</AlertDialogAction>
+                                <AlertDialogCancel>{dictionary.history.alertCancel}</AlertDialogCancel>
+                                <AlertDialogAction onClick={clearDownloadHistory}>{dictionary.history.alertConfirm}</AlertDialogAction>
                             </AlertDialogFooter>
                         </AlertDialogContent>
                     </AlertDialog>
@@ -469,20 +475,20 @@ export default function DownloadsPage() {
                             <h3 className="font-semibold text-md md:text-lg truncate mb-1" title={item.name}>{item.name}</h3>
                             <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs md:text-sm text-muted-foreground">
                               <span className="flex items-center gap-1.5">{statusIcon}{statusBadge}</span>
-                              <span>Added: {new Date(item.addedDate).toLocaleDateString()}</span>
-                              {item.completedDate && <><span className="hidden sm:inline">&bull;</span><span>Finished: {new Date(item.completedDate).toLocaleDateString()}</span></>}
-                              {item.size && <><span className="hidden sm:inline">&bull;</span><span>Size: {formatBytes(item.size)}</span></>}
+                              <span>{dictionary.history.addedLabel}: {new Date(item.addedDate).toLocaleDateString()}</span>
+                              {item.completedDate && <><span className="hidden sm:inline">&bull;</span><span>{dictionary.history.finishedLabel}: {new Date(item.completedDate).toLocaleDateString()}</span></>}
+                              {item.size && <><span className="hidden sm:inline">&bull;</span><span>{dictionary.history.sizeLabel}: {formatBytes(item.size)}</span></>}
                             </div>
-                            {item.lastError && <p className="text-xs text-destructive mt-1">Error: {item.lastError}</p>}
+                            {item.lastError && <p className="text-xs text-destructive mt-1">{dictionary.history.errorLabel}: {item.lastError}</p>}
                           </div>
                           <div className="flex items-center gap-1 flex-shrink-0 mt-2 sm:mt-0 self-start sm:self-center">
                             {(item.status === 'completed') && item.magnetURI && ( 
-                                <Button variant="ghost" size="icon" title="Stream/Play again" onClick={() => handlePlayWebTorrent(item.magnetURI, true)}><PlayCircleIcon className="h-5 w-5" /></Button>
+                                <Button variant="ghost" size="icon" title={dictionary.history.streamAgainLabel} onClick={() => handlePlayWebTorrent(item.magnetURI, true)}><PlayCircleIcon className="h-5 w-5" /></Button>
                             )}
                             {(item.status === 'failed' || item.status === 'error' || item.status === 'stalled') && item.magnetURI && (
-                              <Button variant="ghost" size="icon" title="Retry Download" onClick={() => handleRetryWebTorrentDownload(item)}><RefreshCwIcon className="h-5 w-5" /></Button>
+                              <Button variant="ghost" size="icon" title={dictionary.history.retryLabel} onClick={() => handleRetryWebTorrentDownload(item)}><RefreshCwIcon className="h-5 w-5" /></Button>
                             )}
-                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title="Remove from History" onClick={() => removeDownloadFromHistory(item.infoHash)}><Trash2Icon className="h-5 w-5" /></Button>
+                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive/80" title={dictionary.history.removeFromHistoryLabel} onClick={() => removeDownloadFromHistory(item.infoHash)}><Trash2Icon className="h-5 w-5" /></Button>
                           </div>
                         </div>
                       </div>
@@ -492,8 +498,8 @@ export default function DownloadsPage() {
               ) : (
                 <div className="text-center py-12 px-6">
                   <HistoryIcon className="mx-auto h-16 w-16 text-muted-foreground/50 mb-4" />
-                  <h3 className="text-xl font-semibold text-muted-foreground">No Download History</h3>
-                  <p className="text-muted-foreground mt-1">Completed, failed, or removed downloads will appear here.</p>
+                  <h3 className="text-xl font-semibold text-muted-foreground">{dictionary.history.noHistoryTitle}</h3>
+                  <p className="text-muted-foreground mt-1">{dictionary.history.noHistoryDescription}</p>
                 </div>
               )}
             </CardContent>
@@ -503,4 +509,3 @@ export default function DownloadsPage() {
     </div>
   );
 }
-

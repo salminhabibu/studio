@@ -1,4 +1,4 @@
-// src/app/(main)/youtube-downloader/loading.tsx
+// src/app/[locale]/(main)/youtube-downloader/loading.tsx
 import { Skeleton } from "@/components/ui/skeleton";
 import { YoutubeIcon } from "lucide-react";
 
@@ -12,7 +12,8 @@ export default function YouTubeDownloaderLoading() {
       </div>
 
       <div className="max-w-3xl mx-auto space-y-6">
-        <Skeleton className="h-20 w-full rounded-lg" /> {/* Input Card Header + Content */}
+        {/* Input Card Header + Content */}
+        <Skeleton className="h-24 w-full rounded-lg" /> {/* Increased height for card header and form */}
       </div>
 
       <div className="max-w-5xl mx-auto mt-8 space-y-6">

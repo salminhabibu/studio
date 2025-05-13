@@ -1,14 +1,18 @@
-// src/app/(main)/home/page.tsx
+// src/app/[locale]/(main)/home/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { getPopularMovies, getPopularTvSeries, getMovieDetails, getFullImagePath } from "@/lib/tmdb";
+import { getPopularMovies, getPopularTvSeries } from "@/lib/tmdb";
 import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { HeroSection, type HeroItem } from '@/components/features/home/HeroSection';
 import { RecommendedItemCard } from '@/components/features/common/RecommendedItemCard';
-import { Loader2Icon, FilmIcon, Tv2Icon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Loader2Icon, FilmIcon, Tv2Icon, YoutubeIcon, ArrowRightIcon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary'; // To be created
 
 const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
 const HOME_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-home-page-state`;
@@ -24,8 +28,11 @@ interface HomePageState {
   scrollY: number;
 }
 
+interface HomePageProps {
+  params: { locale: Locale };
+}
 
-export default function HomePage() {
+export default function HomePage({ params: { locale } }: HomePageProps) {
   const [heroItems, setHeroItems] = useState<HeroItem[]>([]);
   const [popularMovies, setPopularMovies] = useState<TMDBBaseMovie[]>([]);
   const [popularTvSeries, setPopularTvSeries] = useState<TMDBBaseTVSeries[]>([]);
@@ -46,12 +53,22 @@ export default function HomePage() {
   const hasRestoredStateRef = useRef(false);
   const scrollYToRestoreRef = useRef<number | null>(null);
 
+  const [dictionary, setDictionary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDictionary = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict);
+    };
+    fetchDictionary();
+  }, [locale]);
+
 
   // Fetch hero items
   const fetchHeroData = useCallback(async () => {
     setIsLoadingHero(true);
     try {
-      const moviesData = await getPopularMovies(1);
+      const moviesData = await getPopularMovies(1); // Ensure this uses the correct API version
       const potentialHeroMovies = moviesData.results.filter(movie => movie.backdrop_path).slice(0, 10);
       
       const heroItemsDataPromises = potentialHeroMovies.map(async (movie) => {
@@ -106,7 +123,6 @@ export default function HomePage() {
     if (savedStateString) {
       try {
         const savedState: HomePageState = JSON.parse(savedStateString);
-        console.log("[HomePage] Restoring state:", savedState);
         setHeroItems(savedState.heroItems);
         setPopularMovies(savedState.popularMovies);
         setPopularTvSeries(savedState.popularTvSeries);
@@ -116,7 +132,7 @@ export default function HomePage() {
         setTvSeriesTotalPages(savedState.tvSeriesTotalPages);
         scrollYToRestoreRef.current = savedState.scrollY;
 
-        setIsLoadingHero(false); // Assume hero items are restored
+        setIsLoadingHero(false); 
         setIsLoadingMovies(false);
         setIsLoadingTvSeries(false);
         
@@ -124,35 +140,31 @@ export default function HomePage() {
 
         setTimeout(() => {
           if (scrollYToRestoreRef.current !== null) {
-            console.log(`[HomePage] Attempting scroll to ${scrollYToRestoreRef.current}`);
             window.scrollTo({ top: scrollYToRestoreRef.current, behavior: 'auto' });
             scrollYToRestoreRef.current = null;
           }
         }, 100);
-        return; // State restored, no need for initial fetches
+        return; 
       } catch (e) {
         console.error("[HomePage] Error parsing saved state:", e);
         sessionStorage.removeItem(HOME_STATE_KEY);
       }
     }
-    // If no saved state or error parsing, proceed with initial fetches
     hasRestoredStateRef.current = true;
     fetchHeroData();
     fetchMovies(1);
     fetchTvSeries(1);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // fetchHeroData, fetchMovies, fetchTvSeries are stable due to useCallback
+  }, []); 
 
 
   useEffect(() => {
-    // Only fetch if not restored and page > 1
     if (hasRestoredStateRef.current && !sessionStorage.getItem(HOME_STATE_KEY) && moviesPage > 1) {
       fetchMovies(moviesPage);
     }
   }, [fetchMovies, moviesPage]);
 
   useEffect(() => {
-    // Only fetch if not restored and page > 1
     if (hasRestoredStateRef.current && !sessionStorage.getItem(HOME_STATE_KEY) && tvSeriesPage > 1) {
       fetchTvSeries(tvSeriesPage);
     }
@@ -173,13 +185,12 @@ export default function HomePage() {
           scrollY: window.scrollY,
         };
         sessionStorage.setItem(HOME_STATE_KEY, JSON.stringify(stateToSave));
-        console.log("[HomePage] Saved state:", stateToSave);
       }
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      handleBeforeUnload(); // Also save on component unmount
+      handleBeforeUnload(); 
     };
   }, [heroItems, popularMovies, popularTvSeries, moviesPage, tvSeriesPage, moviesTotalPages, tvSeriesTotalPages]);
 
@@ -206,19 +217,43 @@ export default function HomePage() {
     if (node) tvSeriesObserver.current.observe(node);
   }, [isLoadingTvSeries, tvSeriesPage, tvSeriesTotalPages]);
 
+  if (!dictionary) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-10">
       <HeroSection items={heroItems} />
+
+      <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+                <CardTitle className="text-2xl flex items-center gap-2">
+                    <YoutubeIcon className="h-7 w-7 text-red-500"/> {dictionary.youtubeDownloader.title}
+                </CardTitle>
+                <CardDescription>{dictionary.youtubeDownloader.description}</CardDescription>
+            </div>
+            <Button asChild variant="ghost" size="sm">
+                <Link href={`/${locale}/youtube-downloader`} className="flex items-center">
+                    {dictionary.youtubeDownloader.buttonText} <ArrowRightIcon className="ml-1.5 h-4 w-4"/>
+                </Link>
+            </Button>
+        </CardHeader>
+      </Card>
       
       <section className="space-y-6">
         <h2 className="text-3xl font-semibold text-foreground/90 flex items-center gap-2">
-          <FilmIcon className="h-7 w-7 text-primary" /> Popular Movies
+          <FilmIcon className="h-7 w-7 text-primary" /> {dictionary.home.popularMovies}
         </h2>
         {popularMovies.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-5 gap-y-8">
             {popularMovies.map((movie, index) => (
               <RecommendedItemCard
-                key={`${movie.id}-${index}`} // Ensure unique key if movies can repeat
+                key={`${movie.id}-${index}`}
                 item={movie}
                 mediaType="movie"
                 ref={index === popularMovies.length - 1 ? lastMovieElementRef : null}
@@ -226,7 +261,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          !isLoadingMovies && <p className="text-muted-foreground">No movies to display currently.</p>
+          !isLoadingMovies && <p className="text-muted-foreground">{dictionary.home.noMovies}</p>
         )}
         {isLoadingMovies && (
           <div className="flex justify-center py-6">
@@ -234,7 +269,7 @@ export default function HomePage() {
           </div>
         )}
         {!isLoadingMovies && moviesPage >= moviesTotalPages && popularMovies.length > 0 && (
-          <p className="text-center text-muted-foreground py-4">You've reached the end of the movie list.</p>
+          <p className="text-center text-muted-foreground py-4">{dictionary.home.endOfMovies}</p>
         )}
       </section>
 
@@ -242,13 +277,13 @@ export default function HomePage() {
 
       <section className="space-y-6">
         <h2 className="text-3xl font-semibold text-foreground/90 flex items-center gap-2">
-          <Tv2Icon className="h-7 w-7 text-primary" /> Popular TV Series
+          <Tv2Icon className="h-7 w-7 text-primary" /> {dictionary.home.popularTvSeries}
         </h2>
         {popularTvSeries.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-5 gap-y-8">
             {popularTvSeries.map((series, index) => (
               <RecommendedItemCard
-                key={`${series.id}-${index}`} // Ensure unique key
+                key={`${series.id}-${index}`}
                 item={series}
                 mediaType="tv"
                 ref={index === popularTvSeries.length - 1 ? lastTvSeriesElementRef : null}
@@ -256,7 +291,7 @@ export default function HomePage() {
             ))}
           </div>
         ) : (
-          !isLoadingTvSeries && <p className="text-muted-foreground">No TV series to display currently.</p>
+          !isLoadingTvSeries && <p className="text-muted-foreground">{dictionary.home.noTvSeries}</p>
         )}
         {isLoadingTvSeries && (
           <div className="flex justify-center py-6">
@@ -264,7 +299,7 @@ export default function HomePage() {
           </div>
         )}
          {!isLoadingTvSeries && tvSeriesPage >= tvSeriesTotalPages && popularTvSeries.length > 0 && (
-          <p className="text-center text-muted-foreground py-4">You've reached the end of the TV series list.</p>
+          <p className="text-center text-muted-foreground py-4">{dictionary.home.endOfTvSeries}</p>
         )}
       </section>
     </div>

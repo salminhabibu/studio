@@ -1,4 +1,4 @@
-// src/app/(main)/movies/page.tsx
+// src/app/[locale]/(main)/movies/page.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
@@ -12,22 +12,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Loader2Icon, FilmIcon, ListFilterIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary'; // To be created
 
 const CURRENT_YEAR = new Date().getFullYear();
-const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); // Last 50 years
+const YEARS = Array.from({ length: 50 }, (_, i) => CURRENT_YEAR - i); 
 
-const ORIGIN_COUNTRIES = [
-  { label: "Any Origin", value: "0" },
-  { label: "Hollywood (US)", value: "US" },
-  { label: "Nollywood (NG)", value: "NG" },
-  { label: "Bollywood (IN)", value: "IN" },
-  { label: "United Kingdom", value: "GB" },
-  { label: "Canada", value: "CA" },
-  { label: "Australia", value: "AU" },
-  { label: "France", value: "FR" },
-  { label: "Germany", value: "DE" },
-  { label: "Japan", value: "JP" },
-  { label: "South Korea", value: "KR" },
+const ORIGIN_COUNTRIES_BASE = [
+  { value: "0", labelKey: "anyOrigin" },
+  { value: "US", labelKey: "hollywood" },
+  { value: "NG", labelKey: "nollywood" },
+  { value: "IN", labelKey: "bollywood" },
+  { value: "GB", labelKey: "unitedKingdom" },
+  { value: "CA", labelKey: "canada" },
+  { value: "AU", labelKey: "australia" },
+  { value: "FR", labelKey: "france" },
+  { value: "DE", labelKey: "germany" },
+  { value: "JP", labelKey: "japan" },
+  { value: "KR", labelKey: "southKorea" },
 ];
 
 const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
@@ -41,11 +43,14 @@ interface DiscoveryPageState {
   };
   currentPage: number;
   scrollY: number;
-  movies: TMDBBaseMovie[]; // Store fetched movies for full restoration
+  movies: TMDBBaseMovie[];
 }
 
+interface MoviesPageProps {
+  params: { locale: Locale };
+}
 
-export default function MoviesPage() {
+export default function MoviesPage({ params: { locale } }: MoviesPageProps) {
   const [movies, setMovies] = useState<TMDBBaseMovie[]>([]);
   const [genres, setGenres] = useState<TMDBGenre[]>([]);
   
@@ -60,11 +65,22 @@ export default function MoviesPage() {
   const [error, setError] = useState<string | null>(null);
 
   const observer = useRef<IntersectionObserver>();
-  
-  // Refs for restoring state
   const hasRestoredStateRef = useRef(false);
   const scrollYToRestoreRef = useRef<number | null>(null);
-  // targetPageToRestoreRef is implicitly handled by setting currentPage and letting observer load
+
+  const [dictionary, setDictionary] = useState<any>(null);
+  const [localizedOriginCountries, setLocalizedOriginCountries] = useState(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: oc.labelKey })));
+
+
+  useEffect(() => {
+    const fetchDict = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.moviesPage);
+      setLocalizedOriginCountries(ORIGIN_COUNTRIES_BASE.map(oc => ({...oc, label: dict.moviesPage.originCountries[oc.labelKey] || oc.labelKey })));
+    };
+    fetchDict();
+  }, [locale]);
+
 
   const lastMovieElementRef = useCallback((node: HTMLElement | null) => {
     if (isLoading || isLoadingInitial) return;
@@ -96,95 +112,87 @@ export default function MoviesPage() {
       
       setMovies(prevMovies => page === 1 ? data.results : [...prevMovies, ...data.results]);
       setTotalPages(data.total_pages);
-      if (data.results.length === 0 && page === 1) setError("No movies found matching your criteria.");
+      if (data.results.length === 0 && page === 1) setError(dictionary?.noMoviesFound || "No movies found matching your criteria.");
       else setError(null);
 
     } catch (err) {
       console.error("Failed to fetch movies:", err);
-      const errorMessage = err instanceof Error ? err.message : "Failed to load movies.";
-      setError(page === 1 ? errorMessage : "Failed to load more movies.");
+      const errorMessage = err instanceof Error ? err.message : (dictionary?.errorLoadingMovies || "Failed to load movies.");
+      setError(page === 1 ? errorMessage : (dictionary?.errorLoadingMoreMovies || "Failed to load more movies."));
       if (page === 1) setMovies([]);
     } finally {
       setIsLoading(false);
       setIsLoadingInitial(false);
     }
-  }, [selectedGenre, selectedYear, selectedOrigin]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedGenre, selectedYear, selectedOrigin, dictionary]); // Added dictionary
 
   useEffect(() => {
     const fetchInitialGenres = async () => {
       try {
         const genreData = await getMovieGenres();
-        setGenres([{ id: 0, name: "All Genres" }, ...genreData.genres]); 
+        setGenres([{ id: 0, name: dictionary?.allGenres || "All Genres" }, ...genreData.genres]); 
       } catch (err) {
         console.error("Failed to fetch genres:", err);
       }
     };
-    fetchInitialGenres();
-  }, []);
+    if (dictionary) fetchInitialGenres();
+  }, [dictionary]);
   
   // Restore state on mount
   useEffect(() => {
-    if (hasRestoredStateRef.current || typeof window === 'undefined') return;
+    if (hasRestoredStateRef.current || typeof window === 'undefined' || !dictionary) return;
 
     const savedStateString = sessionStorage.getItem(MOVIES_STATE_KEY);
     if (savedStateString) {
       try {
         const savedState: DiscoveryPageState = JSON.parse(savedStateString);
-        console.log("[MoviesPage] Restoring state:", savedState);
-
         setSelectedGenre(savedState.filters.genre);
         setSelectedYear(savedState.filters.year);
         setSelectedOrigin(savedState.filters.origin);
-        setMovies(savedState.movies); // Restore movies directly
-        setCurrentPage(savedState.currentPage); // Restore current page
+        setMovies(savedState.movies); 
+        setCurrentPage(savedState.currentPage); 
         scrollYToRestoreRef.current = savedState.scrollY;
-        setTotalPages(savedState.movies.length > 0 ? Math.ceil(savedState.movies.length / 20) +1 : 1); // Estimate total pages based on restored, adjust if needed
+        setTotalPages(savedState.movies.length > 0 ? Math.ceil(savedState.movies.length / 20) +1 : 1); 
 
 
-        // Mark as restored and set initial loading to false since data is restored
         hasRestoredStateRef.current = true;
         setIsLoadingInitial(false); 
         
-        // Attempt to scroll after a short delay to allow DOM updates
-        // This is a common pattern for scroll restoration with restored content
         setTimeout(() => {
           if (scrollYToRestoreRef.current !== null) {
-            console.log(`[MoviesPage] Attempting scroll to ${scrollYToRestoreRef.current}`);
             window.scrollTo({ top: scrollYToRestoreRef.current, behavior: 'auto' });
-            scrollYToRestoreRef.current = null; // Clear after attempting
+            scrollYToRestoreRef.current = null; 
           }
-        }, 100); // Small delay
+        }, 100); 
 
-        return; // Exit early as state is restored
+        return; 
       } catch (e) {
         console.error("[MoviesPage] Error parsing saved state:", e);
-        sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear corrupted state
+        sessionStorage.removeItem(MOVIES_STATE_KEY); 
       }
     }
-    // If no saved state, proceed with normal initial load
-    hasRestoredStateRef.current = true; // Mark attempt even if no state found
-    fetchMovieData(1); // Fetch page 1 if no state was restored
+    hasRestoredStateRef.current = true; 
+    fetchMovieData(1); 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run once on mount
+  }, [dictionary]); // Trigger on dictionary load as well
 
 
   // Main data fetching useEffect for subsequent pages (infinite scroll)
   useEffect(() => {
-    // This effect should only run for page > 1 if state wasn't restored,
-    // or if user scrolls past the restored content.
-    if (hasRestoredStateRef.current && currentPage > 1) {
-        const isRestoringFurther = movies.length > 0 && currentPage > Math.ceil(movies.length / 20); // Simple check
-        if(isRestoringFurther || !sessionStorage.getItem(MOVIES_STATE_KEY)){ // Fetch if scrolling beyond initially restored or no restoration happened
+    if (hasRestoredStateRef.current && currentPage > 1 && dictionary) {
+        const isRestoringFurther = movies.length > 0 && currentPage > Math.ceil(movies.length / 20); 
+        if(isRestoringFurther || !sessionStorage.getItem(MOVIES_STATE_KEY)){ 
             fetchMovieData(currentPage);
         }
     }
-  }, [currentPage, fetchMovieData, movies.length]);
+  }, [currentPage, fetchMovieData, movies.length, dictionary]);
 
 
   // Save state on unmount or before navigation
   useEffect(() => {
     const handleBeforeUnload = () => {
-      if (typeof window !== 'undefined' && movies.length > 0) { // Only save if there's something to save
+      if (typeof window !== 'undefined' && movies.length > 0) { 
         const stateToSave: DiscoveryPageState = {
           filters: {
             genre: selectedGenre,
@@ -193,10 +201,9 @@ export default function MoviesPage() {
           },
           currentPage: currentPage,
           scrollY: window.scrollY,
-          movies: movies, // Save the fetched movies
+          movies: movies, 
         };
         sessionStorage.setItem(MOVIES_STATE_KEY, JSON.stringify(stateToSave));
-        console.log("[MoviesPage] Saved state on unmount/beforeunload:", stateToSave);
       }
     };
 
@@ -204,16 +211,15 @@ export default function MoviesPage() {
 
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
-      // Also call on component unmount (e.g. route change)
       handleBeforeUnload(); 
     };
   }, [selectedGenre, selectedYear, selectedOrigin, currentPage, movies]);
 
   const handleFilterChange = () => {
-    sessionStorage.removeItem(MOVIES_STATE_KEY); // Clear saved state on new filter action
-    hasRestoredStateRef.current = true; // Treat as a new session for fetching
+    sessionStorage.removeItem(MOVIES_STATE_KEY); 
+    hasRestoredStateRef.current = true; 
     setCurrentPage(1); 
-    fetchMovieData(1); // Pass page 1 to fetchMovieData, it will handle isLoadingInitial
+    fetchMovieData(1); 
   };
   
   const handleGenreChange = (genreId: string) => {
@@ -238,15 +244,23 @@ export default function MoviesPage() {
     handleFilterChange();
   };
 
+  if (!dictionary) {
+    return (
+        <div className="flex justify-center items-center h-screen">
+            <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
+        </div>
+    );
+  }
+
   const activeFilterCount = [selectedGenre, selectedYear, selectedOrigin].filter(Boolean).length;
 
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h1 className="text-3xl font-semibold tracking-tight">Discover Movies</h1>
+        <h1 className="text-3xl font-semibold tracking-tight">{dictionary.mainTitle}</h1>
         {activeFilterCount > 0 && (
             <Button variant="outline" size="sm" onClick={resetFilters} className="text-xs sm:text-sm">
-              <XIcon className="mr-1.5 h-4 w-4" /> Clear Filters ({activeFilterCount})
+              <XIcon className="mr-1.5 h-4 w-4" /> {dictionary.clearFiltersButton} ({activeFilterCount})
             </Button>
           )}
       </div>
@@ -254,26 +268,26 @@ export default function MoviesPage() {
       <Card className="p-4 sm:p-6 shadow-lg border-border/40">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 items-end">
           <div className="space-y-1.5">
-            <label htmlFor="genre-filter" className="text-sm font-medium text-muted-foreground">Genre</label>
+            <Label htmlFor="genre-filter" className="text-sm font-medium text-muted-foreground">{dictionary.genreLabel}</Label>
             <Select value={selectedGenre || "0"} onValueChange={handleGenreChange}>
               <SelectTrigger id="genre-filter" className="h-10">
-                <SelectValue placeholder="Select Genre" />
+                <SelectValue placeholder={dictionary.selectGenrePlaceholder} />
               </SelectTrigger>
               <SelectContent>
                 {genres.map(genre => (
-                  <SelectItem key={genre.id} value={String(genre.id)}>{genre.name}</SelectItem>
+                  <SelectItem key={genre.id} value={String(genre.id)}>{genre.id === 0 ? dictionary.allGenres : genre.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="year-filter" className="text-sm font-medium text-muted-foreground">Year</label>
+            <Label htmlFor="year-filter" className="text-sm font-medium text-muted-foreground">{dictionary.yearLabel}</Label>
             <Select value={selectedYear || "0"} onValueChange={handleYearChange}>
               <SelectTrigger id="year-filter" className="h-10">
-                <SelectValue placeholder="Select Year" />
+                <SelectValue placeholder={dictionary.selectYearPlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="0">All Years</SelectItem>
+                <SelectItem value="0">{dictionary.allYears}</SelectItem>
                 {YEARS.map(year => (
                   <SelectItem key={year} value={String(year)}>{year}</SelectItem>
                 ))}
@@ -281,26 +295,25 @@ export default function MoviesPage() {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <label htmlFor="origin-filter" className="text-sm font-medium text-muted-foreground">Origin</label>
+            <Label htmlFor="origin-filter" className="text-sm font-medium text-muted-foreground">{dictionary.originLabel}</Label>
             <Select value={selectedOrigin || "0"} onValueChange={handleOriginChange}>
               <SelectTrigger id="origin-filter" className="h-10">
-                <SelectValue placeholder="Select Origin" />
+                <SelectValue placeholder={dictionary.selectOriginPlaceholder} />
               </SelectTrigger>
               <SelectContent>
-                {ORIGIN_COUNTRIES.map(country => (
+                {localizedOriginCountries.map(country => (
                   <SelectItem key={country.value} value={country.value}>{country.label}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-          {/* "Apply Filters" button is effectively handled by individual filter changes calling handleFilterChange */}
           <Button onClick={handleFilterChange} className="h-10 w-full sm:w-auto mt-auto" disabled={isLoadingInitial || isLoading}>
-            <ListFilterIcon className="mr-2 h-4 w-4" /> Refresh Results
+            <ListFilterIcon className="mr-2 h-4 w-4" /> {dictionary.refreshResultsButton}
           </Button>
         </div>
       </Card>
 
-      {isLoadingInitial && movies.length === 0 && ( // Show skeleton only if movies array is empty during initial load
+      {isLoadingInitial && movies.length === 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {[...Array(12)].map((_, i) => (
             <Card key={i} className="overflow-hidden shadow-lg flex flex-col h-full bg-card">
@@ -317,10 +330,10 @@ export default function MoviesPage() {
       {!isLoadingInitial && error && movies.length === 0 && (
         <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4 py-12 rounded-lg bg-card/50 shadow-md">
           <FilmIcon className="w-20 h-20 text-destructive mb-4" />
-          <h2 className="text-2xl font-semibold text-destructive">Error Loading Movies</h2>
+          <h2 className="text-2xl font-semibold text-destructive">{dictionary.errorTitle}</h2>
           <p className="text-muted-foreground max-w-sm">{error}</p>
           <Button variant="outline" onClick={() => fetchMovieData(1)}>
-            <RefreshCwIcon className="mr-2 h-4 w-4" /> Retry
+            <RefreshCwIcon className="mr-2 h-4 w-4" /> {dictionary.retryButton}
           </Button>
         </div>
       )}
@@ -328,19 +341,19 @@ export default function MoviesPage() {
       {!isLoadingInitial && !error && movies.length === 0 && (
          <div className="flex flex-col items-center justify-center h-[40vh] text-center space-y-4 py-12 rounded-lg bg-card/50 shadow-md">
           <FilmIcon className="w-20 h-20 text-muted-foreground mb-4" />
-          <h2 className="text-2xl font-semibold text-foreground">No Movies Found</h2>
+          <h2 className="text-2xl font-semibold text-foreground">{dictionary.noMoviesFoundTitle}</h2>
           <p className="text-muted-foreground max-w-sm">
-            No movies found matching your criteria. Try adjusting the filters.
+            {dictionary.noMoviesFoundDescription}
           </p>
         </div>
       )}
 
-      {movies.length > 0 && ( // Always render movies if they exist, even if isLoadingInitial is true (for restored state)
+      {movies.length > 0 && ( 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-8">
           {movies.map((movie, index) => {
             const isLastMovie = movies.length === index + 1;
             return (
-              <Link href={`/movies/${movie.id}`} key={`${movie.id}-${index}`} className="group" prefetch={false}>
+              <Link href={`/${locale}/movies/${movie.id}`} key={`${movie.id}-${index}`} className="group" prefetch={false}>
                 <Card 
                   ref={isLastMovie ? lastMovieElementRef : null}
                   className="overflow-hidden shadow-lg hover:shadow-primary/40 transition-all duration-300 ease-in-out transform hover:-translate-y-1.5 flex flex-col h-full bg-card hover:bg-card/90"
@@ -348,12 +361,12 @@ export default function MoviesPage() {
                   <div className="aspect-[2/3] relative w-full">
                     <Image
                       src={getFullImagePath(movie.poster_path, "w500")}
-                      alt={movie.title || "Movie poster"}
+                      alt={movie.title || dictionary.moviePosterAlt}
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-105"
                       data-ai-hint="movie poster"
                       sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
-                      priority={index < 6} // Prioritize loading first few images
+                      priority={index < 6} 
                     />
                     {movie.vote_average > 0 && (
                       <Badge variant="default" className="absolute top-2 right-2 bg-primary/80 backdrop-blur-sm text-xs">
@@ -367,7 +380,7 @@ export default function MoviesPage() {
                         {movie.title}
                       </h3>
                       <p className="text-xs text-muted-foreground">
-                        {movie.release_date ? new Date(movie.release_date).getFullYear() : 'N/A'}
+                        {movie.release_date ? new Date(movie.release_date).getFullYear() : dictionary.na}
                       </p>
                     </div>
                   </CardContent>
@@ -381,11 +394,11 @@ export default function MoviesPage() {
       {isLoading && !isLoadingInitial && (
         <div className="flex justify-center items-center py-8">
           <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
-          <p className="ml-3 text-muted-foreground">Loading more movies...</p>
+          <p className="ml-3 text-muted-foreground">{dictionary.loadingMore}</p>
         </div>
       )}
        {!isLoading && !isLoadingInitial && currentPage >= totalPages && movies.length > 0 && (
-         <p className="text-center text-muted-foreground py-8">You&apos;ve reached the end of the list.</p>
+         <p className="text-center text-muted-foreground py-8">{dictionary.endOfList}</p>
        )}
     </div>
   );

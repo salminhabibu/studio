@@ -1,4 +1,4 @@
-// src/app/(main)/youtube-downloader/page.tsx
+// src/app/[locale]/(main)/youtube-downloader/page.tsx
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -15,16 +15,16 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, useCallback } from "react";
-import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon, XCircleIcon } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
-import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
-
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary'; // To be created
 
 const youtubeUrlFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid YouTube URL (video or playlist)." })
@@ -48,10 +48,10 @@ interface Format {
   itag: number;
   mimeType?: string;
   container?: string;
-  fps?: number; // For video
-  audioBitrate?: number; // For audio
-  hasAudio?: boolean; // For video to check if it includes audio
-  hasVideo?: boolean; // For audio to check if it includes video (should be false)
+  fps?: number; 
+  audioBitrate?: number; 
+  hasAudio?: boolean; 
+  hasVideo?: boolean; 
 }
 
 interface VideoInfo {
@@ -65,8 +65,7 @@ interface VideoInfo {
 }
 
 interface PlaylistItem extends VideoInfo {
-  // Playlist item will have same structure as VideoInfo
-  selected?: boolean; // For UI selection
+  selected?: boolean; 
 }
 
 interface PlaylistInfo {
@@ -93,9 +92,9 @@ function getYouTubeId(url: string): { videoId?: string; playlistId?: string } {
   }
 }
 
-function formatDuration(secondsStr: string): string {
+function formatDuration(secondsStr: string, dict: any): string {
     const seconds = parseInt(secondsStr, 10);
-    if (isNaN(seconds) || seconds < 0) return "N/A";
+    if (isNaN(seconds) || seconds < 0) return dict?.na || "N/A";
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
@@ -105,8 +104,11 @@ function formatDuration(secondsStr: string): string {
     return timeString;
 }
 
+interface YouTubeDownloaderPageProps {
+  params: { locale: Locale };
+}
 
-export default function YouTubeDownloaderPage() {
+export default function YouTubeDownloaderPage({ params: { locale } }: YouTubeDownloaderPageProps) {
   const { toast } = useToast();
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -114,14 +116,21 @@ export default function YouTubeDownloaderPage() {
   const [currentContent, setCurrentContent] = useState<VideoInfo | PlaylistInfo | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
 
-  // Form state
   const [selectedDownloadType, setSelectedDownloadType] = useState<'videoaudio' | 'videoonly' | 'audioonly'>('videoaudio');
   const [selectedVideoItag, setSelectedVideoItag] = useState<string>("");
   const [selectedAudioItag, setSelectedAudioItag] = useState<string>("");
-  const [selectedAudioFormat, setSelectedAudioFormat] = useState<'aac' | 'opus'>('aac'); // Default to AAC (more compatible)
+  const [selectedAudioFormat, setSelectedAudioFormat] = useState<'aac' | 'opus'>('aac'); 
 
-  // Playlist specific state
   const [playlistItemsSelection, setPlaylistItemsSelection] = useState<Record<string, boolean>>({});
+  const [dictionary, setDictionary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDictionary = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.youtubeDownloaderPage); // Assuming structure for page-specific dict
+    };
+    fetchDictionary();
+  }, [locale]);
 
 
   const form = useForm<YouTubeUrlFormValues>({
@@ -144,11 +153,9 @@ export default function YouTubeDownloaderPage() {
         if (previewVideoId) setPreviewVideoId(null);
     } else {
         const { videoId } = getYouTubeId(currentUrl);
-        // If it's a video URL (not playlist only) and no playlist is loaded, set preview
         if (videoId && !(currentContent && 'items' in currentContent)) {
           if (previewVideoId !== videoId) setPreviewVideoId(videoId);
         } else if (!videoId && !(currentContent && 'items' in currentContent)) {
-          // If it's not a video URL (e.g. playlist only URL without a v= param) clear preview if it's not a playlist
           setPreviewVideoId(null);
         }
     }
@@ -168,7 +175,7 @@ export default function YouTubeDownloaderPage() {
         fetchUrl += `url=${encodeURIComponent(data.url)}`;
          setPreviewVideoId(videoId);
     } else {
-        toast({ title: "Invalid URL", description: "Could not identify a video or playlist ID.", variant: "destructive" });
+        toast({ title: dictionary?.errorInvalidUrlTitle || "Invalid URL", description: dictionary?.errorInvalidUrlDesc || "Could not identify a video or playlist ID.", variant: "destructive" });
         setIsLoadingInfo(false);
         return;
     }
@@ -178,25 +185,25 @@ export default function YouTubeDownloaderPage() {
       const result = await response.json();
 
       if (!response.ok || result.error) {
-        const errorDescription = result.error || `Failed with status ${response.status}.`;
-        toast({ title: "Error Fetching Info", description: errorDescription, variant: "destructive" });
+        const errorDescription = result.error || `${dictionary?.errorFetchStatus || "Failed with status"} ${response.status}.`;
+        toast({ title: dictionary?.errorFetchTitle || "Error Fetching Info", description: errorDescription, variant: "destructive" });
         setCurrentContent(null); 
       } else {
         setCurrentContent(result);
-        if ('items' in result && result.items.length > 0) { // Playlist
+        if ('items' in result && result.items.length > 0) { 
           setSelectedVideoItag(result.items[0].videoFormats?.[0]?.itag.toString() || "");
           setSelectedAudioItag(result.items[0].audioFormats?.[0]?.itag.toString() || "");
           setPlaylistItemsSelection(result.items.reduce((acc: Record<string, boolean>, item: PlaylistItem) => {
-            acc[item.id] = true; // Default select all
+            acc[item.id] = true; 
             return acc;
           }, {}));
-        } else if ('title' in result && !('items' in result)) { // Single Video
+        } else if ('title' in result && !('items' in result)) { 
           setSelectedVideoItag(result.videoFormats?.[0]?.itag.toString() || "");
           setSelectedAudioItag(result.audioFormats?.[0]?.itag.toString() || "");
         }
       }
     } catch (error) {
-      toast({ title: "Network/Parsing Error", description: "Could not fetch information. Check network or URL.", variant: "destructive" });
+      toast({ title: dictionary?.errorNetworkTitle || "Network/Parsing Error", description: dictionary?.errorNetworkDesc || "Could not fetch information. Check network or URL.", variant: "destructive" });
       setCurrentContent(null);
     } finally {
       setIsLoadingInfo(false);
@@ -207,32 +214,27 @@ export default function YouTubeDownloaderPage() {
     const contentToUse = videoToDownload || (currentContent && !('items' in currentContent) ? currentContent : null);
 
     if (!contentToUse || !currentUrl) {
-      toast({ title: "Error", description: "No video selected or URL is missing.", variant: "destructive" });
+      toast({ title: dictionary?.errorNoVideoTitle || "Error", description: dictionary?.errorNoVideoDesc || "No video selected or URL is missing.", variant: "destructive" });
       return;
     }
     
     let itag: string | undefined;
     let downloadApiEndpoint: string;
-    let fileExtension: string;
 
     if (selectedDownloadType === 'audioonly') {
       itag = selectedAudioItag;
       downloadApiEndpoint = '/api/youtube/download-audio';
-      fileExtension = selectedAudioFormat === 'aac' ? 'm4a' : 'webm'; // Or map to common extensions
-    } else { // videoaudio or videoonly
+    } else { 
       itag = selectedVideoItag;
       downloadApiEndpoint = '/api/youtube/download-video';
-      fileExtension = 'mp4'; // ytdl-core typically provides mp4
     }
 
     if (!itag) {
-      toast({ title: "Select Format", description: `Please select a quality for ${selectedDownloadType}.`, variant: "destructive" });
+      toast({ title: dictionary?.errorSelectFormatTitle || "Select Format", description: `${dictionary?.errorSelectFormatDesc || "Please select a quality for"} ${selectedDownloadType}.`, variant: "destructive" });
       return;
     }
 
-    // Construct the original video URL if downloading a specific item from a playlist
     const sourceUrl = videoToDownload ? `https://www.youtube.com/watch?v=${videoToDownload.id}` : currentUrl;
-
     const downloadUrl = `${downloadApiEndpoint}?url=${encodeURIComponent(sourceUrl)}&itag=${itag}&title=${encodeURIComponent(contentToUse.title)}&type=${selectedDownloadType}&audioFormat=${selectedAudioFormat}`;
     
     setIsDownloading(true);
@@ -240,31 +242,28 @@ export default function YouTubeDownloaderPage() {
 
     setTimeout(() => {
       setIsDownloading(false);
-      toast({ title: "Download Started", description: `${contentToUse.title} should begin downloading shortly.`});
+      toast({ title: dictionary?.downloadStartedTitle || "Download Started", description: `${contentToUse.title} ${dictionary?.downloadStartedDesc || "should begin downloading shortly."}`});
     }, 3000); 
   };
 
   const handleDownloadPlaylist = async () => {
       if (!currentContent || !('items' in currentContent)) {
-          toast({title: "Error", description: "No playlist loaded.", variant: "destructive"});
+          toast({title: dictionary?.errorNoPlaylistTitle || "Error", description: dictionary?.errorNoPlaylistDesc || "No playlist loaded.", variant: "destructive"});
           return;
       }
       const selectedItems = currentContent.items.filter(item => playlistItemsSelection[item.id]);
       if (selectedItems.length === 0) {
-          toast({title: "No items selected", description: "Please select at least one video from the playlist to download.", variant: "default"});
+          toast({title: dictionary?.errorNoItemsSelectedTitle || "No items selected", description: dictionary?.errorNoItemsSelectedDesc || "Please select at least one video from the playlist to download.", variant: "default"});
           return;
       }
 
       setIsDownloading(true);
-      toast({title: "Playlist Download Started", description: `Starting download for ${selectedItems.length} items. Each will download separately.`});
+      toast({title: dictionary?.playlistDownloadStartedTitle || "Playlist Download Started", description: `${dictionary?.playlistDownloadStartedDesc || "Starting download for"} ${selectedItems.length} ${dictionary?.items || "items"}.`});
 
       for (const item of selectedItems) {
-          // Small delay between starting each download
           await new Promise(resolve => setTimeout(resolve, 500)); 
           await handleDownload(item); 
       }
-      // Note: setIsDownloading(false) will be handled by the last individual download's timeout.
-      // This is a simplified approach. A more robust solution would track completion of all downloads.
   };
   
   const togglePlaylistItemSelection = (itemId: string) => {
@@ -281,12 +280,11 @@ export default function YouTubeDownloaderPage() {
     setPlaylistItemsSelection(newSelections);
   };
 
-
   const getFilteredFormats = (formats: Format[], type: 'videoaudio' | 'videoonly' | 'audioonly'): Format[] => {
     if (!formats) return [];
     switch (type) {
         case 'videoaudio': return formats.filter(f => f.hasVideo && f.hasAudio);
-        case 'videoonly': return formats.filter(f => f.hasVideo && !f.hasAudio); // Prioritize formats explicitly without audio
+        case 'videoonly': return formats.filter(f => f.hasVideo && !f.hasAudio); 
         case 'audioonly': return formats.filter(f => f.hasAudio && !f.hasVideo);
         default: return formats;
     }
@@ -299,23 +297,31 @@ export default function YouTubeDownloaderPage() {
         : []);
 
   const audioFormatsToShow = currentContent && 'audioFormats' in currentContent
-    ? getFilteredFormats(currentContent.audioFormats, 'audioonly') // Always filter audio for 'audioonly' type
+    ? getFilteredFormats(currentContent.audioFormats, 'audioonly') 
     : (currentContent && 'items' in currentContent && currentContent.items.length > 0
         ? getFilteredFormats(currentContent.items[0].audioFormats, 'audioonly')
         : []);
+
+  if (!dictionary) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
       <div className="text-center">
         <YoutubeIcon className="h-16 w-16 text-primary mx-auto mb-3"/>
-        <h1 className="text-4xl font-bold tracking-tight">YouTube Downloader</h1>
-        <p className="text-xl text-muted-foreground mt-2">Download YouTube videos and playlists with ease.</p>
+        <h1 className="text-4xl font-bold tracking-tight">{dictionary.mainTitle}</h1>
+        <p className="text-xl text-muted-foreground mt-2">{dictionary.mainDescription}</p>
       </div>
 
       <Card className="shadow-xl border-border/50 max-w-3xl mx-auto">
         <CardHeader>
-          <CardTitle className="text-2xl">Enter YouTube URL</CardTitle>
-          <CardDescription>Paste a YouTube video or playlist URL below.</CardDescription>
+          <CardTitle className="text-2xl">{dictionary.inputCardTitle}</CardTitle>
+          <CardDescription>{dictionary.inputCardDescription}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -325,14 +331,14 @@ export default function YouTubeDownloaderPage() {
                 name="url"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="sr-only">YouTube URL</FormLabel>
+                    <FormLabel className="sr-only">{dictionary.urlInputLabel}</FormLabel>
                     <div className="flex gap-2">
                       <FormControl>
-                        <Input placeholder="e.g., https://www.youtube.com/watch?v=..." {...field} className="h-12 text-base flex-grow" />
+                        <Input placeholder={dictionary.urlInputPlaceholder} {...field} className="h-12 text-base flex-grow" />
                       </FormControl>
                       <Button type="submit" size="lg" className="h-12 px-5" disabled={isLoadingInfo || !form.formState.isValid || !currentUrl.trim()}>
                         {isLoadingInfo ? <Loader2 className="h-5 w-5 animate-spin" /> : <SearchIcon className="h-5 w-5" />}
-                        <span className="ml-2 hidden sm:inline">Fetch Info</span>
+                        <span className="ml-2 hidden sm:inline">{dictionary.fetchInfoButton}</span>
                       </Button>
                     </div>
                     <FormMessage />
@@ -346,7 +352,7 @@ export default function YouTubeDownloaderPage() {
 
       {isLoadingInfo && !currentContent && (
         <div className="flex items-center justify-center p-6 text-muted-foreground">
-          <Loader2 className="mr-2 h-6 w-6 animate-spin" /> Fetching details...
+          <Loader2 className="mr-2 h-6 w-6 animate-spin" /> {dictionary.fetchingDetailsText}
         </div>
       )}
 
@@ -357,7 +363,7 @@ export default function YouTubeDownloaderPage() {
                     <iframe
                         width="100%" height="100%"
                         src={`https://www.youtube.com/embed/${previewVideoId}?autoplay=0&modestbranding=1&rel=0`}
-                        title="YouTube video player - Preview" frameBorder="0"
+                        title={dictionary.videoPreviewTitle} frameBorder="0"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                         allowFullScreen key={`preview-${previewVideoId}`}>
                     </iframe>
@@ -368,54 +374,52 @@ export default function YouTubeDownloaderPage() {
 
       {currentContent && (
         <Card className="animate-fade-in-up shadow-xl border-border/40 max-w-5xl mx-auto mt-8">
-            {/* Single Video Display */}
             {'title' in currentContent && !('items' in currentContent) && (
               <>
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <FilmIcon className="h-6 w-6 text-accent"/> {currentContent.title}
                     </CardTitle>
-                    <CardDescription>Author: {currentContent.author} &bull; Duration: {formatDuration(currentContent.duration)}</CardDescription>
+                    <CardDescription>{dictionary.authorLabel}: {currentContent.author} &bull; {dictionary.durationLabel}: {formatDuration(currentContent, dictionary)}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-6">
                     {currentContent.thumbnail && (
                         <div className="aspect-video w-full overflow-hidden rounded-lg relative bg-muted shadow-inner">
-                            <Image src={currentContent.thumbnail} alt="Video thumbnail" fill objectFit="cover" data-ai-hint="video thumbnail"/>
+                            <Image src={currentContent.thumbnail} alt={dictionary.videoThumbnailAlt} fill objectFit="cover" data-ai-hint="video thumbnail"/>
                         </div>
                     )}
                     <div className="space-y-6">
-                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat }} />
+                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary }} />
                         <Button onClick={() => handleDownload()} disabled={isDownloading} className="w-full h-12 text-base">
                             {isDownloading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
-                            Download
+                            {dictionary.downloadButton}
                         </Button>
                     </div>
                 </CardContent>
               </>
             )}
 
-            {/* Playlist Display */}
             {'items' in currentContent && (
                 <>
                     <CardHeader>
                         <CardTitle className="text-xl flex items-center gap-2">
-                            <ListMusicIcon className="h-6 w-6 text-accent"/> Playlist: {currentContent.title}
+                            <ListMusicIcon className="h-6 w-6 text-accent"/> {dictionary.playlistTitleLabel}: {currentContent.title}
                         </CardTitle>
-                        <CardDescription>{currentContent.itemCount} videos. {currentContent.author && `By: ${currentContent.author}`}</CardDescription>
+                        <CardDescription>{currentContent.itemCount} {dictionary.videosLabel}. {currentContent.author && `${dictionary.authorLabel}: ${currentContent.author}`}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat}} sectionTitle="Global Download Settings for Playlist" />
+                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary, sectionTitle: dictionary.playlistGlobalSettingsTitle }} />
                         
                         <div className="flex justify-between items-center">
                             <Button onClick={handleDownloadPlaylist} disabled={isDownloading || Object.values(playlistItemsSelection).every(v => !v) } className="h-11">
                                 {isDownloading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
-                                Download Selected ({Object.values(playlistItemsSelection).filter(v => v).length})
+                                {dictionary.downloadSelectedButton} ({Object.values(playlistItemsSelection).filter(v => v).length})
                             </Button>
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="select-all-playlist"
                                     checked={currentContent.items.length > 0 && currentContent.items.every(item => playlistItemsSelection[item.id])}
                                     onCheckedChange={toggleAllPlaylistItems} />
-                                <Label htmlFor="select-all-playlist" className="text-sm font-medium">Select All</Label>
+                                <FormLabel htmlFor="select-all-playlist" className="text-sm font-medium">{dictionary.selectAllLabel}</FormLabel>
                             </div>
                         </div>
 
@@ -429,9 +433,8 @@ export default function YouTubeDownloaderPage() {
                                     </div>
                                     <div className="flex-grow min-w-0">
                                         <p className="text-sm font-semibold truncate" title={item.title}>{item.title}</p>
-                                        <p className="text-xs text-muted-foreground">{item.author} &bull; {formatDuration(item.duration)}</p>
+                                        <p className="text-xs text-muted-foreground">{item.author} &bull; {formatDuration(item.duration, dictionary)}</p>
                                     </div>
-                                    {/* Individual download for playlist item can be added here if needed */}
                                 </Card>
                             ))}
                             </div>
@@ -461,38 +464,39 @@ interface DownloadOptionsProps {
     selectedAudioFormat: 'aac' | 'opus';
     setSelectedAudioFormat: (format: 'aac' | 'opus') => void;
     sectionTitle?: string;
+    dictionary: any; // For localized labels
 }
 
 function DownloadOptionsFields({
     selectedDownloadType, setSelectedDownloadType,
     videoFormatsToShow, selectedVideoItag, setSelectedVideoItag,
     audioFormatsToShow, selectedAudioItag, setSelectedAudioItag,
-    selectedAudioFormat, setSelectedAudioFormat, sectionTitle
+    selectedAudioFormat, setSelectedAudioFormat, sectionTitle, dictionary
 }: DownloadOptionsProps) {
     return (
         <div className="space-y-4 p-4 border rounded-lg bg-background/30">
             {sectionTitle && <h4 className="text-md font-semibold mb-3">{sectionTitle}</h4>}
             <div>
-                <Label className="text-base font-medium">Download Type</Label>
+                <FormLabel className="text-base font-medium">{dictionary.downloadTypeLabel}</FormLabel>
                 <RadioGroup value={selectedDownloadType} onValueChange={(value) => setSelectedDownloadType(value as any)} className="flex gap-4 mt-2">
-                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="videoaudio" id="type-va" /><Label htmlFor="type-va">Video + Audio</Label></FormItem>
-                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="videoonly" id="type-vo" /><Label htmlFor="type-vo">Video Only</Label></FormItem>
-                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="audioonly" id="type-ao" /><Label htmlFor="type-ao">Audio Only</Label></FormItem>
+                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="videoaudio" id="type-va" /><FormLabel htmlFor="type-va">{dictionary.videoAudioLabel}</FormLabel></FormItem>
+                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="videoonly" id="type-vo" /><FormLabel htmlFor="type-vo">{dictionary.videoOnlyLabel}</FormLabel></FormItem>
+                    <FormItem className="flex items-center space-x-2"><RadioGroupItem value="audioonly" id="type-ao" /><FormLabel htmlFor="type-ao">{dictionary.audioOnlyLabel}</FormLabel></FormItem>
                 </RadioGroup>
             </div>
 
             {selectedDownloadType !== 'audioonly' && (
                 <div>
-                    <Label htmlFor="video-quality-select" className="text-base font-medium">Video Quality</Label>
+                    <FormLabel htmlFor="video-quality-select" className="text-base font-medium">{dictionary.videoQualityLabel}</FormLabel>
                     <Select value={selectedVideoItag} onValueChange={setSelectedVideoItag} name="video-quality-select" disabled={videoFormatsToShow.length === 0}>
-                        <SelectTrigger className="h-11 mt-1" id="video-quality-select"><SelectValue placeholder="Select video quality" /></SelectTrigger>
+                        <SelectTrigger className="h-11 mt-1" id="video-quality-select"><SelectValue placeholder={dictionary.selectVideoQualityPlaceholder} /></SelectTrigger>
                         <SelectContent>
                             {videoFormatsToShow.map((format) => (
                                 <SelectItem key={`v-${format.itag}`} value={format.itag.toString()}>
                                     {format.quality} ({format.container}{format.fps ? `, ${format.fps}fps` : ''})
                                 </SelectItem>
                             ))}
-                            {videoFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>No suitable video formats</SelectItem>}
+                            {videoFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>{dictionary.noVideoFormats}</SelectItem>}
                         </SelectContent>
                     </Select>
                 </div>
@@ -500,27 +504,25 @@ function DownloadOptionsFields({
 
             {selectedDownloadType !== 'videoonly' && (
                 <div>
-                    <Label htmlFor="audio-quality-select" className="text-base font-medium">Audio Quality</Label>
+                    <FormLabel htmlFor="audio-quality-select" className="text-base font-medium">{dictionary.audioQualityLabel}</FormLabel>
                     <Select value={selectedAudioItag} onValueChange={setSelectedAudioItag} name="audio-quality-select" disabled={audioFormatsToShow.length === 0}>
-                        <SelectTrigger className="h-11 mt-1" id="audio-quality-select"><SelectValue placeholder="Select audio quality" /></SelectTrigger>
+                        <SelectTrigger className="h-11 mt-1" id="audio-quality-select"><SelectValue placeholder={dictionary.selectAudioQualityPlaceholder} /></SelectTrigger>
                         <SelectContent>
                             {audioFormatsToShow.map((format) => (
                                 <SelectItem key={`a-${format.itag}`} value={format.itag.toString()}>
                                     {format.quality} ({format.container || format.mimeType?.split('/')[1]})
                                 </SelectItem>
                             ))}
-                            {audioFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>No suitable audio formats</SelectItem>}
+                            {audioFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>{dictionary.noAudioFormats}</SelectItem>}
                         </SelectContent>
                     </Select>
-                    {/* Audio Format (MP3/AAC) selector - for now, we assume ytdl-core provides AAC in M4A or Opus in WebM */}
-                    {/* A true MP3 conversion would need server-side ffmpeg. Let's simplify by choosing the container type. */}
                      <div className="mt-2">
-                        <Label className="text-sm font-medium text-muted-foreground">Preferred Audio Container (if available)</Label>
+                        <FormLabel className="text-sm font-medium text-muted-foreground">{dictionary.audioContainerLabel}</FormLabel>
                          <RadioGroup value={selectedAudioFormat} onValueChange={(value) => setSelectedAudioFormat(value as 'aac'|'opus')} className="flex gap-4 mt-1">
-                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="aac" id="format-aac" /><Label htmlFor="format-aac" className="text-sm">AAC (.m4a)</Label></FormItem>
-                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="opus" id="format-opus" /><Label htmlFor="format-opus" className="text-sm">Opus (.webm)</Label></FormItem>
+                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="aac" id="format-aac" /><FormLabel htmlFor="format-aac" className="text-sm">{dictionary.aacLabel}</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="opus" id="format-opus" /><FormLabel htmlFor="format-opus" className="text-sm">{dictionary.opusLabel}</FormLabel></FormItem>
                         </RadioGroup>
-                        <p className="text-xs text-muted-foreground mt-1">The downloader will attempt to provide this container. Actual format depends on YouTube.</p>
+                        <p className="text-xs text-muted-foreground mt-1">{dictionary.audioContainerNote}</p>
                     </div>
                 </div>
             )}

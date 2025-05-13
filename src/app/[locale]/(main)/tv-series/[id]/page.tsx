@@ -1,4 +1,4 @@
-// src/app/(main)/tv-series/[id]/page.tsx
+// src/app/[locale]/(main)/tv-series/[id]/page.tsx
 "use client"; 
 
 import React, { useState, useEffect, useCallback, use } from 'react';
@@ -16,23 +16,33 @@ import { SeasonAccordionItem } from "@/components/features/tv-series/SeasonAccor
 import { TVSeriesClientContent } from "@/components/features/tv-series/TVSeriesClientContent";
 import { RecommendedTvSeriesSection } from "@/components/features/tv-series/RecommendedTvSeriesSection";
 import { Separator } from "@/components/ui/separator";
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary';
 
 interface TvSeriesDetailsPageProps {
-  params: Promise<{ id: string }>;
+  params: { id: string; locale: Locale };
 }
 
-export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesDetailsPageProps) {
-  const params = use(paramsPromise);
-  const id = params.id;
+export default function TvSeriesDetailsPage({ params }: TvSeriesDetailsPageProps) {
+  const { id, locale } = params;
 
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
   const [trailerKey, setTrailerKey] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [dictionary, setDictionary] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDict = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.tvSeriesDetailsPage);
+    };
+    fetchDict();
+  }, [locale]);
 
   const fetchData = useCallback(async () => {
     if (!id) {
-      setError("Series ID not found in URL.");
+      setError(dictionary?.errorIdNotFound || "Series ID not found in URL.");
       setIsLoading(false);
       return;
     }
@@ -51,21 +61,24 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
 
     } catch (e) {
       console.error(`Failed to fetch TV series details for ID ${id}:`, e);
-      setError("Could not load TV series details. Please try again later or check if the series ID is correct.");
+      setError(dictionary?.errorCouldNotLoad || "Could not load TV series details. Please try again later or check if the series ID is correct.");
     } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, dictionary]); // Added dictionary
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (dictionary) { // Only fetch data once dictionary is loaded
+        fetchData();
+    }
+  }, [fetchData, dictionary]);
   
-  if (isLoading) {
+  if (isLoading || !dictionary) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Loader2Icon className="w-16 h-16 text-primary animate-spin mb-6" />
-        <h1 className="text-2xl font-semibold text-muted-foreground">Loading Series Details...</h1>
+        <h1 className="text-2xl font-semibold text-muted-foreground">{dictionary?.loadingText || "Loading Series Details..."}</h1>
       </div>
     );
   }
@@ -74,10 +87,10 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Tv2Icon className="w-24 h-24 text-destructive mb-6" />
-        <h1 className="text-3xl font-bold text-destructive mb-3">Error Loading Series Details</h1>
+        <h1 className="text-3xl font-bold text-destructive mb-3">{dictionary?.errorLoadingTitle || "Error Loading Series Details"}</h1>
         <p className="text-muted-foreground max-w-md">{error}</p>
         <Button asChild variant="outline" className="mt-8 text-lg px-6 py-3">
-          <Link href="/tv-series">Back to TV Series</Link>
+          <Link href={`/${locale}/tv-series`}>{dictionary?.backToTvSeriesButton || "Back to TV Series"}</Link>
         </Button>
       </div>
     );
@@ -87,10 +100,10 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Tv2Icon className="w-24 h-24 text-muted-foreground/70 mb-6" />
-        <h1 className="text-3xl font-bold mb-3">TV Series Not Found</h1>
-        <p className="text-muted-foreground max-w-md">The TV series you are looking for could not be found.</p>
+        <h1 className="text-3xl font-bold mb-3">{dictionary?.seriesNotFoundTitle || "TV Series Not Found"}</h1>
+        <p className="text-muted-foreground max-w-md">{dictionary?.seriesNotFoundDescription || "The TV series you are looking for could not be found."}</p>
          <Button asChild variant="outline" className="mt-8 text-lg px-6 py-3">
-          <Link href="/tv-series">Back to TV Series</Link>
+          <Link href={`/${locale}/tv-series`}>{dictionary?.backToTvSeriesButton || "Back to TV Series"}</Link>
         </Button>
       </div>
     );
@@ -108,15 +121,14 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
 
   return (
     <div className="container mx-auto py-6 sm:py-8 px-2 sm:px-4">
-      <TVSeriesClientContent series={series} trailerKey={trailerKey}>
+      <TVSeriesClientContent series={series} trailerKey={trailerKey} dictionary={dictionary.clientContent}>
         <div className="grid md:grid-cols-12 gap-6 sm:gap-8">
-          {/* Left column - Poster and Download All button */}
           <div className="md:col-span-4 lg:col-span-3">
             <Card className="overflow-hidden shadow-xl sticky top-20 sm:top-24">
               <div className="aspect-[2/3] relative w-full bg-muted">
                 <Image
                   src={getFullImagePath(series.poster_path, "w500")}
-                  alt={`${series.name} poster`}
+                  alt={`${series.name} ${dictionary.posterAltText || "poster"}`}
                   fill
                   className="object-cover"
                   data-ai-hint="tv series poster"
@@ -128,12 +140,13 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
                   <DownloadAllSeasonsWithOptionsButton 
                     seriesId={series.id} 
                     seriesName={series.name} 
-                    seriesTitle={series.name} // Pass series.name as seriesTitle
+                    seriesTitle={series.name} 
+                    dictionary={dictionary.downloadAllSeasonsButton}
                   />
                   {series.homepage && (
                   <Button variant="outline" className="w-full h-11 text-sm" asChild>
                     <Link href={series.homepage} target="_blank" rel="noopener noreferrer">
-                      <ExternalLinkIcon className="mr-2 h-4 w-4" /> Visit Homepage
+                      <ExternalLinkIcon className="mr-2 h-4 w-4" /> {dictionary.visitHomepageButton}
                     </Link>
                   </Button>
                 )}
@@ -141,14 +154,13 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
             </Card>
           </div>
 
-          {/* Right column - Details and Seasons */}
           <div className="md:col-span-8 lg:col-span-9 space-y-6 sm:space-y-8">
             <Card className="shadow-lg border-border/40">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><InfoIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Overview</CardTitle>
+                <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><InfoIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> {dictionary.overview.title}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-foreground/80 leading-relaxed text-sm sm:text-base">{series.overview || "No overview available."}</p>
+                <p className="text-foreground/80 leading-relaxed text-sm sm:text-base">{series.overview || dictionary.overview.noOverview}</p>
                 <div className="mt-4 flex flex-wrap gap-2">
                   {series.genres.map(genre => (
                     <Badge key={genre.id} variant="secondary" className="text-xs sm:text-sm px-2.5 py-1">{genre.name}</Badge>
@@ -159,16 +171,16 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
 
             <Card className="shadow-lg border-border/40">
               <CardHeader className="pb-4">
-                <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><Tv2Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Series Details</CardTitle>
+                <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><Tv2Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> {dictionary.details.title}</CardTitle>
               </CardHeader>
               <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-5 text-sm sm:text-base">
                 {[
-                  { icon: CalendarDaysIcon, label: "First Aired", value: series.first_air_date ? new Date(series.first_air_date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A' },
-                  { icon: HashIcon, label: "Seasons", value: series.number_of_seasons },
-                  { icon: HashIcon, label: "Total Episodes", value: series.number_of_episodes },
-                  { icon: StarIcon, label: "Rating", value: series.vote_average > 0 ? `${series.vote_average.toFixed(1)} / 10` : 'N/A' },
-                  { icon: ClapperboardIcon, label: "Status", value: series.status || 'N/A' },
-                  ...(series.created_by && series.created_by.length > 0 ? [{ icon: UsersIcon, label: "Created By", value: series.created_by.map(creator => creator.name).join(', ')}] : [])
+                  { icon: CalendarDaysIcon, label: dictionary.details.firstAired, value: series.first_air_date ? new Date(series.first_air_date).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' }) : dictionary.na },
+                  { icon: HashIcon, label: dictionary.details.seasons, value: series.number_of_seasons },
+                  { icon: HashIcon, label: dictionary.details.totalEpisodes, value: series.number_of_episodes },
+                  { icon: StarIcon, label: dictionary.details.rating, value: series.vote_average > 0 ? `${series.vote_average.toFixed(1)} / 10` : dictionary.na },
+                  { icon: ClapperboardIcon, label: dictionary.details.status, value: series.status || dictionary.na },
+                  ...(series.created_by && series.created_by.length > 0 ? [{ icon: UsersIcon, label: dictionary.details.createdBy, value: series.created_by.map(creator => creator.name).join(', ')}] : [])
                 ].map(detail => (
                   <div key={detail.label} className="flex items-start space-x-2.5">
                     <detail.icon className="h-5 w-5 text-muted-foreground mt-0.5 flex-shrink-0" />
@@ -186,9 +198,9 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
                 <CardHeader className="bg-card/30 border-b border-border/30">
                   <CardTitle className="text-xl sm:text-2xl font-semibold flex items-center">
                     <ClapperboardIcon className="mr-2.5 h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-                    Seasons & Episodes
+                    {dictionary.seasonsEpisodes.title}
                   </CardTitle>
-                  <CardDescription className="text-xs sm:text-sm">Browse and download episodes by season. Click a season to expand.</CardDescription>
+                  <CardDescription className="text-xs sm:text-sm">{dictionary.seasonsEpisodes.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="p-0">
                    <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
@@ -196,9 +208,11 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
                       <SeasonAccordionItem 
                           key={season.id} 
                           seriesId={series!.id} 
-                          seriesTitle={series!.name} // Pass series name
+                          seriesTitle={series!.name} 
                           season={season} 
                           initialOpen={defaultAccordionValue === `season-${season.season_number}`}
+                          dictionary={dictionary.seasonAccordionItem}
+                          locale={locale}
                       />
                     ))}
                   </Accordion>
@@ -209,7 +223,7 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
             {series.production_companies && series.production_companies.length > 0 && (
               <Card className="shadow-lg border-border/40">
                 <CardHeader className="pb-4">
-                  <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> Production Companies</CardTitle>
+                  <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><UsersIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> {dictionary.production.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
@@ -243,7 +257,7 @@ export default function TvSeriesDetailsPage({ params: paramsPromise }: TvSeriesD
         </div>
       </TVSeriesClientContent>
       <Separator className="my-6 sm:my-8 md:my-12" />
-      <RecommendedTvSeriesSection tvId={series.id} />
+      <RecommendedTvSeriesSection tvId={series.id} locale={locale} />
     </div>
   );
 }

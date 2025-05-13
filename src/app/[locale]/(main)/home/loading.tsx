@@ -1,13 +1,25 @@
-// src/app/(main)/home/loading.tsx
+// src/app/[locale]/(main)/home/loading.tsx
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { FilmIcon, Tv2Icon } from "lucide-react";
+import { FilmIcon, Tv2Icon, YoutubeIcon } from "lucide-react";
 
 export default function HomeLoading() {
   return (
     <div className="space-y-12 animate-pulse">
       {/* Hero Section Skeleton */}
       <Skeleton className="h-[60vh] min-h-[400px] rounded-xl w-full" />
+
+      {/* YouTube Downloader Card Skeleton */}
+      <Card className="shadow-xl border-border/50 bg-card/50 backdrop-blur-sm">
+        <CardHeader className="flex flex-row items-center justify-between pb-4">
+            <div>
+                <Skeleton className="h-8 w-48 mb-1" /> {/* Title */}
+                <Skeleton className="h-5 w-64" /> {/* Description */}
+            </div>
+            <Skeleton className="h-9 w-32" /> {/* Button */}
+        </CardHeader>
+      </Card>
+
 
       {/* Popular Movies Section Skeleton */}
       <section className="space-y-6">
@@ -30,7 +42,6 @@ export default function HomeLoading() {
         </div>
       </section>
       
-      {/* Separator Skeleton */}
       <Skeleton className="h-px w-full my-8 md:my-12" />
 
 
