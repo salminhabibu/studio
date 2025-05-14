@@ -277,7 +277,7 @@ export default function DownloadsPage(props: DownloadsPageProps) {
     } catch (error) {
       toast({title: dictionary?.toastRemovalErrorTitle || "Removal Error", description: dictionary?.toastRemovalErrorDescWebTorrent || "Could not remove the WebTorrent.", variant: "destructive"});
     }
-  }
+  };
 
   const handlePauseAria2 = (taskId: string) => { 
     toast({title: dictionary?.toastAria2ActionTitle || "Aria2 Action", description: `${dictionary?.toastPausingTask || "Pausing task"} ${taskId}. (Backend action needed)`});
@@ -313,7 +313,7 @@ export default function DownloadsPage(props: DownloadsPageProps) {
       </div>
     );
   }
-
+  
   return (
     <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
