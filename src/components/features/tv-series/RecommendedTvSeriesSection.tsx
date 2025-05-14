@@ -8,11 +8,12 @@ import { RecommendedItemCard } from "@/components/features/common/RecommendedIte
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tv2Icon, ThumbsUpIcon, Loader2Icon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Locale } from '@/config/i18n.config'; // Import Locale
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary';
 
 interface RecommendedTvSeriesSectionProps {
   tvId: number | string;
-  locale: Locale; // Add locale prop
+  locale: Locale;
 }
 
 export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeriesSectionProps) {
@@ -21,6 +22,7 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false); 
   const [error, setError] = useState<string | null>(null);
+  const [dictionary, setDictionary] = useState<any>(null);
 
   const observer = useRef<IntersectionObserver>();
   const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
@@ -34,8 +36,16 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
     if (node) observer.current.observe(node);
   }, [isLoading, currentPage, totalPages]);
 
+  useEffect(() => {
+    const fetchDict = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.tvSeriesDetailsPage?.recommendations || dict.movieDetailsPage?.recommendations); // Fallback for shared component
+    };
+    fetchDict();
+  }, [locale]);
+
   const fetchRecommendations = useCallback(async (pageToFetch: number) => {
-    if (!tvId) return;
+    if (!tvId || !dictionary) return; // Wait for dictionary
     setIsLoading(true);
     if (pageToFetch === 1) setError(null);
 
@@ -43,20 +53,20 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
       const recommendationsData = await getTvSeriesRecommendations(tvId, pageToFetch);
       setRecommendations(prev => pageToFetch === 1 ? recommendationsData.results : [...prev, ...recommendationsData.results]);
       setTotalPages(recommendationsData.total_pages);
-      // No specific message if results are empty on first load
     } catch (err) {
       console.error("Failed to fetch TV series recommendations:", err);
-      setError(err instanceof Error ? err.message : "Could not load recommendations.");
+      setError(dictionary.error || "Could not load recommendations.");
     } finally {
       setIsLoading(false);
     }
-  }, [tvId]);
+  }, [tvId, dictionary]);
 
   useEffect(() => {
-    fetchRecommendations(currentPage);
-  }, [fetchRecommendations, currentPage]);
+    if (dictionary) { // Only fetch if dictionary is loaded
+      fetchRecommendations(currentPage);
+    }
+  }, [fetchRecommendations, currentPage, dictionary]);
   
-  // Reset when tvId changes
   useEffect(() => {
     setRecommendations([]);
     setCurrentPage(1);
@@ -64,12 +74,31 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
     setError(null);
   }, [tvId]);
 
+  if (!dictionary) {
+    return (
+      <Card className="shadow-lg mt-8">
+        <CardHeader><Skeleton className="h-8 w-1/3" /></CardHeader>
+        <CardContent>
+          <div className="flex space-x-4 overflow-x-hidden pb-2 -mb-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="group flex-shrink-0 w-40 md:w-48">
+                <Skeleton className="aspect-[2/3] w-full rounded-md" />
+                <Skeleton className="h-4 w-3/4 mt-2 rounded-md" />
+                <Skeleton className="h-3 w-1/2 mt-1 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   if (error && recommendations.length === 0) {
     return (
       <Card className="shadow-lg mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <Tv2Icon className="h-6 w-6 text-destructive" /> Error Loading Recommendations
+            <Tv2Icon className="h-6 w-6 text-destructive" /> {dictionary.errorTitle || "Error Loading Recommendations"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -88,7 +117,7 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           <ThumbsUpIcon className="h-6 w-6 text-primary" />
-          You Might Also Like
+          {dictionary.title || "You Might Also Like"}
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -120,7 +149,7 @@ export function RecommendedTvSeriesSection({ tvId, locale }: RecommendedTvSeries
             </div>
           )}
           {!isLoading && currentPage >= totalPages && recommendations.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center pt-3">No more recommendations.</p>
+            <p className="text-xs text-muted-foreground text-center pt-3">{dictionary.noMore || "No more recommendations."}</p>
           )}
           {error && recommendations.length > 0 && (
              <p className="text-xs text-destructive text-center pt-3">{error}</p>

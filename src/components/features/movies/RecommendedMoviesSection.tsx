@@ -8,11 +8,12 @@ import { RecommendedItemCard } from "@/components/features/common/RecommendedIte
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { FilmIcon, ThumbsUpIcon, Loader2Icon } from "lucide-react";
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Locale } from '@/config/i18n.config'; // Import Locale
+import type { Locale } from '@/config/i18n.config';
+import { getDictionary } from '@/lib/getDictionary';
 
 interface RecommendedMoviesSectionProps {
   movieId: number | string;
-  locale: Locale; // Add locale prop
+  locale: Locale;
 }
 
 export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesSectionProps) {
@@ -21,6 +22,7 @@ export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesS
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [dictionary, setDictionary] = useState<any>(null);
 
   const observer = useRef<IntersectionObserver>();
   const loadMoreRef = useCallback((node: HTMLDivElement | null) => {
@@ -34,46 +36,69 @@ export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesS
     if (node) observer.current.observe(node);
   }, [isLoading, currentPage, totalPages]);
 
+  useEffect(() => {
+    const fetchDict = async () => {
+      const dict = await getDictionary(locale);
+      setDictionary(dict.movieDetailsPage?.recommendations || dict.tvSeriesDetailsPage?.recommendations); // Fallback for shared component
+    };
+    fetchDict();
+  }, [locale]);
+
   const fetchRecommendations = useCallback(async (pageToFetch: number) => {
-    if (!movieId) return;
+    if (!movieId || !dictionary) return; // Wait for dictionary
     setIsLoading(true);
-    if (pageToFetch === 1) setError(null); // Clear previous errors on initial fetch
+    if (pageToFetch === 1) setError(null);
 
     try {
       const recommendationsData = await getMovieRecommendations(movieId, pageToFetch);
       setRecommendations(prev => pageToFetch === 1 ? recommendationsData.results : [...prev, ...recommendationsData.results]);
       setTotalPages(recommendationsData.total_pages);
-      if (recommendationsData.results.length === 0 && pageToFetch === 1) {
-        // No specific message here, it will just render empty if total pages is also 0/1
-      }
     } catch (err) {
       console.error("Failed to fetch movie recommendations:", err);
-      setError(err instanceof Error ? err.message : "Could not load recommendations.");
+      setError(dictionary.error || "Could not load recommendations.");
     } finally {
       setIsLoading(false);
     }
-  }, [movieId]);
+  }, [movieId, dictionary]);
 
   useEffect(() => {
-    fetchRecommendations(currentPage);
-  }, [fetchRecommendations, currentPage]);
+    if (dictionary) { // Only fetch if dictionary is loaded
+      fetchRecommendations(currentPage);
+    }
+  }, [fetchRecommendations, currentPage, dictionary]);
   
-  // Reset when movieId changes
   useEffect(() => {
     setRecommendations([]);
     setCurrentPage(1);
     setTotalPages(1);
     setError(null);
-    // Fetch will be triggered by currentPage change in the above useEffect
   }, [movieId]);
 
+  if (!dictionary) {
+    return (
+      <Card className="shadow-lg mt-8">
+        <CardHeader><Skeleton className="h-8 w-1/3" /></CardHeader>
+        <CardContent>
+          <div className="flex space-x-4 overflow-x-hidden pb-2 -mb-2">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="group flex-shrink-0 w-40 md:w-48">
+                <Skeleton className="aspect-[2/3] w-full rounded-md" />
+                <Skeleton className="h-4 w-3/4 mt-2 rounded-md" />
+                <Skeleton className="h-3 w-1/2 mt-1 rounded-md" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
-  if (error && recommendations.length === 0) { // Only show big error if initial load failed
+  if (error && recommendations.length === 0) {
     return (
       <Card className="shadow-lg mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-xl">
-            <FilmIcon className="h-6 w-6 text-destructive" /> Error
+            <FilmIcon className="h-6 w-6 text-destructive" /> {dictionary.errorTitle || "Error"}
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -84,22 +109,20 @@ export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesS
   }
 
   if (!isLoading && recommendations.length === 0 && currentPage >= totalPages) {
-      // Don't render the section if no recommendations were found at all
       return null;
   }
-
 
   return (
     <Card className="shadow-lg mt-8">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
           <ThumbsUpIcon className="h-6 w-6 text-primary" />
-          You Might Also Like
+          {dictionary.title || "You Might Also Like"}
         </CardTitle>
       </CardHeader>
       <CardContent>
         <div className="relative">
-          {recommendations.length === 0 && isLoading && ( // Skeleton for initial load
+          {recommendations.length === 0 && isLoading && (
              <div className="flex space-x-4 overflow-x-hidden pb-2 -mb-2">
                 {[...Array(4)].map((_, i) => (
                   <div key={i} className="group flex-shrink-0 w-40 md:w-48">
@@ -115,11 +138,10 @@ export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesS
               {recommendations.map((movie) => (
                 <RecommendedItemCard key={movie.id} item={movie} mediaType="movie" locale={locale} />
               ))}
-              {/* Invisible div to trigger loading more */}
               {currentPage < totalPages && !isLoading && (
                 <div ref={loadMoreRef} className="w-1 h-1 flex-shrink-0"></div>
               )}
-              {isLoading && currentPage > 1 && ( // Loading indicator for subsequent loads
+              {isLoading && currentPage > 1 && (
                  <div className="flex-shrink-0 w-40 md:w-48 flex items-center justify-center">
                     <Loader2Icon className="h-8 w-8 animate-spin text-primary" />
                  </div>
@@ -127,9 +149,9 @@ export function RecommendedMoviesSection({ movieId, locale }: RecommendedMoviesS
             </div>
           )}
           {!isLoading && currentPage >= totalPages && recommendations.length > 0 && (
-            <p className="text-xs text-muted-foreground text-center pt-3">No more recommendations.</p>
+            <p className="text-xs text-muted-foreground text-center pt-3">{dictionary.noMore || "No more recommendations."}</p>
           )}
-           {error && recommendations.length > 0 && ( // Small error for subsequent load failures
+           {error && recommendations.length > 0 && (
              <p className="text-xs text-destructive text-center pt-3">{error}</p>
            )}
         </div>

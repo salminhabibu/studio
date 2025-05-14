@@ -207,7 +207,8 @@
     },
     "recommendations": {
         "title": "You Might Also Like",
-        "error": "Error loading recommendations.",
+        "errorTitle": "Error Loading Recommendations",
+        "error": "Could not load recommendations.",
         "noMore": "No more recommendations."
     }
   },
@@ -322,7 +323,8 @@
     },
     "recommendations": {
         "title": "You Might Also Like",
-        "error": "Error loading recommendations.",
+        "errorTitle": "Error Loading Recommendations",
+        "error": "Could not load recommendations.",
         "noMore": "No more recommendations."
     }
   },

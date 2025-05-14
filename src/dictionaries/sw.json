@@ -207,7 +207,8 @@
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
-        "error": "Hitilafu kupakia mapendekezo.",
+        "errorTitle": "Hitilafu Kupakia Mapendekezo",
+        "error": "Imeshindwa kupakia mapendekezo.",
         "noMore": "Hakuna mapendekezo zaidi."
     }
   },
@@ -273,7 +274,7 @@
         "noOverview": "Hakuna muhtasari unaopatikana.",
         "downloadSeasonButton": {
             "downloadSeason": "Pakua Msimu",
-            "qualities": {
+             "qualities": {
                 "1080p": "1080p (FHD)",
                 "720p": "720p (HD)",
                 "480p": "480p (SD)",
@@ -322,7 +323,8 @@
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
-        "error": "Hitilafu kupakia mapendekezo.",
+        "errorTitle": "Hitilafu Kupakia Mapendekezo",
+        "error": "Imeshindwa kupakia mapendekezo.",
         "noMore": "Hakuna mapendekezo zaidi."
     }
   },
