@@ -1,0 +1,32 @@
+
+{
+  "extends": "./tsconfig.json", // Inherits from the main tsconfig
+  "compilerOptions": {
+    "module": "commonjs", // Node.js typically uses CommonJS
+    "outDir": "./dist_server", // Output directory for compiled server code
+    "rootDir": "./src/server", // Source directory for server code
+    "esModuleInterop": true, // Allows CJS/ESM interop
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": false, // We want to emit JS files for the server
+    "isolatedModules": false, // Not needed for a CJS backend build usually
+    // Ensure types for Node and Express are available
+    "types": ["node", "express", "@types/webtorrent", "@types/fs-extra", "@types/cors"]
+  },
+  "include": [
+    "src/server/**/*.ts" // Only include files from the server directory
+  ],
+  "exclude": [
+    "node_modules",
+    "src/app", // Exclude Next.js app frontend code
+    "src/components",
+    "src/contexts",
+    "src/hooks",
+    "src/lib",
+    "src/ai",
+    "src/dictionaries",
+    "src/types", // If types are shared, might need to adjust. For now, assume server types are distinct or handled.
+    "next-env.d.ts"
+  ]
+}
