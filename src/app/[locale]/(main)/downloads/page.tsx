@@ -312,7 +312,7 @@ export default function DownloadsPage(props: DownloadsPageProps) {
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
       </div>
     );
-  }
+  }; // Added semicolon here
   
   return (
     <div className="space-y-8">
