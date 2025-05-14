@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, use } from "react"; // Added use
-import { Loader2, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react";
+import { Loader2Icon, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react"; // Corrected import for Loader2Icon
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
@@ -105,11 +105,11 @@ function formatDuration(secondsStr: string, dict: any): string {
 }
 
 interface YouTubeDownloaderPageProps {
-  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
+  params: Promise<{ locale: Locale }>; 
 }
 
 export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps) {
-  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const resolvedParams = use(props.params); 
   const locale = resolvedParams.locale;
 
   const { toast } = useToast();
@@ -129,7 +129,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      if (locale) { // Ensure locale is available
+      if (locale) { 
         const dict = await getDictionary(locale);
         setDictionary(dict.youtubeDownloaderPage); 
       }
@@ -307,7 +307,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
         ? getFilteredFormats(currentContent.items[0].audioFormats, 'audioonly')
         : []);
 
-  if (!dictionary || !locale) { // Ensure dictionary and locale are loaded
+  if (!dictionary || !locale) { 
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -342,7 +342,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
                         <Input placeholder={dictionary.urlInputPlaceholder} {...field} className="h-12 text-base flex-grow" />
                       </FormControl>
                       <Button type="submit" size="lg" className="h-12 px-5" disabled={isLoadingInfo || !form.formState.isValid || !currentUrl.trim()}>
-                        {isLoadingInfo ? <Loader2 className="h-5 w-5 animate-spin" /> : <SearchIcon className="h-5 w-5" />}
+                        {isLoadingInfo ? <Loader2Icon className="h-5 w-5 animate-spin" /> : <SearchIcon className="h-5 w-5" />}
                         <span className="ml-2 hidden sm:inline">{dictionary.fetchInfoButton}</span>
                       </Button>
                     </div>
@@ -357,7 +357,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 
       {isLoadingInfo && !currentContent && (
         <div className="flex items-center justify-center p-6 text-muted-foreground">
-          <Loader2 className="mr-2 h-6 w-6 animate-spin" /> {dictionary.fetchingDetailsText}
+          <Loader2Icon className="mr-2 h-6 w-6 animate-spin" /> {dictionary.fetchingDetailsText}
         </div>
       )}
 
@@ -385,7 +385,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
                     <CardTitle className="text-xl flex items-center gap-2">
                         <FilmIcon className="h-6 w-6 text-accent"/> {currentContent.title}
                     </CardTitle>
-                    <CardDescription>{dictionary.authorLabel}: {currentContent.author} &bull; {dictionary.durationLabel}: {formatDuration(currentContent, dictionary)}</CardDescription>
+                    <CardDescription>{dictionary.authorLabel}: {currentContent.author} &bull; {dictionary.durationLabel}: {formatDuration(currentContent.duration, dictionary)}</CardDescription>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-6">
                     {currentContent.thumbnail && (
@@ -396,7 +396,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
                     <div className="space-y-6">
                         <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary }} />
                         <Button onClick={() => handleDownload()} disabled={isDownloading} className="w-full h-12 text-base">
-                            {isDownloading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
+                            {isDownloading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                             {dictionary.downloadButton}
                         </Button>
                     </div>
@@ -417,7 +417,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
                         
                         <div className="flex justify-between items-center">
                             <Button onClick={handleDownloadPlaylist} disabled={isDownloading || Object.values(playlistItemsSelection).every(v => !v) } className="h-11">
-                                {isDownloading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
+                                {isDownloading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                                 {dictionary.downloadSelectedButton} ({Object.values(playlistItemsSelection).filter(v => v).length})
                             </Button>
                             <div className="flex items-center space-x-2">
