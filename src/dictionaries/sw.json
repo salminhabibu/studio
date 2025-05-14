@@ -14,13 +14,18 @@
     "collapse": "Kunja",
     "expand": "Panua"
   },
+  "mainLayout": {
+    "backButtonLabel": "Rudi nyuma"
+  },
   "home": {
     "popularMovies": "Filamu Maarufu",
     "popularTvSeries": "Tamthilia Maarufu",
     "noMovies": "Hakuna filamu maarufu zilizopatikana kwa sasa.",
     "endOfMovies": "Umefikia mwisho wa orodha.",
     "noTvSeries": "Hakuna tamthilia maarufu zilizopatikana kwa sasa.",
-    "endOfTvSeries": "Umefikia mwisho wa orodha."
+    "endOfTvSeries": "Umefikia mwisho wa orodha.",
+    "featuredContentTitle": "Maudhui Maalum",
+    "viewAllButton": "Tazama Zote"
   },
   "youtubeDownloaderPage": {
     "mainTitle": "Kipakuzi cha YouTube",
@@ -111,7 +116,8 @@
     "retryButton": "Jaribu Tena",
     "moviePosterAlt": "Bango la filamu",
     "loadingMore": "Inapakia filamu zaidi...",
-    "endOfList": "Umefikia mwisho wa orodha."
+    "endOfList": "Umefikia mwisho wa orodha.",
+    "na": "H/P"
   },
   "tvSeriesPage": {
     "mainTitle": "Gundua Tamthilia",
@@ -147,7 +153,8 @@
     "retryButton": "Jaribu Tena",
     "tvSeriesPosterAlt": "Bango la tamthilia",
     "loadingMore": "Inapakia tamthilia zaidi...",
-    "endOfList": "Umefikia mwisho wa orodha."
+    "endOfList": "Umefikia mwisho wa orodha.",
+    "na": "H/P"
   },
   "movieDetailsPage": {
     "errorIdNotFound": "Kitambulisho cha filamu hakikupatikana kwenye URL.",
@@ -157,7 +164,9 @@
     "movieNotFoundTitle": "Filamu Haikupatikana",
     "movieNotFoundDescription": "Filamu unayotafuta haikupatikana.",
     "na": "H/P",
-    "clientContent": {},
+    "clientContent": {
+        "watchTrailerButton": "Tazama Trela"
+    },
     "downloadCard": {
         "downloadOptionsTitle": "Chaguo za Upakuaji",
         "webtorrentQualityPrefix": "WebTorrent inapatikana (Ubora: ",
@@ -221,7 +230,9 @@
     "seriesNotFoundTitle": "Tamthilia Haikupatikana",
     "seriesNotFoundDescription": "Tamthilia unayotafuta haikupatikana.",
     "na": "H/P",
-    "clientContent": {},
+    "clientContent": {
+        "watchTrailerButton": "Tazama Trela"
+    },
     "posterAltText": "bango",
     "downloadAllSeasonsButton": {
         "selectQualityPlaceholder": "Chagua ubora wa upakuaji",
@@ -344,8 +355,8 @@
         "fetchingName": "Inatafuta jina..."
     },
     "serverDownloads": {
-        "title": "Vipakuliwa vya Seva Vinavyoendelea (Aria2)",
-        "description": "Hali ya vipakuliwa vinavyosimamiwa na seva ya nyuma (mfano).",
+        "title": "Vipakuliwa vya Seva Vinavyoendelea",
+        "description": "Hali ya vipakuliwa vinavyosimamiwa na seva ya nyuma.",
         "loadingStatus": "Inapakia hali za vipakuliwa vya seva...",
         "noActiveTitle": "Hakuna Vipakuliwa vya Seva Vinavyofuatiliwa",
         "noActiveDescription": "Vipakuliwa vilivyoanzishwa kupitia 'Pakua (Seva)' vitaonekana hapa."
@@ -442,11 +453,13 @@
     "downloadPrefs": {
         "title": "Mapendeleo ya Upakuaji",
         "description": "Sanidi jinsi vipakuliwa vinavyoshughulikiwa.",
-        "locationTitle": "Mahali pa Kupakulia (WebTorrent)",
-        "locationDescription": "Vipakuliwa vya WebTorrent hupakuliwa moja kwa moja kwenye folda chaguomsingi ya upakuaji ya kivinjari chako au hukuhimiza kuchagua eneo kulingana na mipangilio ya kivinjari chako. Vipakuliwa vya seva vinasimamiwa kwenye seva.",
+        "locationTitle": "Mahali pa Kupakulia",
+        "locationDescription": "Vipakuliwa vya WebTorrent huenda kwenye folda chaguomsingi ya kivinjari chako. Vipakuliwa vya seva viko kwenye seva. Kwa kuhifadhi kienyeji na vipakuliwa vya seva, hakikisha Aria2 imesanidiwa kienyeji au tumia kiendelezi cha kivinjari kukamata.",
+        "selectLocationButton": "Chagua Folda ya Upakuaji (Majaribio)",
+        "locationNote": "Uchaguzi wa moja kwa moja wa folda ni wa majaribio na unategemea API ya Ufikiaji wa Mfumo wa Faili wa kivinjari (ikiwa inatumika na ruhusa imetolewa). Vipakuliwa vinaweza bado kwenda kwenye eneo chaguomsingi la kivinjari ikiwa API haipatikani au ruhusa imekataliwa.",
         "qualityTitle": "Ubora Unaopendelewa wa Upakuaji (Seva)",
         "qualityPlaceholder": "Chagua ubora unaopendelea",
-        "qualityDescription": "Upendeleo huu unaongoza vipakuliwa vya upande wa seva (k.m., Aria2) wakati ubora mbalimbali unapatikana kwa kitu kilichotafutwa. Ubora wa WebTorrent unategemea kiungo maalum cha magnet.",
+        "qualityDescription": "Upendeleo huu unaongoza vipakuliwa vya upande wa seva wakati ubora mbalimbali unapatikana. Ubora wa WebTorrent unategemea kiungo maalum cha magnet.",
         "quality1080p": "1080p (FHD)",
         "quality720p": "720p (HD)",
         "quality480p": "480p (SD)",
@@ -468,7 +481,11 @@
     "toastPreferenceSavedTitle": "Upendeleo Umehifadhiwa",
     "toastPreferenceQualitySet": "Ubora unaopendelewa wa upakuaji umewekwa kuwa",
     "toastHistoryClearedTitle": "Historia ya Vipakuliwa Imefutwa",
-    "toastHistoryClearedDesc": "Historia yako ya vipakuliwa imefutwa kikamilifu."
+    "toastHistoryClearedDesc": "Historia yako ya vipakuliwa imefutwa kikamilifu.",
+    "toastFolderSelectedTitle": "Folda Imechaguliwa",
+    "toastFolderSelectedDesc": "Upendeleo wa eneo la upakuaji umesasishwa. Jinsi itakavyohifadhiwa inategemea usaidizi wa kivinjari na ruhusa.",
+    "toastFolderSelectionFailedTitle": "Uchaguzi wa Folda Umeshindwa",
+    "toastFolderSelectionFailedDesc": "Imeshindwa kuweka eneo la upakuaji. Hakikisha kivinjari chako kinasaidia API ya Ufikiaji wa Mfumo wa Faili na umetoa ruhusa."
   },
   "aboutPage": {
     "mainTitle": "Kuhusu ChillyMovies",
@@ -485,7 +502,7 @@
             "<strong>Maktaba Pana:</strong> Gundua filamu na tamthilia kutoka kwenye katalogi kubwa na iliyosasishwa.",
             "<strong>Utafutaji wa Kina na Vichujio:</strong> Pata kile unachotafuta hasa kwa utafutaji wenye nguvu na vichujio rahisi kwa aina, mwaka, na asili.",
             "<strong>Kipakuzi cha YouTube:</strong> Pakua video na sauti kwa urahisi kutoka YouTube na uchaguzi wa ubora.",
-            "<strong>Usimamizi wa Vipakuliwa:</strong> Uwezo imara wa kupakua ndani ya kivinjari (WebTorrent) na upande wa seva (Aria2 mfano).",
+            "<strong>Usimamizi wa Vipakuliwa:</strong> Uwezo imara wa kupakua ndani ya kivinjari (WebTorrent) na upande wa seva (Aria2).",
             "<strong>Taarifa za Kina:</strong> Pata maelezo ya kina, trela, waigizaji, na mapendekezo kwa kila kichwa.",
             "<strong>Uzoefu Binafsi:</strong> Badilisha lafudhi za mandhari na mapendeleo ya upakuaji.",
             "<strong>Muundo Mwitikio:</strong> Furahia uzoefu rahisi kwenye kompyuta na vifaa vya mkononi.",

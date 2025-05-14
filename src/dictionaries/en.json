@@ -14,13 +14,18 @@
     "collapse": "Collapse",
     "expand": "Expand"
   },
+  "mainLayout": {
+    "backButtonLabel": "Go back"
+  },
   "home": {
     "popularMovies": "Popular Movies",
     "popularTvSeries": "Popular TV Series",
     "noMovies": "No popular movies found at the moment.",
     "endOfMovies": "You've reached the end of the list.",
     "noTvSeries": "No popular TV series found at the moment.",
-    "endOfTvSeries": "You've reached the end of the list."
+    "endOfTvSeries": "You've reached the end of the list.",
+    "featuredContentTitle": "Featured Content",
+    "viewAllButton": "View All"
   },
   "youtubeDownloaderPage": {
     "mainTitle": "YouTube Downloader",
@@ -111,7 +116,8 @@
     "retryButton": "Retry",
     "moviePosterAlt": "Movie poster",
     "loadingMore": "Loading more movies...",
-    "endOfList": "You've reached the end of the list."
+    "endOfList": "You've reached the end of the list.",
+    "na": "N/A"
   },
   "tvSeriesPage": {
     "mainTitle": "Discover TV Series",
@@ -147,7 +153,8 @@
     "retryButton": "Retry",
     "tvSeriesPosterAlt": "TV series poster",
     "loadingMore": "Loading more TV series...",
-    "endOfList": "You've reached the end of the list."
+    "endOfList": "You've reached the end of the list.",
+    "na": "N/A"
   },
   "movieDetailsPage": {
     "errorIdNotFound": "Movie ID not found in URL.",
@@ -157,7 +164,9 @@
     "movieNotFoundTitle": "Movie Not Found",
     "movieNotFoundDescription": "The movie you are looking for could not be found.",
     "na": "N/A",
-    "clientContent": {},
+    "clientContent": {
+        "watchTrailerButton": "Watch Trailer"
+    },
     "downloadCard": {
         "downloadOptionsTitle": "Download Options",
         "webtorrentQualityPrefix": "WebTorrent available (Quality: ",
@@ -221,7 +230,9 @@
     "seriesNotFoundTitle": "TV Series Not Found",
     "seriesNotFoundDescription": "The TV series you are looking for could not be found.",
     "na": "N/A",
-    "clientContent": {},
+    "clientContent": {
+        "watchTrailerButton": "Watch Trailer"
+    },
     "posterAltText": "poster",
     "downloadAllSeasonsButton": {
         "selectQualityPlaceholder": "Select download quality",
@@ -344,8 +355,8 @@
         "fetchingName": "Fetching name..."
     },
     "serverDownloads": {
-        "title": "Active Server (Aria2) Downloads",
-        "description": "Status of downloads managed by the backend server (simulated).",
+        "title": "Active Server Downloads",
+        "description": "Status of downloads managed by the backend server.",
         "loadingStatus": "Loading server download statuses...",
         "noActiveTitle": "No Server Downloads Tracked",
         "noActiveDescription": "Downloads initiated via 'Download (Server)' will appear here."
@@ -442,11 +453,13 @@
     "downloadPrefs": {
         "title": "Download Preferences",
         "description": "Configure how downloads are handled.",
-        "locationTitle": "Download Location (WebTorrent)",
-        "locationDescription": "WebTorrent downloads directly to your browser's default download folder or prompts you to choose a location based on your browser settings. Server downloads are managed on the server.",
+        "locationTitle": "Download Location",
+        "locationDescription": "WebTorrent downloads go to your browser's default. Server downloads are on the server. For local saving with server downloads, ensure Aria2 is configured locally or use a browser extension to intercept.",
+        "selectLocationButton": "Select Download Folder (Experimental)",
+        "locationNote": "Direct folder selection is experimental and relies on browser File System Access API (if supported and permission granted). Downloads may still go to default browser location if API is unavailable or permission denied.",
         "qualityTitle": "Preferred Download Quality (Server)",
         "qualityPlaceholder": "Select preferred quality",
-        "qualityDescription": "This preference guides server-side downloads (e.g., Aria2) when multiple qualities are available for a searched item. WebTorrent quality depends on the specific magnet link.",
+        "qualityDescription": "This preference guides server-side downloads when multiple qualities are available. WebTorrent quality depends on the specific magnet link.",
         "quality1080p": "1080p (FHD)",
         "quality720p": "720p (HD)",
         "quality480p": "480p (SD)",
@@ -468,7 +481,11 @@
     "toastPreferenceSavedTitle": "Preference Saved",
     "toastPreferenceQualitySet": "Preferred download quality set to",
     "toastHistoryClearedTitle": "Download History Cleared",
-    "toastHistoryClearedDesc": "Your download history has been successfully cleared."
+    "toastHistoryClearedDesc": "Your download history has been successfully cleared.",
+    "toastFolderSelectedTitle": "Folder Selected",
+    "toastFolderSelectedDesc": "Download location preference updated. Actual saving behavior depends on browser support and permissions.",
+    "toastFolderSelectionFailedTitle": "Folder Selection Failed",
+    "toastFolderSelectionFailedDesc": "Could not set download location. Ensure your browser supports the File System Access API and you've granted permission."
   },
   "aboutPage": {
     "mainTitle": "About ChillyMovies",
@@ -485,7 +502,7 @@
             "<strong>Extensive Library:</strong> Discover movies and TV series from a vast, up-to-date catalog.",
             "<strong>Advanced Search & Filtering:</strong> Find exactly what you're looking for with powerful search and intuitive filters by genre, year, and origin.",
             "<strong>YouTube Downloader:</strong> Easily download videos and audio from YouTube with quality selection.",
-            "<strong>Download Management:</strong> Robust in-browser (WebTorrent) and server-side (Aria2 simulated) download capabilities.",
+            "<strong>Download Management:</strong> Robust in-browser (WebTorrent) and server-side (Aria2) download capabilities.",
             "<strong>Detailed Information:</strong> Access comprehensive details, trailers, cast, and recommendations for every title.",
             "<strong>Personalized Experience:</strong> Customize theme accents and download preferences.",
             "<strong>Responsive Design:</strong> Enjoy a seamless experience across desktop and mobile devices.",
