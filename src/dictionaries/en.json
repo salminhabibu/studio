@@ -174,9 +174,40 @@
         "noTrailerToastDesc": "No trailer found for this movie.",
         "toastStreamErrorTitle": "Streaming Error",
         "toastStreamErrorDesc": "Could not start stream:",
-        "toastServerAPIErrorDesc": "Server API Error",
+        "toastServerAPIErrorDesc": "Server API Error (Could not parse error response)",
         "toastSuccessStreamTitle": "Stream Ready",
         "streamingVideoTitle": "Streaming Video"
+    },
+    "downloadCard": {
+        "downloadOptionsTitle": "Download Options",
+        "webTorrentAvailable": "WebTorrent available",
+        "webTorrentQualityUnknown": "Unknown Quality",
+        "webTorrentLinkNotFound": "WebTorrent link not found.",
+        "downloadWebTorrentButton": "Download (WebTorrent)",
+        "webTorrentLoadingButton": "WebTorrent Loading...",
+        "serverDownloadTitle": "Server Download",
+        "selectQualityPlaceholder": "Select quality",
+        "downloadServerButton": "Download (Server)",
+        "visitHomepageButton": "Visit Homepage",
+        "toastWebTorrentNotReadyTitle": "WebTorrent Not Ready",
+        "toastWebTorrentNotReadyDesc": "Please wait for the WebTorrent client to initialize.",
+        "toastDownloadNotAvailableTitle": "Download Not Available",
+        "toastNoWebTorrentLink": "No WebTorrent link found for",
+        "toastDownloadQueuedWebTorrentTitle": "Download Queued (WebTorrent)",
+        "toastDownloadQueuedWebTorrentDesc": "is being added to your active downloads.",
+        "toastWebTorrentIssueTitle": "WebTorrent Issue",
+        "toastWebTorrentIssueDesc": "might already be in downloads or failed to add. Check for existing torrents or try again.",
+        "toastWebTorrentErrorTitle": "WebTorrent Error",
+        "toastCouldNotStartWebTorrent": "Could not start WebTorrent download:",
+        "toastServerDownloadUnavailableTitle": "Server Download Unavailable",
+        "toastServerDownloadUnavailableDesc": "No identifier for server download.",
+        "toastSentToServerDownloadTitle": "Sent to Server Download",
+        "toastSentToServerDownloadDesc": "sent to server. Task ID:",
+        "toastSentToServerDownloadDescPart2": ". Check Downloads page.",
+        "toastServerDownloadErrorTitle": "Server Download Error",
+        "toastServerDownloadErrorDesc": "Failed to start server download.",
+        "toastServerAPIErrorTitle": "Server API Error",
+        "toastServerAPIErrorDesc": "Could not communicate with download server."
     },
     "overview": {
         "title": "Overview",
@@ -219,7 +250,7 @@
         "noTrailerToastDesc": "No trailer found for this series.",
         "toastStreamErrorTitle": "Streaming Error",
         "toastStreamErrorDesc": "Could not start stream:",
-        "toastServerAPIErrorDesc": "Server API Error",
+        "toastServerAPIErrorDesc": "Server API Error (Could not parse error response)",
         "toastSuccessStreamTitle": "Stream Ready",
         "streamingVideoTitle": "Streaming Video"
     },
@@ -256,6 +287,47 @@
         "noOverview": "No overview available.",
         "playSeasonButton": "Play Season",
         "playEpisodeButton": "Play Episode",
+        "downloadEpisodeButton": {
+            "qualityPlaceholder": "Quality",
+            "webTorrentButton": "WebTorrent",
+            "webTorrentInitializing": "WT Init...",
+            "serverButton": "Server",
+            "toastWebTorrentNotReady": "WebTorrent Not Ready",
+            "toastWebTorrentNotReadyDesc": "Please wait for the client to initialize...",
+            "toastFetchingMagnet": "Fetching magnet for WebTorrent",
+            "toastAddingWebTorrent": "Adding WebTorrent:",
+            "toastDownloadQueuedWebTorrent": "Download Queued (WebTorrent)",
+            "toastDownloadQueuedWebTorrentDesc": "is being added.",
+            "toastWebTorrentIssue": "WebTorrent Issue",
+            "toastWebTorrentIssueDesc": "might already be in downloads or failed to add. Check active downloads or try again.",
+            "toastDownloadFailedWebTorrent": "Download Failed (WebTorrent)",
+            "toastDownloadFailedWebTorrentDesc": "Could not find a WebTorrent link for",
+            "toastDownloadFailedWebTorrentDesc2": ". Try a different quality or source.",
+            "toastWebTorrentError": "WebTorrent Error:",
+            "toastError": "Error",
+            "toastDownloadFailedErrorDesc": "WebTorrent download failed:",
+            "toastInitiatingServerDownload": "Initiating server download for",
+        "toastSentToServerDownloadTitle": "Sent to Server Download",
+        "toastSentToServerDownloadDesc": "sent to server. Task ID:",
+        "toastSentToServerDownloadDescPart2": ". Check Downloads page.",
+        "toastServerDownloadErrorTitle": "Server Download Error",
+        "toastServerDownloadErrorDesc": "Failed to start server download.",
+        "toastServerAPIErrorTitle": "Server API Error",
+        "toastServerAPIErrorDesc": "Could not communicate with download server."
+        },
+        "downloadSeasonButton": {
+            "selectQualityPlaceholder": "Select download quality",
+            "buttonText": "Download Season",
+            "note": "Note: Downloads full season pack via server.",
+            "toastInitiatingServerDownload": "Initiating server download for",
+            "toastSentToServerDownloadTitle": "Sent to Server Download",
+            "toastSentToServerDownloadDesc": "sent to server. Task ID:",
+            "toastSentToServerDownloadDescPart2": ". Check Downloads page.",
+            "toastServerDownloadErrorTitle": "Server Download Error",
+            "toastServerDownloadErrorDesc": "Failed to start season download on server.",
+            "toastServerAPIErrorTitle": "Server API Error",
+            "toastServerAPIErrorDesc": "Could not communicate with download server for season."
+        },
         "qualities": {
             "1080p": "1080p (FHD)",
             "720p": "720p (HD)",
@@ -272,7 +344,17 @@
     "downloadAllSeasonsButton": {
         "buttonText": "Download All Seasons",
         "selectQualityPlaceholder": "Select download quality",
-        "note": "Note: Downloads full season packs via server."
+        "note": "Note: Downloads full season packs via server.",
+        "toastInitiatingServerDownload": "Initiating server download for ALL seasons of",
+        "toastInitiatingServerDownloadQuality": "in",
+        "toastSentToServerDownloadTitle": "Sent to Server Download",
+        "toastSentToServerDownloadDesc": "All seasons of",
+        "toastSentToServerDownloadDescQuality": "sent to server. Task ID:",
+        "toastSentToServerDownloadDescPart2": ". Check Downloads page.",
+        "toastServerDownloadErrorTitle": "Server Download Error",
+        "toastServerDownloadErrorDesc": "Failed to start 'All Seasons' download on server.",
+        "toastServerAPIErrorTitle": "Server API Error",
+        "toastServerAPIErrorDesc": "Could not communicate with download server for 'All Seasons'."
     },
     "recommendations": {
         "title": "You Might Also Like",
@@ -334,7 +416,7 @@
   },
   "aboutPage": {
     "mainTitle": "About ChillyMovies",
-    "mainSubtitle": "Your Ultimate Movie and TV Series Companion",
+    "mainSubtitle": "Your Ultimate Companion for Streaming and Downloading Movies, TV Series, and YouTube Videos",
     "missionStory": {
         "title": "Our Mission & Story",
         "p1": "ChillyMovies was born from a passion for cinema and television, and a desire to create a seamless, enjoyable experience for discovering, organizing, and accessing your favorite content. We aim to provide a premium, user-friendly platform that respects your preferences and puts you in control.",
@@ -346,7 +428,8 @@
         "featuresList": [
             "<strong>Extensive Library:</strong> Discover movies and TV series from a vast, up-to-date catalog.",
             "<strong>Advanced Search & Filtering:</strong> Find exactly what you're looking for with powerful search and intuitive filters by genre, year, and origin.",
-            "<strong>Instant Streaming:</strong> Watch movies and TV series directly in your browser with our integrated player.",
+            "<strong>Flexible Viewing:</strong> Stream movies and TV series instantly or download them for offline enjoyment.",
+            "<strong>YouTube Downloader:</strong> Easily save your favorite YouTube videos directly from the app.",
             "<strong>Detailed Information:</strong> Access comprehensive details, trailers, cast, and recommendations for every title.",
             "<strong>Personalized Experience:</strong> Customize theme accents and streaming preferences.",
             "<strong>Responsive Design:</strong> Enjoy a seamless experience across desktop and mobile devices.",
@@ -359,22 +442,22 @@
         "steps": [
             { "title": "Explore", "content": "Browse popular movies and TV series on the Home page, or use the Discover sections for Movies and TV Series with filters." },
             { "title": "Search", "content": "Use the live search bar in the sidebar to quickly find specific titles." },
-            { "title": "Stream", "content": "On any movie or TV series page, click the 'Play' button to start streaming instantly." },
+            { "title": "Stream or Download", "content": "On any movie, TV series, or YouTube page, choose to stream instantly or download for later." },
             { "title": "Customize", "content": "Personalize your theme and streaming preferences in the Settings page." }
         ]
     },
     "versionNext": {
         "title": "Version & What's Next",
         "currentVersionLabel": "Current Version",
-        "currentVersion": "1.1.0 (Streaming Beta)",
+        "currentVersion": "1.2.0 (Streaming & Download Focused)",
         "roadmapLabel": "Roadmap Highlights",
         "roadmapP1": "We're constantly working to enhance ChillyMovies. Here are some features we're excited about for future releases:",
         "roadmapItems": [
             "User accounts and synchronization across devices.",
             "Personalized watchlists and favorites.",
             "Enhanced recommendation engine based on viewing history.",
-            "Subtitle support in multiple languages.",
-            "Offline viewing options (if feasible and legal).",
+            "Subtitle support in multiple languages for streaming.",
+            "Improved download management and batch operations.",
             "More robust community features and discussions."
         ],
         "stayTuned": "Stay tuned for updates and new features!"
@@ -386,7 +469,8 @@
             { "item": "Next.js", "value": "React framework for server-side rendering and static site generation." },
             { "item": "Tailwind CSS & ShadCN UI", "value": "For styling and UI components." },
             { "item": "TMDB API", "value": "The Movie Database for movie and TV series metadata." },
-            { "item": "WebTorrent (Server-side)", "value": "For server-side torrent handling to enable streaming." },
+            { "item": "WebTorrent (Client & Server-side)", "value": "For in-browser and server-side torrent handling to enable streaming and downloads." },
+            { "item": "ytdl-core", "value": "For fetching YouTube video information and download streams." },
             { "item": "Lucide Icons", "value": "For a clean and consistent icon set." }
         ],
         "outro": "This project is for educational and demonstration purposes. Please respect copyright laws and support content creators by subscribing to legal streaming services and purchasing content."
@@ -493,3 +577,5 @@
     "toastAria2FileErrorDesc": "Download URL not available or task not complete."
   }
 }
+
+    
