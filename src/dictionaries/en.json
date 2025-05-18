@@ -4,6 +4,8 @@
     "home": "Home",
     "movies": "Movies",
     "tvSeries": "TV Series",
+    "downloads": "Downloads",
+    "youtubeDownloader": "YouTube Downloader",
     "settings": "Settings",
     "about": "About",
     "language": "Language",
@@ -167,13 +169,14 @@
     "clientContent": {
         "watchTrailerButton": "Watch Trailer",
         "playMovieButton": "Play Movie",
+        "trailerModalTitle": "Movie Trailer",
         "noTrailerToastTitle": "Trailer Unavailable",
         "noTrailerToastDesc": "No trailer found for this movie.",
         "toastStreamErrorTitle": "Streaming Error",
         "toastStreamErrorDesc": "Could not start stream:",
         "toastServerAPIErrorDesc": "Server API Error",
         "toastSuccessStreamTitle": "Stream Ready",
-        "trailerModalTitle": "Movie Trailer"
+        "streamingVideoTitle": "Streaming Video"
     },
     "overview": {
         "title": "Overview",
@@ -207,17 +210,18 @@
     "seriesNotFoundTitle": "TV Series Not Found",
     "seriesNotFoundDescription": "The TV series you are looking for could not be found.",
     "na": "N/A",
-    "clientContent": {
+     "clientContent": {
         "watchTrailerButton": "Watch Trailer",
         "playSeriesButton": "Play Series",
         "playEpisodeButton": "Play Episode",
+        "trailerModalTitle": "Series Trailer",
         "noTrailerToastTitle": "Trailer Unavailable",
         "noTrailerToastDesc": "No trailer found for this series.",
         "toastStreamErrorTitle": "Streaming Error",
         "toastStreamErrorDesc": "Could not start stream:",
         "toastServerAPIErrorDesc": "Server API Error",
         "toastSuccessStreamTitle": "Stream Ready",
-        "trailerModalTitle": "Series Trailer"
+        "streamingVideoTitle": "Streaming Video"
     },
     "posterAltText": "poster",
     "visitHomepageButton": "Visit Homepage",
@@ -262,7 +266,13 @@
         "toastStreamErrorDesc": "Could not start stream for this episode/season.",
         "toastServerAPIErrorTitle": "Server API Error",
         "toastServerAPIErrorDesc": "Could not communicate with the streaming server.",
-        "selectQualityPlaceholder": "Select Quality"
+        "selectQualityPlaceholder": "Select Quality",
+        "streamingVideoTitle": "Streaming Video"
+    },
+    "downloadAllSeasonsButton": {
+        "buttonText": "Download All Seasons",
+        "selectQualityPlaceholder": "Select download quality",
+        "note": "Note: Downloads full season packs via server."
     },
     "recommendations": {
         "title": "You Might Also Like",
@@ -293,6 +303,17 @@
         "quality480p": "480p (SD)",
         "qualityAny": "Best Available",
         "performanceNote": "Higher quality streams require more bandwidth. Actual quality depends on source availability and your connection."
+    },
+    "downloadLocation": {
+        "title": "Download Location",
+        "description": "Manage where your downloads are saved.",
+        "currentLocationLabel": "Current Download Location",
+        "changeLocationButton": "Change Location",
+        "note": "In a web browser, downloads typically go to your browser's default downloads folder. In a desktop app version, this setting would allow you to choose a specific folder on your computer.",
+        "toastTitle": "Download Location",
+        "toastDescriptionDesktop": "In a desktop app, a folder picker would open. Location conceptually updated.",
+        "conceptualNewPath": "User/My Videos/ChillyMovies",
+        "defaultPath": "Default Downloads Folder"
     },
     "dataManagement": {
         "title": "Data Management",
@@ -370,5 +391,105 @@
         ],
         "outro": "This project is for educational and demonstration purposes. Please respect copyright laws and support content creators by subscribing to legal streaming services and purchasing content."
     }
+  },
+  "downloadsPage": {
+    "mainTitle": "Downloads",
+    "mainDescription": "Manage your active and historical downloads.",
+    "webTorrentInitializing": "WebTorrent client initializing...",
+    "tabs": {
+      "webTorrents": "WebTorrents",
+      "serverDownloads": "Server Downloads",
+      "history": "History"
+    },
+    "activeWebTorrents": {
+      "title": "Active WebTorrents",
+      "fetchingName": "Fetching name...",
+      "na": "N/A",
+      "etaLabel": "ETA",
+      "peersLabel": "Peers",
+      "noActiveTitle": "No Active WebTorrent Downloads",
+      "findSomethingButton": "Find Something to Download",
+      "downloadStalledMessage": "Download stalled. Check peers or network."
+    },
+    "serverDownloads": {
+      "title": "Server Downloads",
+      "description": "Downloads managed by the backend server (e.g., Aria2). Status updates periodically.",
+      "loadingStatus": "Loading server download statuses...",
+      "noActiveTitle": "No Active Server Downloads",
+      "noActiveDescription": "Downloads initiated via 'Download (Server)' will appear here.",
+      "na": "N/A",
+      "peersLabel": "Peers/Connections"
+    },
+    "history": {
+      "title": "Download History (WebTorrent)",
+      "clearAllButton": "Clear History",
+      "alertTitle": "Clear Download History?",
+      "alertDescription": "Are you sure you want to clear your entire WebTorrent download history? This action cannot be undone.",
+      "alertCancel": "Cancel",
+      "alertConfirm": "Clear History",
+      "addedLabel": "Added",
+      "finishedLabel": "Finished",
+      "sizeLabel": "Size",
+      "errorLabel": "Last Error",
+      "streamAgainLabel": "Stream Again",
+      "retryLabel": "Retry Download",
+      "removeFromHistoryLabel": "Remove from History",
+      "noHistoryTitle": "No Download History",
+      "noHistoryDescription": "Completed or failed WebTorrent downloads will appear here."
+    },
+    "statusLabels": {
+      "idle": "Idle",
+      "downloading": "Downloading",
+      "seeding": "Seeding",
+      "paused": "Paused",
+      "error": "Error",
+      "failed": "Failed",
+      "connecting": "Connecting",
+      "done": "Done",
+      "completed": "Completed",
+      "metadata": "Fetching Metadata",
+      "stalled": "Stalled",
+      "no_peers": "No Peers",
+      "removed": "Removed",
+      "active": "Active",
+      "waiting": "Waiting",
+      "unknown": "Unknown"
+    },
+    "pauseLabel": "Pause",
+    "resumeLabel": "Resume",
+    "playStreamLabel": "Play/Stream",
+    "removeLabel": "Remove",
+    "downloadFileLabel": "Download File",
+    "removeTaskLabel": "Remove Task",
+    "toastPreparingStreamTitle": "Preparing Stream",
+    "toastPreparingStreamDesc": "Attempting to stream the largest file...",
+    "toastStreamFailedTitle": "Stream Failed",
+    "toastStreamFailedDescNoStart": "Could not start torrent for streaming. Ensure it's a valid magnet with seeders.",
+    "toastStreamFailedDescNoPrepare": "Could not prepare the file for streaming. Ensure torrent has files, is active, and has seeders.",
+    "toastStreamingReadyTitle": "Streaming Ready",
+    "toastStreamingReadyDescOpening": "Opening player for",
+    "toastRetryingDownloadTitle": "Retrying Download",
+    "toastAdding": "Adding",
+    "toastToWebTorrentQueue": "back to WebTorrent queue.",
+    "toastRetryNotNeededTitle": "Retry Not Needed/Issue",
+    "toastRetryNotNeededDesc": "might already be active or an error occurred during re-add. Check active downloads.",
+    "toastRetryErrorTitle": "Retry Error",
+    "toastUnexpectedError": "An unexpected error occurred",
+    "toastRetryFailedTitle": "Retry Failed",
+    "toastRetryFailedNoMagnet": "Magnet URI not found for this item.",
+    "toastWebTorrentRemovedTitle": "WebTorrent Removed",
+    "toastWebTorrentRemovedDesc": "The torrent has been removed from active queue.",
+    "toastRemovalErrorTitle": "Removal Error",
+    "toastRemovalErrorDescWebTorrent": "Could not remove the WebTorrent.",
+    "toastAria2ActionTitle": "Server Action",
+    "toastPausingTask": "Pausing task",
+    "toastResumingTask": "Resuming task",
+    "toastAria2TaskRemovedTitle": "Server Task Removed",
+    "toastTask": "Task",
+    "toastAria2TaskRemovedDesc": "removed from local tracking. (Backend action may be needed for full removal)",
+    "toastOpeningFileTitle": "Opening File",
+    "toastOpeningFileDesc": "Attempting to download from",
+    "toastAria2FileErrorTitle": "Server File Error",
+    "toastAria2FileErrorDesc": "Download URL not available or task not complete."
   }
 }

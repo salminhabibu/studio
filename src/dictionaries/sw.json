@@ -4,6 +4,8 @@
     "home": "Nyumbani",
     "movies": "Filamu",
     "tvSeries": "Tamthilia",
+    "downloads": "Vipakuliwa",
+    "youtubeDownloader": "Kipakuzi cha YouTube",
     "settings": "Mipangilio",
     "about": "Kuhusu",
     "language": "Lugha",
@@ -129,7 +131,7 @@
     "selectYearPlaceholder": "Chagua Mwaka",
     "originLabel": "Nchi ya Asili",
     "selectOriginPlaceholder": "Chagua Asili",
-    "originCountries": {
+     "originCountries": {
       "anyOrigin": "Asili Yoyote",
       "hollywood": "Hollywood (Marekani)",
       "nollywood": "Nollywood (Nigeria)",
@@ -167,13 +169,14 @@
     "clientContent": {
         "watchTrailerButton": "Tazama Trela",
         "playMovieButton": "Cheza Filamu",
+        "trailerModalTitle": "Trela ya Filamu",
         "noTrailerToastTitle": "Trela Haipatikani",
         "noTrailerToastDesc": "Hakuna trela iliyopatikana kwa filamu hii.",
         "toastStreamErrorTitle": "Hitilafu ya Kutiririsha",
         "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha:",
         "toastServerAPIErrorDesc": "Hitilafu ya API ya Seva",
         "toastSuccessStreamTitle": "Mtiririko Tayari",
-        "trailerModalTitle": "Trela ya Filamu"
+        "streamingVideoTitle": "Video Inatiririshwa"
     },
     "overview": {
         "title": "Muhtasari",
@@ -211,13 +214,14 @@
         "watchTrailerButton": "Tazama Trela",
         "playSeriesButton": "Cheza Tamthilia",
         "playEpisodeButton": "Cheza Kipindi",
+        "trailerModalTitle": "Trela ya Tamthilia",
         "noTrailerToastTitle": "Trela Haipatikani",
         "noTrailerToastDesc": "Hakuna trela iliyopatikana kwa tamthilia hii.",
         "toastStreamErrorTitle": "Hitilafu ya Kutiririsha",
         "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha:",
         "toastServerAPIErrorDesc": "Hitilafu ya API ya Seva",
         "toastSuccessStreamTitle": "Mtiririko Tayari",
-        "trailerModalTitle": "Trela ya Tamthilia"
+        "streamingVideoTitle": "Video Inatiririshwa"
     },
     "posterAltText": "bango",
     "visitHomepageButton": "Tembelea Ukurasa Mkuu",
@@ -262,7 +266,13 @@
         "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha kipindi/msimu huu.",
         "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
         "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya kutiririsha.",
-        "selectQualityPlaceholder": "Chagua Ubora"
+        "selectQualityPlaceholder": "Chagua Ubora",
+        "streamingVideoTitle": "Video Inatiririshwa"
+    },
+    "downloadAllSeasonsButton": {
+        "buttonText": "Pakua Misimu Yote",
+        "selectQualityPlaceholder": "Chagua ubora wa upakuaji",
+        "note": "Kumbuka: Hupakua vifurushi kamili vya misimu kupitia seva."
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
@@ -293,6 +303,17 @@
         "quality480p": "480p (SD)",
         "qualityAny": "Ubora Bora Unaopatikana",
         "performanceNote": "Mitiririko ya ubora wa juu inahitaji kipimo data zaidi. Ubora halisi unategemea upatikanaji wa chanzo na muunganisho wako."
+    },
+    "downloadLocation": {
+        "title": "Mahali pa Kupakua",
+        "description": "Dhibiti mahali ambapo vipakuliwa vyako vinahifadhiwa.",
+        "currentLocationLabel": "Mahali pa Kupakua Sasa",
+        "changeLocationButton": "Badilisha Mahali",
+        "note": "Kwenye kivinjari cha wavuti, vipakuliwa kwa kawaida huenda kwenye folda chaguo-msingi ya vipakuliwa vya kivinjari chako. Kwenye toleo la programu ya kompyuta, mpangilio huu utakuwezesha kuchagua folda maalum kwenye kompyuta yako.",
+        "toastTitle": "Mahali pa Kupakua",
+        "toastDescriptionDesktop": "Kwenye programu ya kompyuta, kichagua folda kingefunguka. Mahali pamebadilishwa kifikra.",
+        "conceptualNewPath": "Mtumiaji/VideoZangu/ChillyMovies",
+        "defaultPath": "Folda Chaguo-msingi ya Vipakuliwa"
     },
     "dataManagement": {
         "title": "Usimamizi wa Data",
@@ -370,5 +391,105 @@
         ],
         "outro": "Mradi huu ni kwa madhumuni ya kielimu na maonyesho. Tafadhali heshimu sheria za hakimiliki na usaidie waundaji wa maudhui kwa kujiandikisha kwenye huduma halali za utiririshaji na kununua maudhui."
     }
+  },
+  "downloadsPage": {
+    "mainTitle": "Vipakuliwa",
+    "mainDescription": "Dhibiti vipakuliwa vyako vinavyoendelea na vya kihistoria.",
+    "webTorrentInitializing": "Kلاینتي ya WebTorrent inaanzishwa...",
+    "tabs": {
+      "webTorrents": "WebTorrents",
+      "serverDownloads": "Vipakuliwa vya Seva",
+      "history": "Historia"
+    },
+    "activeWebTorrents": {
+      "title": "WebTorrents Zinazoendelea",
+      "fetchingName": "Inatafuta jina...",
+      "na": "H/P",
+      "etaLabel": "Muda Uliobaki",
+      "peersLabel": "Wenza",
+      "noActiveTitle": "Hakuna Vipakuliwa vya WebTorrent Vinavyoendelea",
+      "findSomethingButton": "Tafuta Kitu cha Kupakua",
+      "downloadStalledMessage": "Upakuaji umekwama. Angalia wenza au mtandao."
+    },
+    "serverDownloads": {
+      "title": "Vipakuliwa vya Seva",
+      "description": "Vipakuliwa vinavyodhibitiwa na seva ya nyuma (k.m., Aria2). Taarifa za hali husasishwa mara kwa mara.",
+      "loadingStatus": "Inapakia hali za vipakuliwa vya seva...",
+      "noActiveTitle": "Hakuna Vipakuliwa vya Seva Vinavyoendelea",
+      "noActiveDescription": "Vipakuliwa vilivyoanzishwa kupitia 'Pakua (Seva)' vitaonekana hapa.",
+      "na": "H/P",
+      "peersLabel": "Wenza/Miunganisho"
+    },
+    "history": {
+      "title": "Historia ya Vipakuliwa (WebTorrent)",
+      "clearAllButton": "Futa Historia",
+      "alertTitle": "Futa Historia ya Vipakuliwa?",
+      "alertDescription": "Una uhakika unataka kufuta historia yako yote ya vipakuliwa vya WebTorrent? Kitendo hiki hakiwezi kutenduliwa.",
+      "alertCancel": "Ghairi",
+      "alertConfirm": "Futa Historia",
+      "addedLabel": "Imeongezwa",
+      "finishedLabel": "Imekamilika",
+      "sizeLabel": "Ukubwa",
+      "errorLabel": "Hitilafu ya Mwisho",
+      "streamAgainLabel": "Tiririsha Tena",
+      "retryLabel": "Jaribu Kupakua Tena",
+      "removeFromHistoryLabel": "Ondoa Kwenye Historia",
+      "noHistoryTitle": "Hakuna Historia ya Vipakuliwa",
+      "noHistoryDescription": "Vipakuliwa vya WebTorrent vilivyokamilika au vilivyoshindwa vitaonekana hapa."
+    },
+    "statusLabels": {
+      "idle": "Tulia",
+      "downloading": "Inapakua",
+      "seeding": "Inasambaza",
+      "paused": "Imesitishwa",
+      "error": "Hitilafu",
+      "failed": "Imeshindwa",
+      "connecting": "Inaunganisha",
+      "done": "Imekamilika",
+      "completed": "Imekamilika",
+      "metadata": "Inatafuta Metadata",
+      "stalled": "Imekwama",
+      "no_peers": "Hakuna Wenza",
+      "removed": "Imeondolewa",
+      "active": "Inaendelea",
+      "waiting": "Inasubiri",
+      "unknown": "Haijulikani"
+    },
+    "pauseLabel": "Sitisha",
+    "resumeLabel": "Endeleza",
+    "playStreamLabel": "Cheza/Tiririsha",
+    "removeLabel": "Ondoa",
+    "downloadFileLabel": "Pakua Faili",
+    "removeTaskLabel": "Ondoa Kazi",
+    "toastPreparingStreamTitle": "Inaandaa Mtiririko",
+    "toastPreparingStreamDesc": "Inajaribu kutiririsha faili kubwa zaidi...",
+    "toastStreamFailedTitle": "Mtiririko Umeshindwa",
+    "toastStreamFailedDescNoStart": "Imeshindwa kuanzisha torrent kwa ajili ya kutiririsha. Hakikisha ni magnet halali yenye wasambazaji.",
+    "toastStreamFailedDescNoPrepare": "Imeshindwa kuandaa faili kwa ajili ya kutiririsha. Hakikisha torrent ina mafaili, inaendelea, na ina wasambazaji.",
+    "toastStreamingReadyTitle": "Mtiririko Tayari",
+    "toastStreamingReadyDescOpening": "Inafungua kichezaji kwa ajili ya",
+    "toastRetryingDownloadTitle": "Inajaribu Kupakua Tena",
+    "toastAdding": "Inaongeza",
+    "toastToWebTorrentQueue": "kurudi kwenye foleni ya WebTorrent.",
+    "toastRetryNotNeededTitle": "Kujaribu Tena Hakuhitajiki/Tatizo",
+    "toastRetryNotNeededDesc": "huenda tayari inaendelea au hitilafu ilitokea wakati wa kuongeza tena. Angalia vipakuliwa vinavyoendelea.",
+    "toastRetryErrorTitle": "Hitilafu ya Kujaribu Tena",
+    "toastUnexpectedError": "Hitilafu isiyotarajiwa imetokea",
+    "toastRetryFailedTitle": "Kujaribu Tena Kumeshindwa",
+    "toastRetryFailedNoMagnet": "URI ya Magnet haikupatikana kwa kipengee hiki.",
+    "toastWebTorrentRemovedTitle": "WebTorrent Imeondolewa",
+    "toastWebTorrentRemovedDesc": "Torrent imeondolewa kwenye foleni inayoendelea.",
+    "toastRemovalErrorTitle": "Hitilafu ya Kuondoa",
+    "toastRemovalErrorDescWebTorrent": "Imeshindwa kuondoa WebTorrent.",
+    "toastAria2ActionTitle": "Kitendo cha Seva",
+    "toastPausingTask": "Inasitisha kazi",
+    "toastResumingTask": "Inaendeleza kazi",
+    "toastAria2TaskRemovedTitle": "Kazi ya Seva Imeondolewa",
+    "toastTask": "Kazi",
+    "toastAria2TaskRemovedDesc": "imeondolewa kwenye ufuatiliaji wa ndani. (Kitendo cha seva ya nyuma kinaweza kuhitajika kwa uondoaji kamili)",
+    "toastOpeningFileTitle": "Inafungua Faili",
+    "toastOpeningFileDesc": "Inajaribu kupakua kutoka",
+    "toastAria2FileErrorTitle": "Hitilafu ya Faili ya Seva",
+    "toastAria2FileErrorDesc": "URL ya kupakua haipatikani au kazi haijakamilika."
   }
 }

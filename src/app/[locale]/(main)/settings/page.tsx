@@ -4,7 +4,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, PlayCircleIcon, ListChecksIcon, ClapperboardIcon } from "lucide-react"; // Changed FolderDownIcon to PlayCircleIcon
+import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, ClapperboardIcon, ListChecksIcon, FolderCogIcon, FolderOpenIcon } from "lucide-react"; // Added FolderCogIcon, FolderOpenIcon
 import { useState, useEffect, useCallback, use } from "react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
@@ -66,9 +66,10 @@ const STREAMING_QUALITY_OPTIONS = [
   { value: "1080p", labelKey: "quality1080p" },
   { value: "720p", labelKey: "quality720p" },
   { value: "480p", labelKey: "quality480p" },
-  { value: "any", labelKey: "qualityAny" }, // Corresponds to "Best Available"
+  { value: "any", labelKey: "qualityAny" }, 
 ];
 const DEFAULT_STREAMING_QUALITY = STREAMING_QUALITY_OPTIONS[0].value;
+const DEFAULT_DOWNLOAD_LOCATION = "ChillyMovies Downloads"; // Conceptual default
 
 interface SettingsPageProps {
   params: { locale: Locale }; 
@@ -81,9 +82,9 @@ export default function SettingsPage(props: SettingsPageProps) {
   const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);
   const [selectedHighlightAccentHex, setSelectedHighlightAccentHex] = useState<string>(DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION.hex);
   const [preferredStreamingQuality, setPreferredStreamingQuality] = useState<string>(DEFAULT_STREAMING_QUALITY);
+  const [downloadLocation, setDownloadLocation] = useState<string>(DEFAULT_DOWNLOAD_LOCATION);
   const [dictionary, setDictionary] = useState<any>(null);
 
-  // Removed useWebTorrent and clearDownloadHistory as it's download-specific
   const { toast } = useToast();
 
   useEffect(() => {
@@ -111,11 +112,12 @@ export default function SettingsPage(props: SettingsPageProps) {
 
   useEffect(() => {
     setMounted(true);
-    if (typeof localStorage === 'undefined') return;
+    if (typeof localStorage === 'undefined' || !dictionary) return; // Wait for dictionary too
 
     const savedPrimaryAccentHex = localStorage.getItem("chillymovies-primary-accent-color");
     const savedHighlightAccentHex = localStorage.getItem("chillymovies-highlight-accent-color");
-    const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-streaming-quality"); // Updated key
+    const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-streaming-quality");
+    const savedDownloadLocation = localStorage.getItem("chillymovies-download-location");
 
     const initialPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === savedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
     const initialHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === savedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
@@ -124,8 +126,9 @@ export default function SettingsPage(props: SettingsPageProps) {
     setSelectedPrimaryAccentHex(initialPrimaryColor.hex);
     setSelectedHighlightAccentHex(initialHighlightColor.hex);
     setPreferredStreamingQuality(initialPreferredQuality);
+    setDownloadLocation(savedDownloadLocation || (dictionary?.downloadLocation?.defaultPath || DEFAULT_DOWNLOAD_LOCATION));
     applyThemeColors(initialPrimaryColor, initialHighlightColor);
-  }, [applyThemeColors]);
+  }, [applyThemeColors, dictionary]); // Add dictionary to dependency array
   
   const handlePrimaryAccentColorChange = useCallback((color: PrimaryAccentColorOption) => {
     setSelectedPrimaryAccentHex(color.hex);
@@ -143,16 +146,26 @@ export default function SettingsPage(props: SettingsPageProps) {
 
   const handlePreferredQualityChange = (qualityValue: string) => {
     setPreferredStreamingQuality(qualityValue);
-    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-preferred-streaming-quality", qualityValue); // Updated key
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-preferred-streaming-quality", qualityValue);
     toast({
       title: dictionary?.toastPreferenceSavedTitle || "Preference Saved",
       description: `${dictionary?.toastPreferenceQualitySet || "Preferred streaming quality set to"} ${dictionary?.streamingPrefs?.[STREAMING_QUALITY_OPTIONS.find(q=>q.value === qualityValue)?.labelKey || qualityValue] || qualityValue}.`
     })
   };
 
-  const handleClearPlaybackHistory = () => { // Renamed from handleClearHistory
-    // Placeholder for actual playback history clearing logic
-    localStorage.removeItem("chillymovies-playback-history"); // Example key
+  const handleChangeDownloadLocation = () => {
+    // Simulate a change for now. In a desktop app, this would open a folder dialog.
+    const conceptualNewPath = dictionary?.downloadLocation?.conceptualNewPath || "User/My Videos/ChillyMovies"; 
+    setDownloadLocation(conceptualNewPath);
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-download-location", conceptualNewPath);
+    toast({
+        title: dictionary?.downloadLocation?.toastTitle || "Download Location",
+        description: dictionary?.downloadLocation?.toastDescriptionDesktop || "In a desktop app, a folder picker would open. Location conceptually updated.",
+    });
+  };
+
+  const handleClearPlaybackHistory = () => { 
+    localStorage.removeItem("chillymovies-playback-history"); 
     toast({
       title: dictionary?.toastHistoryClearedTitle || "Playback History Cleared",
       description: dictionary?.toastHistoryClearedDesc || "Your playback history has been successfully cleared (once implemented).",
@@ -212,18 +225,14 @@ export default function SettingsPage(props: SettingsPageProps) {
 
       <Card className="shadow-lg">
         <CardHeader>
-          {/* Changed icon and text to reflect streaming */}
           <CardTitle className="flex items-center gap-2"><ClapperboardIcon className="h-6 w-6 text-primary" /> {dictionary.streamingPrefs.title}</CardTitle>
           <CardDescription>{dictionary.streamingPrefs.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Removed Download Location section as it's not relevant for streaming */}
-          
           <div className="space-y-3 p-4 border rounded-lg">
             <div className="flex items-start gap-3">
               <ListChecksIcon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
               <div>
-                {/* Updated Label and Select for streaming quality */}
                 <Label htmlFor="preferred-streaming-quality-select" className="text-base font-medium block mb-1.5">{dictionary.streamingPrefs.qualityTitle}</Label>
                 <Select value={preferredStreamingQuality} onValueChange={handlePreferredQualityChange}>
                   <SelectTrigger id="preferred-streaming-quality-select" className="h-11 w-full sm:w-64">
@@ -250,6 +259,34 @@ export default function SettingsPage(props: SettingsPageProps) {
         </CardContent>
       </Card>
 
+       <Separator />
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><FolderCogIcon className="h-6 w-6 text-primary" /> {dictionary.downloadLocation.title}</CardTitle>
+          <CardDescription>{dictionary.downloadLocation.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div className="p-4 border rounded-lg bg-card">
+                <Label htmlFor="current-download-location" className="text-sm font-medium text-muted-foreground">{dictionary.downloadLocation.currentLocationLabel}</Label>
+                <div 
+                    id="current-download-location" 
+                    className="mt-1 p-3 rounded-md bg-muted text-sm text-foreground min-h-[2.5rem] flex items-center"
+                >
+                    {downloadLocation}
+                </div>
+            </div>
+            <Button onClick={handleChangeDownloadLocation} variant="outline" className="w-full sm:w-auto">
+                <FolderOpenIcon className="mr-2 h-4 w-4"/>
+                {dictionary.downloadLocation.changeLocationButton}
+            </Button>
+             <div className="flex items-start p-3 rounded-md bg-muted/50 border border-dashed border-border">
+                <InfoIcon className="h-5 w-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
+                <p className="text-sm text-muted-foreground">{dictionary.downloadLocation.note}</p>
+            </div>
+        </CardContent>
+      </Card>
+
       <Separator />
 
       <Card className="shadow-lg">
@@ -260,7 +297,6 @@ export default function SettingsPage(props: SettingsPageProps) {
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
             <div className="space-y-0.5">
-              {/* Updated text for playback history */}
               <h4 className="text-base font-medium">{dictionary.dataManagement.playbackHistoryTitle}</h4>
               <p className="text-sm text-muted-foreground">{dictionary.dataManagement.playbackHistoryDescription}</p>
             </div>
@@ -293,3 +329,4 @@ export default function SettingsPage(props: SettingsPageProps) {
     </div>
   );
 }
+
