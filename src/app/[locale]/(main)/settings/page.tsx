@@ -4,10 +4,9 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, FolderDownIcon, DownloadCloudIcon, ListChecksIcon } from "lucide-react";
-import { useState, useEffect, useCallback, use } from "react"; // Added use
+import { PaletteIcon, CheckIcon, InfoIcon, Trash2Icon, DatabaseIcon, PlayCircleIcon, ListChecksIcon, ClapperboardIcon } from "lucide-react"; // Changed FolderDownIcon to PlayCircleIcon
+import { useState, useEffect, useCallback, use } from "react";
 import { cn } from "@/lib/utils";
-import { useWebTorrent } from "@/contexts/WebTorrentContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -63,34 +62,33 @@ const HIGHLIGHT_ACCENT_COLORS: HighlightAccentOption[] = [
 ];
 const DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION = HIGHLIGHT_ACCENT_COLORS[0];
 
-const DOWNLOAD_QUALITY_OPTIONS = [
+const STREAMING_QUALITY_OPTIONS = [
   { value: "1080p", labelKey: "quality1080p" },
   { value: "720p", labelKey: "quality720p" },
   { value: "480p", labelKey: "quality480p" },
-  { value: "any", labelKey: "qualityAny" },
+  { value: "any", labelKey: "qualityAny" }, // Corresponds to "Best Available"
 ];
-const DEFAULT_DOWNLOAD_QUALITY = DOWNLOAD_QUALITY_OPTIONS[0].value;
+const DEFAULT_STREAMING_QUALITY = STREAMING_QUALITY_OPTIONS[0].value;
 
 interface SettingsPageProps {
-  params: Promise<{ locale: Locale }>; // Updated to reflect params might be a Promise
+  params: { locale: Locale }; 
 }
 
 export default function SettingsPage(props: SettingsPageProps) {
-  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
-  const locale = resolvedParams.locale;
+  const { locale } = use(props.params); 
 
   const [mounted, setMounted] = useState(false);
   const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);
   const [selectedHighlightAccentHex, setSelectedHighlightAccentHex] = useState<string>(DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION.hex);
-  const [preferredDownloadQuality, setPreferredDownloadQuality] = useState<string>(DEFAULT_DOWNLOAD_QUALITY);
+  const [preferredStreamingQuality, setPreferredStreamingQuality] = useState<string>(DEFAULT_STREAMING_QUALITY);
   const [dictionary, setDictionary] = useState<any>(null);
 
-  const { clearDownloadHistory } = useWebTorrent();
+  // Removed useWebTorrent and clearDownloadHistory as it's download-specific
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchDictionary = async () => {
-      if (locale) { // Ensure locale is available
+      if (locale) { 
         const dict = await getDictionary(locale);
         setDictionary(dict.settingsPage);
       }
@@ -117,15 +115,15 @@ export default function SettingsPage(props: SettingsPageProps) {
 
     const savedPrimaryAccentHex = localStorage.getItem("chillymovies-primary-accent-color");
     const savedHighlightAccentHex = localStorage.getItem("chillymovies-highlight-accent-color");
-    const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-download-quality");
+    const savedPreferredQuality = localStorage.getItem("chillymovies-preferred-streaming-quality"); // Updated key
 
     const initialPrimaryColor = PRIMARY_ACCENT_COLORS.find(c => c.hex === savedPrimaryAccentHex) || DEFAULT_PRIMARY_ACCENT_COLOR_OPTION;
     const initialHighlightColor = HIGHLIGHT_ACCENT_COLORS.find(c => c.hex === savedHighlightAccentHex) || DEFAULT_HIGHLIGHT_ACCENT_COLOR_OPTION;
-    const initialPreferredQuality = DOWNLOAD_QUALITY_OPTIONS.find(q => q.value === savedPreferredQuality)?.value || DEFAULT_DOWNLOAD_QUALITY;
+    const initialPreferredQuality = STREAMING_QUALITY_OPTIONS.find(q => q.value === savedPreferredQuality)?.value || DEFAULT_STREAMING_QUALITY;
     
     setSelectedPrimaryAccentHex(initialPrimaryColor.hex);
     setSelectedHighlightAccentHex(initialHighlightColor.hex);
-    setPreferredDownloadQuality(initialPreferredQuality);
+    setPreferredStreamingQuality(initialPreferredQuality);
     applyThemeColors(initialPrimaryColor, initialHighlightColor);
   }, [applyThemeColors]);
   
@@ -144,23 +142,24 @@ export default function SettingsPage(props: SettingsPageProps) {
   }, [mounted, applyThemeColors, selectedPrimaryAccentHex]);
 
   const handlePreferredQualityChange = (qualityValue: string) => {
-    setPreferredDownloadQuality(qualityValue);
-    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-preferred-download-quality", qualityValue);
+    setPreferredStreamingQuality(qualityValue);
+    if (mounted && typeof localStorage !== 'undefined') localStorage.setItem("chillymovies-preferred-streaming-quality", qualityValue); // Updated key
     toast({
       title: dictionary?.toastPreferenceSavedTitle || "Preference Saved",
-      description: `${dictionary?.toastPreferenceQualitySet || "Preferred download quality set to"} ${dictionary?.[DOWNLOAD_QUALITY_OPTIONS.find(q=>q.value === qualityValue)?.labelKey || qualityValue] || qualityValue}.`
+      description: `${dictionary?.toastPreferenceQualitySet || "Preferred streaming quality set to"} ${dictionary?.streamingPrefs?.[STREAMING_QUALITY_OPTIONS.find(q=>q.value === qualityValue)?.labelKey || qualityValue] || qualityValue}.`
     })
   };
 
-  const handleClearHistory = () => {
-    clearDownloadHistory();
+  const handleClearPlaybackHistory = () => { // Renamed from handleClearHistory
+    // Placeholder for actual playback history clearing logic
+    localStorage.removeItem("chillymovies-playback-history"); // Example key
     toast({
-      title: dictionary?.toastHistoryClearedTitle || "Download History Cleared",
-      description: dictionary?.toastHistoryClearedDesc || "Your download history has been successfully cleared.",
+      title: dictionary?.toastHistoryClearedTitle || "Playback History Cleared",
+      description: dictionary?.toastHistoryClearedDesc || "Your playback history has been successfully cleared (once implemented).",
     });
   };
 
-  if (!mounted || !dictionary || !locale) { // Ensure dictionary and locale are loaded
+  if (!mounted || !dictionary || !locale) { 
     return (
         <div className="flex justify-center items-center h-screen">
             <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
@@ -213,39 +212,31 @@ export default function SettingsPage(props: SettingsPageProps) {
 
       <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><DownloadCloudIcon className="h-6 w-6 text-primary" /> {dictionary.downloadPrefs.title}</CardTitle>
-          <CardDescription>{dictionary.downloadPrefs.description}</CardDescription>
+          {/* Changed icon and text to reflect streaming */}
+          <CardTitle className="flex items-center gap-2"><ClapperboardIcon className="h-6 w-6 text-primary" /> {dictionary.streamingPrefs.title}</CardTitle>
+          <CardDescription>{dictionary.streamingPrefs.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <div className="space-y-3 p-4 border rounded-lg">
-             <div className="flex items-start gap-3">
-                <FolderDownIcon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
-                <div>
-                    <h4 className="text-base font-medium">{dictionary.downloadPrefs.locationTitle}</h4>
-                    <p className="text-sm text-muted-foreground">
-                        {dictionary.downloadPrefs.locationDescription}
-                    </p>
-                </div>
-            </div>
-          </div>
-
+          {/* Removed Download Location section as it's not relevant for streaming */}
+          
           <div className="space-y-3 p-4 border rounded-lg">
             <div className="flex items-start gap-3">
               <ListChecksIcon className="h-5 w-5 text-muted-foreground mt-1 flex-shrink-0" />
               <div>
-                <Label htmlFor="preferred-quality-select" className="text-base font-medium block mb-1.5">{dictionary.downloadPrefs.qualityTitle}</Label>
-                <Select value={preferredDownloadQuality} onValueChange={handlePreferredQualityChange}>
-                  <SelectTrigger id="preferred-quality-select" className="h-11 w-full sm:w-64">
-                    <SelectValue placeholder={dictionary.downloadPrefs.qualityPlaceholder} />
+                {/* Updated Label and Select for streaming quality */}
+                <Label htmlFor="preferred-streaming-quality-select" className="text-base font-medium block mb-1.5">{dictionary.streamingPrefs.qualityTitle}</Label>
+                <Select value={preferredStreamingQuality} onValueChange={handlePreferredQualityChange}>
+                  <SelectTrigger id="preferred-streaming-quality-select" className="h-11 w-full sm:w-64">
+                    <SelectValue placeholder={dictionary.streamingPrefs.qualityPlaceholder} />
                   </SelectTrigger>
                   <SelectContent>
-                    {DOWNLOAD_QUALITY_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>{dictionary.downloadPrefs[option.labelKey] || option.labelKey}</SelectItem>
+                    {STREAMING_QUALITY_OPTIONS.map(option => (
+                      <SelectItem key={option.value} value={option.value}>{dictionary.streamingPrefs[option.labelKey] || option.labelKey}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {dictionary.downloadPrefs.qualityDescription}
+                  {dictionary.streamingPrefs.qualityDescription}
                 </p>
               </div>
             </div>
@@ -253,7 +244,7 @@ export default function SettingsPage(props: SettingsPageProps) {
            <div className="flex items-start p-3 rounded-md bg-muted/50 border border-dashed border-border">
             <InfoIcon className="h-5 w-5 text-muted-foreground mr-3 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
-                {dictionary.downloadPrefs.performanceNote}
+                {dictionary.streamingPrefs.performanceNote}
             </p>
           </div>
         </CardContent>
@@ -269,12 +260,13 @@ export default function SettingsPage(props: SettingsPageProps) {
         <CardContent className="space-y-6">
           <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
             <div className="space-y-0.5">
-              <h4 className="text-base font-medium">{dictionary.dataManagement.historyTitle}</h4>
-              <p className="text-sm text-muted-foreground">{dictionary.dataManagement.historyDescription}</p>
+              {/* Updated text for playback history */}
+              <h4 className="text-base font-medium">{dictionary.dataManagement.playbackHistoryTitle}</h4>
+              <p className="text-sm text-muted-foreground">{dictionary.dataManagement.playbackHistoryDescription}</p>
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="sm"><Trash2Icon className="mr-2 h-4 w-4"/> {dictionary.dataManagement.clearHistoryButton}</Button>
+                <Button variant="destructive" size="sm"><Trash2Icon className="mr-2 h-4 w-4"/> {dictionary.dataManagement.clearPlaybackHistoryButton}</Button>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
@@ -285,7 +277,7 @@ export default function SettingsPage(props: SettingsPageProps) {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                   <AlertDialogCancel>{dictionary.dataManagement.alertCancel}</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleClearHistory}>{dictionary.dataManagement.alertConfirm}</AlertDialogAction>
+                  <AlertDialogAction onClick={handleClearPlaybackHistory}>{dictionary.dataManagement.alertConfirm}</AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
