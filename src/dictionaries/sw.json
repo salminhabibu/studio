@@ -2,10 +2,8 @@
 {
   "sidebar": {
     "home": "Nyumbani",
-    "youtubeDownloader": "Kipakuzi cha YouTube",
     "movies": "Filamu",
     "tvSeries": "Tamthilia",
-    "downloads": "Vipakuliwa",
     "settings": "Mipangilio",
     "about": "Kuhusu",
     "language": "Lugha",
@@ -25,7 +23,9 @@
     "noTvSeries": "Hakuna tamthilia maarufu zilizopatikana kwa sasa.",
     "endOfTvSeries": "Umefikia mwisho wa orodha.",
     "featuredContentTitle": "Maudhui Maalum",
-    "viewAllButton": "Tazama Zote"
+    "viewAllButton": "Tazama Zote",
+    "heroWatchTrailerButton": "Tazama Trela",
+    "heroTrailerModalTitle": "Trela ya Maudhui"
   },
   "youtubeDownloaderPage": {
     "mainTitle": "Kipakuzi cha YouTube",
@@ -165,38 +165,15 @@
     "movieNotFoundDescription": "Filamu unayotafuta haikupatikana.",
     "na": "H/P",
     "clientContent": {
-        "watchTrailerButton": "Tazama Trela"
-    },
-    "downloadCard": {
-        "downloadOptionsTitle": "Chaguo za Upakuaji",
-        "webtorrentQualityPrefix": "WebTorrent inapatikana (Ubora: ",
-        "webtorrentQualityUnknown": "Haijulikani",
-        "webtorrentNotAvailable": "Kiungo cha WebTorrent hakikupatikana.",
-        "downloadWebTorrentButton": "Pakua (WebTorrent)",
-        "webTorrentLoadingButton": "WebTorrent Inapakia...",
-        "serverDownloadTitle": "Upakuaji wa Seva",
-        "selectQualityPlaceholder": "Chagua ubora",
-        "downloadServerButton": "Pakua (Seva)",
-        "visitHomepageButton": "Tembelea Ukurasa Mkuu",
-        "toastWebTorrentNotReadyTitle": "WebTorrent Haijawa Tayari",
-        "toastWebTorrentNotReadyDesc": "Tafadhali subiri mteja wa WebTorrent aanze.",
-        "toastDownloadNotAvailableTitle": "Upakuaji Haupatikani",
-        "toastDownloadNotAvailableDesc": "Hakuna kiungo cha WebTorrent kilichopatikana kwa",
-        "toastDownloadQueuedWebTorrentTitle": "Upakuaji Umepangwa (WebTorrent)",
-        "toastDownloadQueuedWebTorrentDesc": "inaongezwa kwenye vipakuliwa vyako vinavyoendelea.",
-        "toastWebTorrentIssueTitle": "Tatizo la WebTorrent",
-        "toastWebTorrentIssueDesc": "huenda tayari iko kwenye vipakuliwa au imeshindwa kuongezwa. Angalia torrent zilizopo au jaribu tena.",
-        "toastWebTorrentErrorTitle": "Hitilafu ya WebTorrent",
-        "toastWebTorrentErrorDesc": "Imeshindwa kuanza upakuaji wa WebTorrent:",
-        "toastServerDownloadUnavailableTitle": "Upakuaji wa Seva Haupatikani",
-        "toastServerDownloadUnavailableDesc": "Hakuna kitambulisho cha upakuaji wa seva.",
-        "toastSentToServerTitle": "Imetumwa kwa Upakuaji wa Seva",
-        "toastSentToServerDesc": "imetumwa kwa seva. Kitambulisho cha kazi:",
-        "toastSentToServerDescSuffix": ". Angalia ukurasa wa Vipakuliwa.",
-        "toastServerDownloadErrorTitle": "Hitilafu ya Upakuaji wa Seva",
-        "toastServerDownloadErrorDesc": "Imeshindwa kuanza upakuaji wa seva.",
-        "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
-        "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya upakuaji."
+        "watchTrailerButton": "Tazama Trela",
+        "playMovieButton": "Cheza Filamu",
+        "noTrailerToastTitle": "Trela Haipatikani",
+        "noTrailerToastDesc": "Hakuna trela iliyopatikana kwa filamu hii.",
+        "toastStreamErrorTitle": "Hitilafu ya Kutiririsha",
+        "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha:",
+        "toastServerAPIErrorDesc": "Hitilafu ya API ya Seva",
+        "toastSuccessStreamTitle": "Mtiririko Tayari",
+        "trailerModalTitle": "Trela ya Filamu"
     },
     "overview": {
         "title": "Muhtasari",
@@ -230,29 +207,19 @@
     "seriesNotFoundTitle": "Tamthilia Haikupatikana",
     "seriesNotFoundDescription": "Tamthilia unayotafuta haikupatikana.",
     "na": "H/P",
-    "clientContent": {
-        "watchTrailerButton": "Tazama Trela"
+     "clientContent": {
+        "watchTrailerButton": "Tazama Trela",
+        "playSeriesButton": "Cheza Tamthilia",
+        "playEpisodeButton": "Cheza Kipindi",
+        "noTrailerToastTitle": "Trela Haipatikani",
+        "noTrailerToastDesc": "Hakuna trela iliyopatikana kwa tamthilia hii.",
+        "toastStreamErrorTitle": "Hitilafu ya Kutiririsha",
+        "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha:",
+        "toastServerAPIErrorDesc": "Hitilafu ya API ya Seva",
+        "toastSuccessStreamTitle": "Mtiririko Tayari",
+        "trailerModalTitle": "Trela ya Tamthilia"
     },
     "posterAltText": "bango",
-    "downloadAllSeasonsButton": {
-        "selectQualityPlaceholder": "Chagua ubora wa upakuaji",
-        "downloadAllButton": "Pakua Msimu Wote",
-        "note": "Kumbuka: Hupakua vifurushi vyote vya msimu kupitia seva.",
-        "qualities": {
-            "1080p": "1080p (FHD)",
-            "720p": "720p (HD)",
-            "480p": "480p (SD)",
-            "any": "Yoyote Inayopatikana"
-        },
-        "toastSentToServerTitle": "Imetumwa kwa Upakuaji wa Seva",
-        "toastSentToServerDesc": "Misimu yote ya",
-        "toastSentToServerDescSuffix": "imetumwa kwa seva. Kitambulisho cha kazi:",
-        "toastSentToServerDescSuffix2": ". Angalia ukurasa wa Vipakuliwa.",
-        "toastServerErrorTitle": "Hitilafu ya Upakuaji wa Seva",
-        "toastServerErrorDesc": "Imeshindwa kuanza upakuaji wa 'Misimu Yote' kwenye seva.",
-        "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
-        "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya upakuaji kwa 'Misimu Yote'."
-    },
     "visitHomepageButton": "Tembelea Ukurasa Mkuu",
     "overview": {
         "title": "Muhtasari",
@@ -269,7 +236,7 @@
     },
     "seasonsEpisodes": {
         "title": "Misimu na Vipindi",
-        "description": "Vinjari na upakue vipindi kwa msimu. Bofya msimu ili kupanua."
+        "description": "Vinjari na utiririshe vipindi kwa msimu. Bofya msimu ili kupanua."
     },
     "production": {
         "title": "Kampuni za Uzalishaji"
@@ -283,54 +250,19 @@
         "noEpisodesFound": "Hakuna vipindi vilivyopatikana kwa msimu huu, au data haipatikani.",
         "stillFrom": "Picha kutoka",
         "noOverview": "Hakuna muhtasari unaopatikana.",
-        "downloadSeasonButton": {
-            "downloadSeason": "Pakua Msimu",
-             "qualities": {
-                "1080p": "1080p (FHD)",
-                "720p": "720p (HD)",
-                "480p": "480p (SD)",
-                "any": "Yoyote Inayopatikana"
-            },
-            "toastSentToServerTitle": "Imetumwa kwa Upakuaji wa Seva",
-            "toastSentToServerDesc": "Msimu",
-            "toastSentToServerDescMid": "wa",
-            "toastSentToServerDescSuffix": "umetimwa kwa seva. Kitambulisho cha kazi:",
-            "toastSentToServerDescSuffix2": ". Angalia ukurasa wa Vipakuliwa.",
-            "toastServerErrorTitle": "Hitilafu ya Upakuaji wa Seva",
-            "toastServerErrorDesc": "Imeshindwa kuanza upakuaji wa msimu kwenye seva.",
-            "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
-            "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya upakuaji kwa msimu."
+        "playSeasonButton": "Cheza Msimu",
+        "playEpisodeButton": "Cheza Kipindi",
+        "qualities": {
+            "1080p": "1080p (FHD)",
+            "720p": "720p (HD)",
+            "480p": "480p (SD)",
+            "any": "Yoyote Inayopatikana"
         },
-        "downloadEpisodeButton": {
-            "webTorrent": "WebTorrent",
-            "wtInit": "WT Inaanza...",
-            "server": "Seva",
-            "qualityPlaceholder": "Ubora",
-            "qualities": {
-                "1080p": "1080p (FHD)",
-                "720p": "720p (HD)",
-                "480p": "480p (SD)",
-                "any": "Yoyote Inayopatikana"
-            },
-            "toastWebTorrentNotReadyTitle": "WebTorrent Haijawa Tayari",
-            "toastWebTorrentNotReadyDesc": "Tafadhali subiri mteja aanze...",
-            "toastDownloadQueuedWebTorrentTitle": "Upakuaji Umepangwa (WebTorrent)",
-            "toastDownloadQueuedWebTorrentDesc": "inaongezwa.",
-            "toastWebTorrentIssueTitle": "Tatizo la WebTorrent",
-            "toastWebTorrentIssueDesc": "huenda tayari iko kwenye vipakuliwa au imeshindwa kuongezwa. Angalia vipakuliwa vilivyopo au jaribu tena.",
-            "toastDownloadFailedWebTorrentTitle": "Upakuaji Umeshindwa (WebTorrent)",
-            "toastDownloadFailedWebTorrentDescPrefix": "Imeshindwa kupata kiungo cha WebTorrent kwa",
-            "toastDownloadFailedWebTorrentDescSuffix": ". Jaribu ubora mwingine au chanzo kingine.",
-            "toastErrorTitle": "Hitilafu",
-            "toastWebTorrentErrorDesc": "Upakuaji wa WebTorrent umeshindwa:",
-            "toastSentToServerTitle": "Imetumwa kwa Upakuaji wa Seva",
-            "toastSentToServerDesc": "imetumwa kwa seva. Kitambulisho cha kazi:",
-            "toastSentToServerDescSuffix": ". Angalia ukurasa wa Vipakuliwa.",
-            "toastServerErrorTitle": "Hitilafu ya Upakuaji wa Seva",
-            "toastServerErrorDesc": "Imeshindwa kuanza upakuaji wa seva.",
-            "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
-            "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya upakuaji."
-        }
+        "toastStreamErrorTitle": "Hitilafu ya Kutiririsha",
+        "toastStreamErrorDesc": "Imeshindwa kuanza kutiririsha kipindi/msimu huu.",
+        "toastServerAPIErrorTitle": "Hitilafu ya API ya Seva",
+        "toastServerAPIErrorDesc": "Imeshindwa kuwasiliana na seva ya kutiririsha.",
+        "selectQualityPlaceholder": "Chagua Ubora"
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
@@ -338,106 +270,6 @@
         "error": "Imeshindwa kupakia mapendekezo.",
         "noMore": "Hakuna mapendekezo zaidi."
     }
-  },
-  "downloadsPage": {
-    "mainTitle": "Dhibiti Vipakuliwa Vyako",
-    "mainDescription": "Simamia vipakuliwa vinavyoendelea vya WebTorrent na Seva, na angalia historia yako.",
-    "webTorrentInitializing": "Mteja wa WebTorrent Anaanza...",
-    "tabs": {
-        "webTorrents": "WebTorrents Zinazoendelea",
-        "serverDownloads": "Vipakuliwa vya Seva",
-        "history": "Historia ya Vipakuliwa"
-    },
-    "activeWebTorrents": {
-        "title": "Vipakuliwa vya WebTorrent Vinavyoendelea",
-        "noActiveTitle": "Hakuna Vipakuliwa vya WebTorrent Vinavyoendelea",
-        "findSomethingButton": "Tafuta Kitu cha Kupakua",
-        "fetchingName": "Inatafuta jina..."
-    },
-    "serverDownloads": {
-        "title": "Vipakuliwa vya Seva Vinavyoendelea",
-        "description": "Hali ya vipakuliwa vinavyosimamiwa na seva ya nyuma.",
-        "loadingStatus": "Inapakia hali za vipakuliwa vya seva...",
-        "noActiveTitle": "Hakuna Vipakuliwa vya Seva Vinavyofuatiliwa",
-        "noActiveDescription": "Vipakuliwa vilivyoanzishwa kupitia 'Pakua (Seva)' vitaonekana hapa."
-    },
-    "history": {
-        "title": "Historia ya Vipakuliwa (WebTorrent)",
-        "clearAllButton": "Futa Historia",
-        "alertTitle": "Una Uhakika?",
-        "alertDescription": "Kitendo hiki kitafuta kabisa historia yako ya vipakuliwa vya WebTorrent. Hii haiwezi kutenduliwa.",
-        "alertCancel": "Ghairi",
-        "alertConfirm": "Futa Historia",
-        "addedLabel": "Imeongezwa",
-        "finishedLabel": "Imekamilika",
-        "sizeLabel": "Ukubwa",
-        "errorLabel": "Hitilafu ya Mwisho",
-        "streamAgainLabel": "Tiririsha Tena",
-        "retryLabel": "Jaribu Kupakua Tena",
-        "removeFromHistoryLabel": "Ondoa Kwenye Historia",
-        "noHistoryTitle": "Hakuna Historia ya Vipakuliwa",
-        "noHistoryDescription": "Vipakuliwa vilivyokamilika au vilivyoshindwa vya WebTorrent vitaonekana hapa."
-    },
-    "statusLabels": {
-        "downloading": "Inapakua",
-        "active": "Inaendelea",
-        "paused": "Imesitishwa",
-        "completed": "Imekamilika",
-        "done": "Imemalizika",
-        "seeding": "Inasambaza",
-        "complete": "Kamilifu",
-        "failed": "Imeshindwa",
-        "error": "Hitilafu",
-        "connecting": "Inaunganisha",
-        "metadata": "Inatafuta Metadata",
-        "waiting": "Inasubiri",
-        "stalled": "Imekwama",
-        "nopeers": "Hakuna Wenza",
-        "removed": "Imeondolewa",
-        "unknown": "Haijulikani"
-    },
-    "na": "H/P",
-    "etaLabel": "ETA",
-    "peersLabel": "Wenza",
-    "pauseLabel": "Sitisha",
-    "resumeLabel": "Endelea",
-    "playStreamLabel": "Cheza/Tiririsha",
-    "removeLabel": "Ondoa",
-    "downloadStalledMessage": "Upakuaji umekwama. Angalia muunganisho au wenza.",
-    "downloadFileLabel": "Pakua Faili",
-    "removeTaskLabel": "Ondoa Kazi (kutoka ufuatiliaji wa ndani)",
-    "toastPreparingStreamTitle": "Inaandaa Utiririshaji",
-    "toastPreparingStreamDesc": "Inajaribu kutiririsha faili kubwa zaidi...",
-    "toastStreamFailedTitle": "Utiririshaji Umeshindwa",
-    "toastStreamFailedDescNoStart": "Imeshindwa kuanza torrent kwa utiririshaji. Hakikisha ni magnet halali yenye wasambazaji.",
-    "toastStreamFailedDescNoPrepare": "Imeshindwa kuandaa faili kwa utiririshaji. Hakikisha torrent ina faili, inaendelea, na ina wasambazaji.",
-    "toastStreamingReadyTitle": "Utiririshaji Tayari",
-    "toastStreamingReadyDescOpening": "Inafungua kichezaji kwa ajili ya",
-    "toastRetryingDownloadTitle": "Inajaribu Kupakua Tena",
-    "toastAdding": "Inaongeza",
-    "toastToWebTorrentQueue": "kurudi kwenye foleni ya WebTorrent.",
-    "toastRetryNotNeededTitle": "Kujaribu Tena Hakuhitajiki/Tatizo",
-    "toastRetryNotNeededDesc": "huenda tayari inaendelea au hitilafu ilitokea wakati wa kuongeza tena. Angalia vipakuliwa vinavyoendelea.",
-    "toastRetryErrorTitle": "Hitilafu ya Kujaribu Tena",
-    "toastUnexpectedError": "Hitilafu isiyotarajiwa imetokea",
-    "toastRetryFailedTitle": "Kujaribu Tena Kumeshindwa",
-    "toastRetryFailedNoMagnet": "URI ya Magnet haikupatikana kwa kipengee hiki.",
-    "toastWebTorrentRemovedTitle": "WebTorrent Imeondolewa",
-    "toastWebTorrentRemovedDesc": "Torrent imeondolewa kwenye foleni inayoendelea.",
-    "toastRemovalErrorTitle": "Hitilafu ya Kuondoa",
-    "toastRemovalErrorDescWebTorrent": "Imeshindwa kuondoa WebTorrent.",
-    "toastAria2ActionTitle": "Kitendo cha Aria2",
-    "toastPausingTask": "Inasitisha kazi",
-    "toastResumingTask": "Inaendeleza kazi",
-    "toastAria2TaskRemovedTitle": "Kazi ya Aria2 Imeondolewa",
-    "toastTask": "Kazi",
-    "toastAria2TaskRemovedDesc": "imeondolewa kwenye ufuatiliaji wa ndani. (Kitendo cha nyuma kinahitajika)",
-    "toastOpeningFileTitle": "Inafungua Faili",
-    "toastOpeningFileDesc": "Inajaribu kupakua kutoka",
-    "toastAria2FileErrorTitle": "Hitilafu ya Faili ya Aria2",
-    "toastAria2FileErrorDesc": "URL ya upakuaji haipatikani au kazi haijakamilika.",
-    "toastHistoryClearedTitle": "Historia ya Vipakuliwa Imefutwa",
-    "toastHistoryClearedDesc": "Historia yako ya vipakuliwa imefutwa kikamilifu."
   },
   "settingsPage": {
     "mainTitle": "Mipangilio ya Programu",
@@ -450,42 +282,34 @@
         "setHighlightLabel": "Weka lafudhi ya kuangazia iwe",
         "note": "Mabadiliko ya mandhari yanatumika moja kwa moja na kuhifadhiwa kwenye kivinjari chako. Mabadiliko mengine yanaweza kuhitaji kuonyesha upya ukurasa ili yaonekane kikamilifu kwenye vipengele vyote."
     },
-    "downloadPrefs": {
-        "title": "Mapendeleo ya Upakuaji",
-        "description": "Sanidi jinsi vipakuliwa vinavyoshughulikiwa.",
-        "locationTitle": "Mahali pa Kupakulia",
-        "locationDescription": "Vipakuliwa vya WebTorrent huenda kwenye folda chaguomsingi ya kivinjari chako. Vipakuliwa vya seva viko kwenye seva. Kwa kuhifadhi kienyeji na vipakuliwa vya seva, hakikisha Aria2 imesanidiwa kienyeji au tumia kiendelezi cha kivinjari kukamata.",
-        "selectLocationButton": "Chagua Folda ya Upakuaji (Majaribio)",
-        "locationNote": "Uchaguzi wa moja kwa moja wa folda ni wa majaribio na unategemea API ya Ufikiaji wa Mfumo wa Faili wa kivinjari (ikiwa inatumika na ruhusa imetolewa). Vipakuliwa vinaweza bado kwenda kwenye eneo chaguomsingi la kivinjari ikiwa API haipatikani au ruhusa imekataliwa.",
-        "qualityTitle": "Ubora Unaopendelewa wa Upakuaji (Seva)",
+    "streamingPrefs": {
+        "title": "Mapendeleo ya Utiririshaji",
+        "description": "Sanidi jinsi mitiririko inavyoshughulikiwa.",
+        "qualityTitle": "Ubora Unaopendelewa wa Utiririshaji",
         "qualityPlaceholder": "Chagua ubora unaopendelea",
-        "qualityDescription": "Upendeleo huu unaongoza vipakuliwa vya upande wa seva wakati ubora mbalimbali unapatikana. Ubora wa WebTorrent unategemea kiungo maalum cha magnet.",
+        "qualityDescription": "Upendeleo huu unaongoza seva wakati ubora mbalimbali wa mtiririko unapatikana kwa kichwa.",
         "quality1080p": "1080p (FHD)",
         "quality720p": "720p (HD)",
         "quality480p": "480p (SD)",
-        "qualityAny": "Yoyote Inayopatikana",
-        "performanceNote": "Vipakuliwa vya ubora wa juu vinahitaji kipimo data na nafasi zaidi ya kuhifadhi. Kasi za upakuaji zinategemea wasambazaji kwa torrents na uwezo wa seva."
+        "qualityAny": "Ubora Bora Unaopatikana",
+        "performanceNote": "Mitiririko ya ubora wa juu inahitaji kipimo data zaidi. Ubora halisi unategemea upatikanaji wa chanzo na muunganisho wako."
     },
     "dataManagement": {
         "title": "Usimamizi wa Data",
         "description": "Simamia data ya programu iliyohifadhiwa kwenye kivinjari chako.",
-        "historyTitle": "Historia ya Upakuaji wa WebTorrent",
-        "historyDescription": "Futa historia yako iliyohifadhiwa ndani ya vipakuliwa vya WebTorrent.",
-        "clearHistoryButton": "Futa Historia",
+        "playbackHistoryTitle": "Historia ya Uchezaji (Hivi Karibuni)",
+        "playbackHistoryDescription": "Futa historia yako iliyohifadhiwa ndani ya uchezaji (kipengele kinakuja hivi karibuni).",
+        "clearPlaybackHistoryButton": "Futa Historia ya Uchezaji",
         "alertTitle": "Thibitisha Kufuta Historia",
-        "alertDescription": "Una uhakika unataka kufuta historia yako ya upakuaji wa WebTorrent? Kitendo hiki hakiwezi kutenduliwa.",
+        "alertDescription": "Una uhakika unataka kufuta historia yako ya uchezaji? Kitendo hiki hakiwezi kutenduliwa.",
         "alertCancel": "Ghairi",
         "alertConfirm": "Thibitisha Kufuta",
-        "storageNote": "Mipangilio na historia ya upakuaji huhifadhiwa kwenye hifadhi ya ndani ya kivinjari chako. Kufuta data ya kivinjari chako kunaweza kuondoa hivi."
+        "storageNote": "Mipangilio na historia huhifadhiwa kwenye hifadhi ya ndani ya kivinjari chako. Kufuta data ya kivinjari chako kunaweza kuondoa hivi."
     },
     "toastPreferenceSavedTitle": "Upendeleo Umehifadhiwa",
-    "toastPreferenceQualitySet": "Ubora unaopendelewa wa upakuaji umewekwa kuwa",
-    "toastHistoryClearedTitle": "Historia ya Vipakuliwa Imefutwa",
-    "toastHistoryClearedDesc": "Historia yako ya vipakuliwa imefutwa kikamilifu.",
-    "toastFolderSelectedTitle": "Folda Imechaguliwa",
-    "toastFolderSelectedDesc": "Upendeleo wa eneo la upakuaji umesasishwa. Jinsi itakavyohifadhiwa inategemea usaidizi wa kivinjari na ruhusa.",
-    "toastFolderSelectionFailedTitle": "Uchaguzi wa Folda Umeshindwa",
-    "toastFolderSelectionFailedDesc": "Imeshindwa kuweka eneo la upakuaji. Hakikisha kivinjari chako kinasaidia API ya Ufikiaji wa Mfumo wa Faili na umetoa ruhusa."
+    "toastPreferenceQualitySet": "Ubora unaopendelewa wa utiririshaji umewekwa kuwa",
+    "toastHistoryClearedTitle": "Historia ya Uchezaji Imefutwa",
+    "toastHistoryClearedDesc": "Historia yako ya uchezaji imefutwa kikamilifu (kipengele kitakapokamilika)."
   },
   "aboutPage": {
     "mainTitle": "Kuhusu ChillyMovies",
@@ -501,10 +325,9 @@
         "featuresList": [
             "<strong>Maktaba Pana:</strong> Gundua filamu na tamthilia kutoka kwenye katalogi kubwa na iliyosasishwa.",
             "<strong>Utafutaji wa Kina na Vichujio:</strong> Pata kile unachotafuta hasa kwa utafutaji wenye nguvu na vichujio rahisi kwa aina, mwaka, na asili.",
-            "<strong>Kipakuzi cha YouTube:</strong> Pakua video na sauti kwa urahisi kutoka YouTube na uchaguzi wa ubora.",
-            "<strong>Usimamizi wa Vipakuliwa:</strong> Uwezo imara wa kupakua ndani ya kivinjari (WebTorrent) na upande wa seva (Aria2).",
+            "<strong>Utiririshaji wa Papo Hapo:</strong> Tazama filamu na tamthilia moja kwa moja kwenye kivinjari chako na kichezaji chetu kilichojumuishwa.",
             "<strong>Taarifa za Kina:</strong> Pata maelezo ya kina, trela, waigizaji, na mapendekezo kwa kila kichwa.",
-            "<strong>Uzoefu Binafsi:</strong> Badilisha lafudhi za mandhari na mapendeleo ya upakuaji.",
+            "<strong>Uzoefu Binafsi:</strong> Badilisha lafudhi za mandhari na mapendeleo ya utiririshaji.",
             "<strong>Muundo Mwitikio:</strong> Furahia uzoefu rahisi kwenye kompyuta na vifaa vya mkononi.",
             "<strong>Usaidizi wa Lugha Mbili:</strong> Hivi sasa inasaidia Kiingereza na Kiswahili kwa hadhira pana zaidi."
         ]
@@ -515,24 +338,22 @@
         "steps": [
             { "title": "Gundua", "content": "Vinjari filamu na tamthilia maarufu kwenye ukurasa wa Nyumbani, au tumia sehemu za Gundua kwa Filamu na Tamthilia zenye vichujio." },
             { "title": "Tafuta", "content": "Tumia upau wa utafutaji wa moja kwa moja kwenye upande ili kupata haraka vichwa maalum." },
-            { "title": "Pakua", "content": "Kwenye ukurasa wowote wa filamu au tamthilia, pata chaguo za upakuaji. Chagua WebTorrent kwa upakuaji wa ndani ya kivinjari au Upakuaji wa Seva kwa usindikaji wa nyuma." },
-            { "title": "YouTube", "content": "Nenda kwenye Kipakuzi cha YouTube, bandika kiungo, pata taarifa, na uchague umbizo na ubora unaotaka." },
-            { "title": "Simamia", "content": "Fuatilia vipakuliwa vyako kwenye ukurasa wa Vipakuliwa na futa historia katika Mipangilio." },
-            { "title": "Badilisha", "content": "Binafsisha mandhari yako na mapendeleo ya upakuaji katika ukurasa wa Mipangilio." }
+            { "title": "Tiririsha", "content": "Kwenye ukurasa wowote wa filamu au tamthilia, bofya kitufe cha 'Cheza' ili kuanza kutiririsha mara moja." },
+            { "title": "Badilisha", "content": "Binafsisha mandhari yako na mapendeleo ya utiririshaji katika ukurasa wa Mipangilio." }
         ]
     },
     "versionNext": {
         "title": "Toleo na Kinachofuata",
         "currentVersionLabel": "Toleo la Sasa",
-        "currentVersion": "1.0.0 (Beta)",
+        "currentVersion": "1.1.0 (Beta ya Utiririshaji)",
         "roadmapLabel": "Vivutio vya Ramani ya Njia",
         "roadmapP1": "Tunaendelea kufanya kazi kuboresha ChillyMovies. Hizi ni baadhi ya sifa tunazofurahia kwa matoleo yajayo:",
         "roadmapItems": [
             "Akaunti za watumiaji na usawazishaji kwenye vifaa vyote.",
             "Orodha za kutazama binafsi na vipendwa.",
-            "Upangaji wa hali ya juu wa upakuaji na usimamizi kwa vipakuliwa vya seva.",
-            "Ujumuishaji na vyanzo vingi zaidi vya maudhui na watoa huduma.",
-            "Injini ya mapendekezo iliyoboreshwa.",
+            "Injini ya mapendekezo iliyoboreshwa kulingana na historia ya utazamaji.",
+            "Usaidizi wa manukuu katika lugha nyingi.",
+            "Chaguo za kutazama nje ya mtandao (ikiwezekana na kisheria).",
             "Sifa zaidi za jamii na majadiliano."
         ],
         "stayTuned": "Endelea kufuatilia kwa masasisho na sifa mpya!"
@@ -544,8 +365,7 @@
             { "item": "Next.js", "value": "Mfumo wa React kwa utoaji upande wa seva na utengenezaji wa tovuti tuli." },
             { "item": "Tailwind CSS & ShadCN UI", "value": "Kwa urembo na vipengele vya UI." },
             { "item": "TMDB API", "value": "Hifadhidata ya Filamu kwa metadata ya filamu na tamthilia." },
-            { "item": "WebTorrent", "value": "Kwa utiririshaji na upakuaji wa torrent ndani ya kivinjari." },
-            { "item": "ytdl-core", "value": "Kwa taarifa za video za YouTube na utengenezaji wa mtiririko wa upakuaji." },
+            { "item": "WebTorrent (Upande wa Seva)", "value": "Kwa ushughulikiaji wa torrent upande wa seva ili kuwezesha utiririshaji." },
             { "item": "Lucide Icons", "value": "Kwa seti safi na thabiti ya ikoni." }
         ],
         "outro": "Mradi huu ni kwa madhumuni ya kielimu na maonyesho. Tafadhali heshimu sheria za hakimiliki na usaidie waundaji wa maudhui kwa kujiandikisha kwenye huduma halali za utiririshaji na kununua maudhui."

@@ -6,11 +6,8 @@ import { getPopularMovies, getPopularTvSeries, getMovieDetails } from "@/lib/tmd
 import type { TMDBBaseMovie, TMDBBaseTVSeries, TMDBMovie, TMDBVideo } from "@/types/tmdb";
 import { HeroSection, type HeroItem } from '@/components/features/home/HeroSection';
 import { RecommendedItemCard } from '@/components/features/common/RecommendedItemCard';
-import { Loader2Icon, FilmIcon, Tv2Icon, YoutubeIcon, ArrowRightIcon } from 'lucide-react';
+import { Loader2Icon, FilmIcon, Tv2Icon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { Locale } from '@/config/i18n.config';
 import { getDictionary } from '@/lib/getDictionary'; 
 
@@ -61,7 +58,7 @@ export default function HomePage(props: HomePageProps) {
     const fetchDictionary = async () => {
       if (locale) { 
         const dict = await getDictionary(locale);
-        setDictionary(dict);
+        setDictionary(dict); // Set the whole dictionary
       }
     };
     fetchDictionary();
@@ -228,30 +225,16 @@ export default function HomePage(props: HomePageProps) {
       </div>
     );
   }
+  
+  const homeDictionary = dictionary.home || {}; // Fallback for safety
 
   return (
     <div className="space-y-10 overflow-x-hidden"> {/* Added overflow-x-hidden */}
-      <HeroSection items={heroItems} />
-
-      <Card className="shadow-xl border-border/50 bg-card/80 backdrop-blur-sm">
-        <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-                <CardTitle className="text-2xl flex items-center gap-2">
-                    <YoutubeIcon className="h-7 w-7 text-red-500"/> {dictionary.youtubeDownloaderPage.mainTitle}
-                </CardTitle>
-                <CardDescription>{dictionary.youtubeDownloaderPage.mainDescription}</CardDescription>
-            </div>
-            <Button asChild variant="ghost" size="sm">
-                <Link href={`/${locale}/youtube-downloader`} className="flex items-center">
-                    {dictionary.sidebar.youtubeDownloader} <ArrowRightIcon className="ml-1.5 h-4 w-4"/>
-                </Link>
-            </Button>
-        </CardHeader>
-      </Card>
+      <HeroSection items={heroItems} homeDictionary={homeDictionary} />
       
       <section className="space-y-6">
         <h2 className="text-3xl font-semibold text-foreground/90 flex items-center gap-2">
-          <FilmIcon className="h-7 w-7 text-primary" /> {dictionary.home.popularMovies}
+          <FilmIcon className="h-7 w-7 text-primary" /> {homeDictionary.popularMovies || "Popular Movies"}
         </h2>
         {popularMovies.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-5 gap-y-8">
@@ -266,7 +249,7 @@ export default function HomePage(props: HomePageProps) {
             ))}
           </div>
         ) : (
-          !isLoadingMovies && <p className="text-muted-foreground">{dictionary.home.noMovies}</p>
+          !isLoadingMovies && <p className="text-muted-foreground">{homeDictionary.noMovies || "No popular movies found at the moment."}</p>
         )}
         {isLoadingMovies && (
           <div className="flex justify-center py-6">
@@ -274,7 +257,7 @@ export default function HomePage(props: HomePageProps) {
           </div>
         )}
         {!isLoadingMovies && moviesPage >= moviesTotalPages && popularMovies.length > 0 && (
-          <p className="text-center text-muted-foreground py-4">{dictionary.home.endOfMovies}</p>
+          <p className="text-center text-muted-foreground py-4">{homeDictionary.endOfMovies || "You've reached the end of the list."}</p>
         )}
       </section>
 
@@ -282,7 +265,7 @@ export default function HomePage(props: HomePageProps) {
 
       <section className="space-y-6">
         <h2 className="text-3xl font-semibold text-foreground/90 flex items-center gap-2">
-          <Tv2Icon className="h-7 w-7 text-primary" /> {dictionary.home.popularTvSeries}
+          <Tv2Icon className="h-7 w-7 text-primary" /> {homeDictionary.popularTvSeries || "Popular TV Series"}
         </h2>
         {popularTvSeries.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-5 gap-y-8">
@@ -297,7 +280,7 @@ export default function HomePage(props: HomePageProps) {
             ))}
           </div>
         ) : (
-          !isLoadingTvSeries && <p className="text-muted-foreground">{dictionary.home.noTvSeries}</p>
+          !isLoadingTvSeries && <p className="text-muted-foreground">{homeDictionary.noTvSeries || "No popular TV series found at the moment."}</p>
         )}
         {isLoadingTvSeries && (
           <div className="flex justify-center py-6">
@@ -305,7 +288,7 @@ export default function HomePage(props: HomePageProps) {
           </div>
         )}
          {!isLoadingTvSeries && tvSeriesPage >= tvSeriesTotalPages && popularTvSeries.length > 0 && (
-          <p className="text-center text-muted-foreground py-4">{dictionary.home.endOfTvSeries}</p>
+          <p className="text-center text-muted-foreground py-4">{homeDictionary.endOfTvSeries || "You've reached the end of the list."}</p>
         )}
       </section>
     </div>

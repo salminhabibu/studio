@@ -2,10 +2,8 @@
 {
   "sidebar": {
     "home": "Home",
-    "youtubeDownloader": "YouTube Downloader",
     "movies": "Movies",
     "tvSeries": "TV Series",
-    "downloads": "Downloads",
     "settings": "Settings",
     "about": "About",
     "language": "Language",
@@ -25,7 +23,9 @@
     "noTvSeries": "No popular TV series found at the moment.",
     "endOfTvSeries": "You've reached the end of the list.",
     "featuredContentTitle": "Featured Content",
-    "viewAllButton": "View All"
+    "viewAllButton": "View All",
+    "heroWatchTrailerButton": "Watch Trailer",
+    "heroTrailerModalTitle": "Content Trailer"
   },
   "youtubeDownloaderPage": {
     "mainTitle": "YouTube Downloader",
@@ -165,38 +165,15 @@
     "movieNotFoundDescription": "The movie you are looking for could not be found.",
     "na": "N/A",
     "clientContent": {
-        "watchTrailerButton": "Watch Trailer"
-    },
-    "downloadCard": {
-        "downloadOptionsTitle": "Download Options",
-        "webtorrentQualityPrefix": "WebTorrent available (Quality: ",
-        "webtorrentQualityUnknown": "Unknown",
-        "webtorrentNotAvailable": "WebTorrent link not found.",
-        "downloadWebTorrentButton": "Download (WebTorrent)",
-        "webTorrentLoadingButton": "WebTorrent Loading...",
-        "serverDownloadTitle": "Server Download",
-        "selectQualityPlaceholder": "Select quality",
-        "downloadServerButton": "Download (Server)",
-        "visitHomepageButton": "Visit Homepage",
-        "toastWebTorrentNotReadyTitle": "WebTorrent Not Ready",
-        "toastWebTorrentNotReadyDesc": "Please wait for the WebTorrent client to initialize.",
-        "toastDownloadNotAvailableTitle": "Download Not Available",
-        "toastDownloadNotAvailableDesc": "No WebTorrent link found for",
-        "toastDownloadQueuedWebTorrentTitle": "Download Queued (WebTorrent)",
-        "toastDownloadQueuedWebTorrentDesc": "is being added to your active downloads.",
-        "toastWebTorrentIssueTitle": "WebTorrent Issue",
-        "toastWebTorrentIssueDesc": "might already be in downloads or failed to add. Check for existing torrents or try again.",
-        "toastWebTorrentErrorTitle": "WebTorrent Error",
-        "toastWebTorrentErrorDesc": "Could not start WebTorrent download:",
-        "toastServerDownloadUnavailableTitle": "Server Download Unavailable",
-        "toastServerDownloadUnavailableDesc": "No identifier for server download.",
-        "toastSentToServerTitle": "Sent to Server Download",
-        "toastSentToServerDesc": "sent to server. Task ID:",
-        "toastSentToServerDescSuffix": ". Check Downloads page.",
-        "toastServerDownloadErrorTitle": "Server Download Error",
-        "toastServerDownloadErrorDesc": "Failed to start server download.",
-        "toastServerAPIErrorTitle": "Server API Error",
-        "toastServerAPIErrorDesc": "Could not communicate with download server."
+        "watchTrailerButton": "Watch Trailer",
+        "playMovieButton": "Play Movie",
+        "noTrailerToastTitle": "Trailer Unavailable",
+        "noTrailerToastDesc": "No trailer found for this movie.",
+        "toastStreamErrorTitle": "Streaming Error",
+        "toastStreamErrorDesc": "Could not start stream:",
+        "toastServerAPIErrorDesc": "Server API Error",
+        "toastSuccessStreamTitle": "Stream Ready",
+        "trailerModalTitle": "Movie Trailer"
     },
     "overview": {
         "title": "Overview",
@@ -231,28 +208,18 @@
     "seriesNotFoundDescription": "The TV series you are looking for could not be found.",
     "na": "N/A",
     "clientContent": {
-        "watchTrailerButton": "Watch Trailer"
+        "watchTrailerButton": "Watch Trailer",
+        "playSeriesButton": "Play Series",
+        "playEpisodeButton": "Play Episode",
+        "noTrailerToastTitle": "Trailer Unavailable",
+        "noTrailerToastDesc": "No trailer found for this series.",
+        "toastStreamErrorTitle": "Streaming Error",
+        "toastStreamErrorDesc": "Could not start stream:",
+        "toastServerAPIErrorDesc": "Server API Error",
+        "toastSuccessStreamTitle": "Stream Ready",
+        "trailerModalTitle": "Series Trailer"
     },
     "posterAltText": "poster",
-    "downloadAllSeasonsButton": {
-        "selectQualityPlaceholder": "Select download quality",
-        "downloadAllButton": "Download All Seasons",
-        "note": "Note: Downloads full season packs via server.",
-        "qualities": {
-            "1080p": "1080p (FHD)",
-            "720p": "720p (HD)",
-            "480p": "480p (SD)",
-            "any": "Any Available"
-        },
-        "toastSentToServerTitle": "Sent to Server Download",
-        "toastSentToServerDesc": "All seasons of",
-        "toastSentToServerDescSuffix": "sent to server. Task ID:",
-        "toastSentToServerDescSuffix2": ". Check Downloads page.",
-        "toastServerErrorTitle": "Server Download Error",
-        "toastServerErrorDesc": "Failed to start 'All Seasons' download on server.",
-        "toastServerAPIErrorTitle": "Server API Error",
-        "toastServerAPIErrorDesc": "Could not communicate with download server for 'All Seasons'."
-    },
     "visitHomepageButton": "Visit Homepage",
     "overview": {
         "title": "Overview",
@@ -269,7 +236,7 @@
     },
     "seasonsEpisodes": {
         "title": "Seasons & Episodes",
-        "description": "Browse and download episodes by season. Click a season to expand."
+        "description": "Browse and stream episodes by season. Click a season to expand."
     },
     "production": {
         "title": "Production Companies"
@@ -283,54 +250,19 @@
         "noEpisodesFound": "No episodes found for this season, or data is unavailable.",
         "stillFrom": "Still from",
         "noOverview": "No overview available.",
-        "downloadSeasonButton": {
-            "downloadSeason": "Download Season",
-             "qualities": {
-                "1080p": "1080p (FHD)",
-                "720p": "720p (HD)",
-                "480p": "480p (SD)",
-                "any": "Any Available"
-            },
-            "toastSentToServerTitle": "Sent to Server Download",
-            "toastSentToServerDesc": "Season",
-            "toastSentToServerDescMid": "of",
-            "toastSentToServerDescSuffix": "sent to server. Task ID:",
-            "toastSentToServerDescSuffix2": ". Check Downloads page.",
-            "toastServerErrorTitle": "Server Download Error",
-            "toastServerErrorDesc": "Failed to start season download on server.",
-            "toastServerAPIErrorTitle": "Server API Error",
-            "toastServerAPIErrorDesc": "Could not communicate with download server for season."
+        "playSeasonButton": "Play Season",
+        "playEpisodeButton": "Play Episode",
+        "qualities": {
+            "1080p": "1080p (FHD)",
+            "720p": "720p (HD)",
+            "480p": "480p (SD)",
+            "any": "Any Available"
         },
-        "downloadEpisodeButton": {
-            "webTorrent": "WebTorrent",
-            "wtInit": "WT Init...",
-            "server": "Server",
-            "qualityPlaceholder": "Quality",
-            "qualities": {
-                "1080p": "1080p (FHD)",
-                "720p": "720p (HD)",
-                "480p": "480p (SD)",
-                "any": "Any Available"
-            },
-            "toastWebTorrentNotReadyTitle": "WebTorrent Not Ready",
-            "toastWebTorrentNotReadyDesc": "Please wait for the client to initialize...",
-            "toastDownloadQueuedWebTorrentTitle": "Download Queued (WebTorrent)",
-            "toastDownloadQueuedWebTorrentDesc": "is being added.",
-            "toastWebTorrentIssueTitle": "WebTorrent Issue",
-            "toastWebTorrentIssueDesc": "might already be in downloads or failed to add. Check active downloads or try again.",
-            "toastDownloadFailedWebTorrentTitle": "Download Failed (WebTorrent)",
-            "toastDownloadFailedWebTorrentDescPrefix": "Could not find a WebTorrent link for",
-            "toastDownloadFailedWebTorrentDescSuffix": ". Try a different quality or source.",
-            "toastErrorTitle": "Error",
-            "toastWebTorrentErrorDesc": "WebTorrent download failed:",
-            "toastSentToServerTitle": "Sent to Server Download",
-            "toastSentToServerDesc": "sent to server. Task ID:",
-            "toastSentToServerDescSuffix": ". Check Downloads page.",
-            "toastServerErrorTitle": "Server Download Error",
-            "toastServerErrorDesc": "Failed to start server download.",
-            "toastServerAPIErrorTitle": "Server API Error",
-            "toastServerAPIErrorDesc": "Could not communicate with download server."
-        }
+        "toastStreamErrorTitle": "Streaming Error",
+        "toastStreamErrorDesc": "Could not start stream for this episode/season.",
+        "toastServerAPIErrorTitle": "Server API Error",
+        "toastServerAPIErrorDesc": "Could not communicate with the streaming server.",
+        "selectQualityPlaceholder": "Select Quality"
     },
     "recommendations": {
         "title": "You Might Also Like",
@@ -338,106 +270,6 @@
         "error": "Could not load recommendations.",
         "noMore": "No more recommendations."
     }
-  },
-  "downloadsPage": {
-    "mainTitle": "Manage Your Downloads",
-    "mainDescription": "Oversee active WebTorrent and Server downloads, and view your history.",
-    "webTorrentInitializing": "WebTorrent Client Initializing...",
-    "tabs": {
-        "webTorrents": "Active WebTorrents",
-        "serverDownloads": "Server Downloads",
-        "history": "Download History"
-    },
-    "activeWebTorrents": {
-        "title": "Active WebTorrent Downloads",
-        "noActiveTitle": "No Active WebTorrent Downloads",
-        "findSomethingButton": "Find Something to Download",
-        "fetchingName": "Fetching name..."
-    },
-    "serverDownloads": {
-        "title": "Active Server Downloads",
-        "description": "Status of downloads managed by the backend server.",
-        "loadingStatus": "Loading server download statuses...",
-        "noActiveTitle": "No Server Downloads Tracked",
-        "noActiveDescription": "Downloads initiated via 'Download (Server)' will appear here."
-    },
-    "history": {
-        "title": "Download History (WebTorrent)",
-        "clearAllButton": "Clear History",
-        "alertTitle": "Are you sure?",
-        "alertDescription": "This action will permanently delete your WebTorrent download history. This cannot be undone.",
-        "alertCancel": "Cancel",
-        "alertConfirm": "Clear History",
-        "addedLabel": "Added",
-        "finishedLabel": "Finished",
-        "sizeLabel": "Size",
-        "errorLabel": "Last Error",
-        "streamAgainLabel": "Stream Again",
-        "retryLabel": "Retry Download",
-        "removeFromHistoryLabel": "Remove from History",
-        "noHistoryTitle": "No Download History",
-        "noHistoryDescription": "Completed or failed WebTorrent downloads will appear here."
-    },
-    "statusLabels": {
-        "downloading": "Downloading",
-        "active": "Active",
-        "paused": "Paused",
-        "completed": "Completed",
-        "done": "Done",
-        "seeding": "Seeding",
-        "complete": "Complete",
-        "failed": "Failed",
-        "error": "Error",
-        "connecting": "Connecting",
-        "metadata": "Fetching Metadata",
-        "waiting": "Waiting",
-        "stalled": "Stalled",
-        "nopeers": "No Peers",
-        "removed": "Removed",
-        "unknown": "Unknown"
-    },
-    "na": "N/A",
-    "etaLabel": "ETA",
-    "peersLabel": "Peers",
-    "pauseLabel": "Pause",
-    "resumeLabel": "Resume",
-    "playStreamLabel": "Play/Stream",
-    "removeLabel": "Remove",
-    "downloadStalledMessage": "Download stalled. Check connection or peers.",
-    "downloadFileLabel": "Download File",
-    "removeTaskLabel": "Remove Task (from local tracking)",
-    "toastPreparingStreamTitle": "Preparing Stream",
-    "toastPreparingStreamDesc": "Attempting to stream the largest file...",
-    "toastStreamFailedTitle": "Stream Failed",
-    "toastStreamFailedDescNoStart": "Could not start torrent for streaming. Ensure it's a valid magnet with seeders.",
-    "toastStreamFailedDescNoPrepare": "Could not prepare the file for streaming. Ensure torrent has files, is active, and has seeders.",
-    "toastStreamingReadyTitle": "Streaming Ready",
-    "toastStreamingReadyDescOpening": "Opening player for",
-    "toastRetryingDownloadTitle": "Retrying Download",
-    "toastAdding": "Adding",
-    "toastToWebTorrentQueue": "back to WebTorrent queue.",
-    "toastRetryNotNeededTitle": "Retry Not Needed/Issue",
-    "toastRetryNotNeededDesc": "might already be active or an error occurred during re-add. Check active downloads.",
-    "toastRetryErrorTitle": "Retry Error",
-    "toastUnexpectedError": "An unexpected error occurred",
-    "toastRetryFailedTitle": "Retry Failed",
-    "toastRetryFailedNoMagnet": "Magnet URI not found for this item.",
-    "toastWebTorrentRemovedTitle": "WebTorrent Removed",
-    "toastWebTorrentRemovedDesc": "The torrent has been removed from active queue.",
-    "toastRemovalErrorTitle": "Removal Error",
-    "toastRemovalErrorDescWebTorrent": "Could not remove the WebTorrent.",
-    "toastAria2ActionTitle": "Aria2 Action",
-    "toastPausingTask": "Pausing task",
-    "toastResumingTask": "Resuming task",
-    "toastAria2TaskRemovedTitle": "Aria2 Task Removed",
-    "toastTask": "Task",
-    "toastAria2TaskRemovedDesc": "removed from local tracking. (Backend action needed)",
-    "toastOpeningFileTitle": "Opening File",
-    "toastOpeningFileDesc": "Attempting to download from",
-    "toastAria2FileErrorTitle": "Aria2 File Error",
-    "toastAria2FileErrorDesc": "Download URL not available or task not complete.",
-    "toastHistoryClearedTitle": "Download History Cleared",
-    "toastHistoryClearedDesc": "Your download history has been successfully cleared."
   },
   "settingsPage": {
     "mainTitle": "Application Settings",
@@ -450,42 +282,34 @@
         "setHighlightLabel": "Set highlight accent to",
         "note": "Theme changes are applied live and saved locally in your browser. Some changes may require a refresh for full effect across all components."
     },
-    "downloadPrefs": {
-        "title": "Download Preferences",
-        "description": "Configure how downloads are handled.",
-        "locationTitle": "Download Location",
-        "locationDescription": "WebTorrent downloads go to your browser's default. Server downloads are on the server. For local saving with server downloads, ensure Aria2 is configured locally or use a browser extension to intercept.",
-        "selectLocationButton": "Select Download Folder (Experimental)",
-        "locationNote": "Direct folder selection is experimental and relies on browser File System Access API (if supported and permission granted). Downloads may still go to default browser location if API is unavailable or permission denied.",
-        "qualityTitle": "Preferred Download Quality (Server)",
+    "streamingPrefs": {
+        "title": "Streaming Preferences",
+        "description": "Configure how streams are handled.",
+        "qualityTitle": "Preferred Streaming Quality",
         "qualityPlaceholder": "Select preferred quality",
-        "qualityDescription": "This preference guides server-side downloads when multiple qualities are available. WebTorrent quality depends on the specific magnet link.",
+        "qualityDescription": "This preference guides the server when multiple stream qualities are available for a title.",
         "quality1080p": "1080p (FHD)",
         "quality720p": "720p (HD)",
         "quality480p": "480p (SD)",
-        "qualityAny": "Any Available",
-        "performanceNote": "Higher quality downloads require more bandwidth and storage. Download speeds depend on seeders for torrents and server capacity."
+        "qualityAny": "Best Available",
+        "performanceNote": "Higher quality streams require more bandwidth. Actual quality depends on source availability and your connection."
     },
     "dataManagement": {
         "title": "Data Management",
         "description": "Manage application data stored in your browser.",
-        "historyTitle": "WebTorrent Download History",
-        "historyDescription": "Clear your locally stored history of WebTorrent downloads.",
-        "clearHistoryButton": "Clear History",
+        "playbackHistoryTitle": "Playback History (Soon)",
+        "playbackHistoryDescription": "Clear your locally stored playback history (feature coming soon).",
+        "clearPlaybackHistoryButton": "Clear Playback History",
         "alertTitle": "Confirm Clear History",
-        "alertDescription": "Are you sure you want to clear your WebTorrent download history? This action cannot be undone.",
+        "alertDescription": "Are you sure you want to clear your playback history? This action cannot be undone.",
         "alertCancel": "Cancel",
         "alertConfirm": "Confirm Clear",
-        "storageNote": "Settings and download history are stored in your browser's local storage. Clearing your browser data may remove these."
+        "storageNote": "Settings and history are stored in your browser's local storage. Clearing your browser data may remove these."
     },
     "toastPreferenceSavedTitle": "Preference Saved",
-    "toastPreferenceQualitySet": "Preferred download quality set to",
-    "toastHistoryClearedTitle": "Download History Cleared",
-    "toastHistoryClearedDesc": "Your download history has been successfully cleared.",
-    "toastFolderSelectedTitle": "Folder Selected",
-    "toastFolderSelectedDesc": "Download location preference updated. Actual saving behavior depends on browser support and permissions.",
-    "toastFolderSelectionFailedTitle": "Folder Selection Failed",
-    "toastFolderSelectionFailedDesc": "Could not set download location. Ensure your browser supports the File System Access API and you've granted permission."
+    "toastPreferenceQualitySet": "Preferred streaming quality set to",
+    "toastHistoryClearedTitle": "Playback History Cleared",
+    "toastHistoryClearedDesc": "Your playback history has been successfully cleared (once implemented)."
   },
   "aboutPage": {
     "mainTitle": "About ChillyMovies",
@@ -501,10 +325,9 @@
         "featuresList": [
             "<strong>Extensive Library:</strong> Discover movies and TV series from a vast, up-to-date catalog.",
             "<strong>Advanced Search & Filtering:</strong> Find exactly what you're looking for with powerful search and intuitive filters by genre, year, and origin.",
-            "<strong>YouTube Downloader:</strong> Easily download videos and audio from YouTube with quality selection.",
-            "<strong>Download Management:</strong> Robust in-browser (WebTorrent) and server-side (Aria2) download capabilities.",
+            "<strong>Instant Streaming:</strong> Watch movies and TV series directly in your browser with our integrated player.",
             "<strong>Detailed Information:</strong> Access comprehensive details, trailers, cast, and recommendations for every title.",
-            "<strong>Personalized Experience:</strong> Customize theme accents and download preferences.",
+            "<strong>Personalized Experience:</strong> Customize theme accents and streaming preferences.",
             "<strong>Responsive Design:</strong> Enjoy a seamless experience across desktop and mobile devices.",
             "<strong>Bilingual Support:</strong> Currently supporting English and Swahili for a wider audience."
         ]
@@ -515,24 +338,22 @@
         "steps": [
             { "title": "Explore", "content": "Browse popular movies and TV series on the Home page, or use the Discover sections for Movies and TV Series with filters." },
             { "title": "Search", "content": "Use the live search bar in the sidebar to quickly find specific titles." },
-            { "title": "Download", "content": "On any movie or TV series page, find download options. Choose WebTorrent for in-browser downloads or Server Download for backend processing." },
-            { "title": "YouTube", "content": "Navigate to the YouTube Downloader, paste a link, fetch info, and select your desired format and quality." },
-            { "title": "Manage", "content": "Keep track of your downloads on the Downloads page and clear history in Settings." },
-            { "title": "Customize", "content": "Personalize your theme and download preferences in the Settings page." }
+            { "title": "Stream", "content": "On any movie or TV series page, click the 'Play' button to start streaming instantly." },
+            { "title": "Customize", "content": "Personalize your theme and streaming preferences in the Settings page." }
         ]
     },
     "versionNext": {
         "title": "Version & What's Next",
         "currentVersionLabel": "Current Version",
-        "currentVersion": "1.0.0 (Beta)",
+        "currentVersion": "1.1.0 (Streaming Beta)",
         "roadmapLabel": "Roadmap Highlights",
         "roadmapP1": "We're constantly working to enhance ChillyMovies. Here are some features we're excited about for future releases:",
         "roadmapItems": [
             "User accounts and synchronization across devices.",
             "Personalized watchlists and favorites.",
-            "Advanced download scheduling and management for server downloads.",
-            "Integration with more content sources and providers.",
-            "Enhanced recommendation engine.",
+            "Enhanced recommendation engine based on viewing history.",
+            "Subtitle support in multiple languages.",
+            "Offline viewing options (if feasible and legal).",
             "More robust community features and discussions."
         ],
         "stayTuned": "Stay tuned for updates and new features!"
@@ -544,8 +365,7 @@
             { "item": "Next.js", "value": "React framework for server-side rendering and static site generation." },
             { "item": "Tailwind CSS & ShadCN UI", "value": "For styling and UI components." },
             { "item": "TMDB API", "value": "The Movie Database for movie and TV series metadata." },
-            { "item": "WebTorrent", "value": "For in-browser torrent streaming and downloading." },
-            { "item": "ytdl-core", "value": "For YouTube video information and download stream generation." },
+            { "item": "WebTorrent (Server-side)", "value": "For server-side torrent handling to enable streaming." },
             { "item": "Lucide Icons", "value": "For a clean and consistent icon set." }
         ],
         "outro": "This project is for educational and demonstration purposes. Please respect copyright laws and support content creators by subscribing to legal streaming services and purchasing content."

@@ -3,8 +3,8 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { PlayCircleIcon, FilmIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { Dialog, DialogContent } from "@/components/ui/dialog"; // DialogTrigger not used directly here
+import { PlayCircleIcon, FilmIcon, ChevronLeftIcon, ChevronRightIcon, Loader2Icon } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import type { TMDBMovie } from "@/types/tmdb";
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState, useEffect, useCallback } from "react";
@@ -17,9 +17,10 @@ export interface HeroItem {
 
 interface HeroSectionProps {
   items: HeroItem[];
+  homeDictionary: any; // Dictionary for home page specific texts
 }
 
-export function HeroSection({ items }: HeroSectionProps) {
+export function HeroSection({ items, homeDictionary }: HeroSectionProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [activeTrailerKey, setActiveTrailerKey] = useState<string | null>(null);
@@ -59,9 +60,9 @@ export function HeroSection({ items }: HeroSectionProps) {
     return (
       <section className="relative h-[60vh] min-h-[400px] rounded-xl overflow-hidden shadow-2xl group bg-muted flex flex-col items-center justify-center text-center p-6">
         <FilmIcon className="w-24 h-24 text-muted-foreground/50 mb-6" />
-        <h1 className="text-3xl font-semibold text-muted-foreground">No Movies to Feature</h1>
+        <h1 className="text-3xl font-semibold text-muted-foreground">{homeDictionary?.featuredContentTitle || "Featured Content"}</h1>
         <p className="text-muted-foreground mt-2 max-w-md">
-          We couldn&apos;t load featured movies at this time. Please check back later.
+          {homeDictionary?.noMovies || "We couldn't load featured movies at this time. Please check back later."}
         </p>
       </section>
     );
@@ -118,7 +119,7 @@ export function HeroSection({ items }: HeroSectionProps) {
             onClick={() => handleWatchTrailer(currentItem.trailerKey)}
           >
             <PlayCircleIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
-            Watch Trailer
+            {homeDictionary?.heroWatchTrailerButton || "Watch Trailer"}
           </Button>
         )}
       </div>
@@ -161,16 +162,21 @@ export function HeroSection({ items }: HeroSectionProps) {
 
       <Dialog open={isTrailerModalOpen} onOpenChange={setIsTrailerModalOpen}>
         <DialogContent className="sm:max-w-[90vw] md:max-w-[80vw] lg:max-w-[70vw] xl:max-w-[60vw] p-0 border-0 bg-black/90 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
-          {activeTrailerKey && (
+          <DialogTitle className="sr-only">{homeDictionary?.heroTrailerModalTitle || "Content Trailer"}</DialogTitle>
+          {activeTrailerKey ? (
             <iframe
               width="100%"
               height="100%"
               src={`https://www.youtube.com/embed/${activeTrailerKey}?autoplay=1&rel=0&modestbranding=1&showinfo=0`}
-              title="YouTube video player"
+              title={homeDictionary?.heroTrailerModalTitle || "Content Trailer"}
               frameBorder="0"
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
               allowFullScreen
             ></iframe>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+                <Loader2Icon className="h-12 w-12 animate-spin text-primary" />
+            </div>
           )}
         </DialogContent>
       </Dialog>
