@@ -4,18 +4,18 @@
 import type { TMDBTVSeries } from "@/types/tmdb";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // Added DialogTitle
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PlayCircleIcon, PlayIcon, Loader2Icon } from "lucide-react";
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState } from "react";
-import { VideoPlayer } from "@/components/features/streaming/VideoPlayer";
+// import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI
 import { useToast } from "@/hooks/use-toast";
 
 interface TVSeriesClientContentProps {
   series: TMDBTVSeries;
   trailerKey: string | null;
   children: React.ReactNode;
-  dictionary: any; // For localized text
+  dictionary: any; 
   locale: string;
 }
 
@@ -23,9 +23,8 @@ export function TVSeriesClientContent({ series, trailerKey, children, dictionary
   const { toast } = useToast();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   
-  // States for the main series play (e.g., play first episode or if series itself is streamable)
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  // const [streamUrl, setStreamUrl] = useState<string | null>(null); // Stubbed
   const [streamTitle, setStreamTitle] = useState<string>("");
   const [isPlayLoading, setIsPlayLoading] = useState(false);
 
@@ -42,77 +41,31 @@ export function TVSeriesClientContent({ series, trailerKey, children, dictionary
     }
   };
 
-  // This function is for playing the series itself, e.g., its first available episode
-  // Individual episodes will have their own play handlers in SeasonAccordionItem
   const handlePlaySeries = async () => {
     setIsPlayLoading(true);
-    setStreamUrl(null);
-    setStreamTitle("");
-
-    // Find first available episode to play (simple logic for now)
     const firstSeason = series.seasons?.find(s => s.season_number > 0 && s.episode_count > 0) || series.seasons?.[0];
-    if (!firstSeason) {
-        toast({ title: dictionary?.toastStreamErrorTitle || "Streaming Error", description: "No seasons available to play.", variant: "destructive"});
-        setIsPlayLoading(false);
-        return;
-    }
-    // In a real scenario, you'd fetch episode 1 of season 1 or similar
-    const episodeToPlay = { season: firstSeason.season_number, episode: 1, title: `${series.name} - S${String(firstSeason.season_number).padStart(2,'0')}E01 (Example)` };
+    const episodeToPlayTitle = firstSeason 
+      ? `${series.name} - S${String(firstSeason.season_number).padStart(2,'0')}E01 (${dictionary?.exampleEpisodeSuffix || 'Example'})` 
+      : series.name;
+    setStreamTitle(episodeToPlayTitle);
 
-
-    try {
-      const response = await fetch(`/api/stream`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.NEXT_PUBLIC_BACKEND_API_KEY || "",
-         },
-        body: JSON.stringify({ 
-          tmdbSeriesId: series.id,
-          title: series.name, // Series title
-          type: 'tv_episode', // Assuming we play an episode
-          season: episodeToPlay.season,
-          episode: episodeToPlay.episode,
-          preferredQuality: localStorage.getItem("chillymovies-preferred-streaming-quality") || '1080p',
-        }),
-      });
-
-      if (!response.ok) {
-        let errorPayload = { message: dictionary?.toastServerAPIErrorDesc || 'Server API Error' };
-        try { errorPayload = await response.json(); } catch (e) {}
-        throw new Error(errorPayload.message || `Server error: ${response.status}`);
-      }
-
-      const { streamId, streamTitle: actualStreamTitle, fileName } = await response.json();
-      if (streamId) {
-        setStreamUrl(`/api/watch/${streamId}/${encodeURIComponent(fileName || episodeToPlay.title)}`);
-        setStreamTitle(actualStreamTitle || episodeToPlay.title);
-        setIsPlayerModalOpen(true);
-        toast({ title: dictionary?.toastSuccessStreamTitle || "Stream Ready", description: `${actualStreamTitle || episodeToPlay.title}`});
-      } else {
-        throw new Error(dictionary?.toastStreamErrorDesc || "Failed to get stream ID from server.");
-      }
-    } catch (error) {
-      console.error("[TVSeriesClientContent] Error initiating series stream:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: dictionary?.toastStreamErrorTitle || "Streaming Error",
-        description: `${dictionary?.toastStreamErrorDesc || "Could not start stream:"} ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsPlayLoading(false);
-    }
+    console.log(`[TVSeriesClientContent] "Play Series" clicked for: ${series.name}. Backend call stubbed.`);
+    toast({
+      title: "Playback (Stubbed)",
+      description: `Playing series "${series.name}". Feature to be fully implemented.`,
+    });
+    // setStreamUrl("placeholder_stream_url_series");
+    setIsPlayerModalOpen(true);
+    setTimeout(() => setIsPlayLoading(false), 1500);
   };
 
 
   return (
     <>
-      {/* Hero section */}
       <div className="relative h-[45vh] sm:h-[50vh] md:h-[60vh] min-h-[280px] sm:min-h-[350px] md:min-h-[400px] rounded-lg sm:rounded-xl overflow-hidden shadow-2xl group mb-6 sm:mb-8">
         <Image
           src={getFullImagePath(series.backdrop_path, "original")}
-          alt={`${series.name} backdrop`}
+          alt={`${series.name} ${dictionary?.backdropAltText || 'backdrop'}`}
           fill
           className="object-cover object-center sm:object-top transition-transform duration-500 ease-in-out group-hover:scale-105"
           priority
@@ -129,7 +82,7 @@ export function TVSeriesClientContent({ series, trailerKey, children, dictionary
               {series.tagline}
             </p>
           )}
-          <div className="mt-2 sm:mt-3 space-x-3 animate-fade-in-up animation-delay-200">
+          <div className="mt-2 sm:mt-3 flex flex-wrap gap-3 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
               className="h-11 px-5 sm:h-12 sm:px-7 text-base sm:text-lg group/button self-start"
@@ -176,14 +129,17 @@ export function TVSeriesClientContent({ series, trailerKey, children, dictionary
       <Dialog open={isPlayerModalOpen} onOpenChange={setIsPlayerModalOpen}>
         <DialogContent className="sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] p-0 border-0 bg-black/95 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
           <DialogTitle className="sr-only">{streamTitle || (dictionary?.streamingVideoTitle || "Streaming Video")}</DialogTitle>
-          {streamUrl && <VideoPlayer src={streamUrl} title={streamTitle || series.name} />}
+          {/* <VideoPlayer src={streamUrl!} title={streamTitle || series.name} /> */}
+          <div className="w-full h-full flex items-center justify-center bg-black text-white">
+             {isPlayLoading ? <Loader2Icon className="h-12 w-12 animate-spin" /> : (streamTitle ? `Video Player for: ${streamTitle} (Stubbed)` : "Video Player (Stubbed)")}
+           </div>
         </DialogContent>
       </Dialog>
 
        <style jsx global>{`
         .animate-fade-in-up {
           animation: fadeInUp 0.6s ease-out forwards;
-          opacity: 0; /* Start hidden for animation */
+          opacity: 0; 
         }
         @keyframes fadeInUp {
           from {

@@ -4,26 +4,26 @@
 import type { TMDBMovie } from "@/types/tmdb";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"; // Added DialogTitle
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PlayCircleIcon, PlayIcon, Loader2Icon } from "lucide-react";
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState } from "react";
-import { VideoPlayer } from "@/components/features/streaming/VideoPlayer";
+// import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI, but stub source
 import { useToast } from "@/hooks/use-toast";
 
 interface MovieClientContentProps {
   movie: TMDBMovie;
   trailerKey: string | null;
   children: React.ReactNode;
-  dictionary: any; // For localized text
-  locale: string; // For API calls if needed, or general context
+  dictionary: any; 
+  locale: string; 
 }
 
 export function MovieClientContent({ movie, trailerKey, children, dictionary, locale }: MovieClientContentProps) {
   const { toast } = useToast();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
-  const [streamUrl, setStreamUrl] = useState<string | null>(null);
+  // const [streamUrl, setStreamUrl] = useState<string | null>(null); // Stubbed
   const [streamTitle, setStreamTitle] = useState<string>("");
   const [isPlayLoading, setIsPlayLoading] = useState(false);
 
@@ -41,57 +41,16 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
 
   const handlePlayMovie = async () => {
     setIsPlayLoading(true);
-    setStreamUrl(null);
-    setStreamTitle("");
-
-    try {
-      const response = await fetch(`/api/stream`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'X-API-Key': process.env.NEXT_PUBLIC_BACKEND_API_KEY || "",
-        },
-        body: JSON.stringify({ 
-          imdbId: movie.imdb_id, 
-          title: movie.title,
-          type: 'movie',
-          preferredQuality: localStorage.getItem("chillymovies-preferred-streaming-quality") || '1080p', // Get from settings or default
-        }),
-      });
-
-      if (!response.ok) {
-        let errorPayload = { message: dictionary?.toastServerAPIErrorDesc || 'Server API Error (Could not parse error response)' };
-        try {
-          errorPayload = await response.json();
-        } catch (parseError) {
-          // Keep default errorPayload if JSON parsing fails
-        }
-        console.error("[MovieClientContent] API Error Response:", { status: response.status, statusText: response.statusText, data: errorPayload });
-        const displayMessage = errorPayload.message || `Server error: ${response.status} - ${response.statusText}`;
-        throw new Error(displayMessage);
-      }
-
-      const { streamId, streamTitle: actualStreamTitle, fileName } = await response.json();
-      
-      if (streamId) {
-        setStreamUrl(`/api/watch/${streamId}/${encodeURIComponent(fileName || movie.title)}`);
-        setStreamTitle(actualStreamTitle || movie.title);
-        setIsPlayerModalOpen(true);
-        toast({ title: dictionary?.toastSuccessStreamTitle || "Stream Ready", description: `${actualStreamTitle || movie.title}`});
-      } else {
-        throw new Error(dictionary?.toastStreamErrorDesc || "Failed to get stream ID from server.");
-      }
-    } catch (error) {
-      console.error("[MovieClientContent] Error initiating stream:", error);
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      toast({
-        title: dictionary?.toastStreamErrorTitle || "Streaming Error",
-        description: `${dictionary?.toastStreamErrorDesc || "Could not start stream:"} ${errorMessage}`,
-        variant: "destructive",
-      });
-    } finally {
-      setIsPlayLoading(false);
-    }
+    setStreamTitle(movie.title);
+    console.log(`[MovieClientContent] "Play Movie" clicked for: ${movie.title}. Backend call stubbed.`);
+    toast({
+      title: "Playback (Stubbed)",
+      description: `Playing "${movie.title}". Feature to be fully implemented.`,
+    });
+    // Simulate a delay then open modal with placeholder
+    // setStreamUrl("placeholder_stream_url"); // Or keep null and let VideoPlayer handle it
+    setIsPlayerModalOpen(true); 
+    setTimeout(() => setIsPlayLoading(false), 1500);
   };
 
 
@@ -100,7 +59,7 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
       <div className="relative h-[60vh] min-h-[300px] md:min-h-[400px] lg:min-h-[500px] rounded-xl overflow-hidden shadow-2xl group mb-8">
         <Image
           src={getFullImagePath(movie.backdrop_path, "original")}
-          alt={`${movie.title} backdrop`}
+          alt={`${movie.title} ${dictionary?.backdropAltText || 'backdrop'}`}
           fill
           className="object-cover object-top transition-transform duration-500 ease-in-out group-hover:scale-105"
           priority
@@ -117,7 +76,7 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
               {movie.tagline}
             </p>
           )}
-          <div className="mt-4 space-x-3 animate-fade-in-up animation-delay-200">
+          <div className="mt-4 flex flex-wrap gap-3 animate-fade-in-up animation-delay-200">
             <Button
               size="lg"
               className="h-12 px-6 sm:h-14 sm:px-8 text-base sm:text-lg group/button"
@@ -163,14 +122,18 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
       <Dialog open={isPlayerModalOpen} onOpenChange={setIsPlayerModalOpen}>
         <DialogContent className="sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] p-0 border-0 bg-black/95 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
           <DialogTitle className="sr-only">{streamTitle || (dictionary?.streamingVideoTitle || "Streaming Video")}</DialogTitle>
-          {streamUrl && <VideoPlayer src={streamUrl} title={streamTitle || movie.title} />}
+          {/* VideoPlayer can show a "No source" message or be hidden if streamUrl is null */}
+          {/* <VideoPlayer src={streamUrl!} title={streamTitle || movie.title} /> */}
+           <div className="w-full h-full flex items-center justify-center bg-black text-white">
+             {isPlayLoading ? <Loader2Icon className="h-12 w-12 animate-spin" /> : (streamTitle ? `Video Player for: ${streamTitle} (Stubbed)` : "Video Player (Stubbed)")}
+           </div>
         </DialogContent>
       </Dialog>
 
       <style jsx global>{`
         .animate-fade-in-up {
           animation: fadeInUp 0.6s ease-out forwards;
-          opacity: 0; /* Start hidden for animation */
+          opacity: 0; 
         }
         @keyframes fadeInUp {
           from {

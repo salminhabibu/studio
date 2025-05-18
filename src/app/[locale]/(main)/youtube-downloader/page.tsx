@@ -15,8 +15,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect, use } from "react"; // Added use
-import { Loader2Icon, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react"; // Corrected import for Loader2Icon
+import { useState, useEffect, use } from "react"; 
+import { Loader2Icon, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react"; 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import Image from "next/image";
@@ -105,12 +105,11 @@ function formatDuration(secondsStr: string, dict: any): string {
 }
 
 interface YouTubeDownloaderPageProps {
-  params: Promise<{ locale: Locale }>; 
+  params: { locale: Locale }; 
 }
 
 export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps) {
-  const resolvedParams = use(props.params); 
-  const locale = resolvedParams.locale;
+  const { locale } = use(props.params); 
 
   const { toast } = useToast();
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
@@ -170,49 +169,58 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
     setIsLoadingInfo(true);
     setCurrentContent(null); 
     setPreviewVideoId(null);
+    console.log(`[YouTubeDownloader] "Fetch Info" for URL: ${data.url}. API call stubbed.`);
 
-    const { videoId, playlistId } = getYouTubeId(data.url);
-
-    let fetchUrl = '/api/youtube/video-info?';
-    if (playlistId) {
-        fetchUrl += `playlistUrl=${encodeURIComponent(data.url)}`;
-    } else if (videoId) {
-        fetchUrl += `url=${encodeURIComponent(data.url)}`;
-         setPreviewVideoId(videoId);
-    } else {
-        toast({ title: dictionary?.errorInvalidUrlTitle || "Invalid URL", description: dictionary?.errorInvalidUrlDesc || "Could not identify a video or playlist ID.", variant: "destructive" });
-        setIsLoadingInfo(false);
-        return;
-    }
-    
-    try {
-      const response = await fetch(fetchUrl);
-      const result = await response.json();
-
-      if (!response.ok || result.error) {
-        const errorDescription = result.error || `${dictionary?.errorFetchStatus || "Failed with status"} ${response.status}.`;
-        toast({ title: dictionary?.errorFetchTitle || "Error Fetching Info", description: errorDescription, variant: "destructive" });
-        setCurrentContent(null); 
-      } else {
-        setCurrentContent(result);
-        if ('items' in result && result.items.length > 0) { 
-          setSelectedVideoItag(result.items[0].videoFormats?.[0]?.itag.toString() || "");
-          setSelectedAudioItag(result.items[0].audioFormats?.[0]?.itag.toString() || "");
-          setPlaylistItemsSelection(result.items.reduce((acc: Record<string, boolean>, item: PlaylistItem) => {
+    // STUB: Simulate API call and response for UI template
+    setTimeout(() => {
+      const { videoId, playlistId } = getYouTubeId(data.url);
+      if (playlistId) {
+        // Mock playlist data
+        const mockPlaylistItems: PlaylistItem[] = Array.from({ length: 5 }).map((_, i) => ({
+          id: `mock_video_id_${i+1}`,
+          title: `Mock Playlist Video ${i+1} - ${playlistId}`,
+          thumbnail: `https://placehold.co/320x180.png?text=Video+${i+1}`,
+          duration: `${120 + i * 30}`,
+          author: "Mock Author",
+          videoFormats: [{ quality: "720p", itag: 22, container: "mp4", fps: 30, hasVideo: true, hasAudio: true }],
+          audioFormats: [{ quality: "128kbps", itag: 140, container: "m4a", hasAudio: true, hasVideo: false }],
+          selected: true,
+        }));
+        setCurrentContent({
+          title: `Mock Playlist ${playlistId}`,
+          author: "Mock Playlist Author",
+          itemCount: mockPlaylistItems.length,
+          items: mockPlaylistItems,
+        });
+        setPlaylistItemsSelection(mockPlaylistItems.reduce((acc: Record<string, boolean>, item: PlaylistItem) => {
             acc[item.id] = true; 
             return acc;
           }, {}));
-        } else if ('title' in result && !('items' in result)) { 
-          setSelectedVideoItag(result.videoFormats?.[0]?.itag.toString() || "");
-          setSelectedAudioItag(result.audioFormats?.[0]?.itag.toString() || "");
-        }
+      } else if (videoId) {
+        setPreviewVideoId(videoId);
+        setCurrentContent({
+          id: videoId,
+          title: `Mock Video: ${videoId}`,
+          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+          duration: "180",
+          author: "Mock Video Author",
+          videoFormats: [
+            { quality: "1080p", itag: 137, container: "mp4", fps: 30, hasVideo: true, hasAudio: false},
+            { quality: "720p", itag: 22, container: "mp4", fps: 30, hasVideo: true, hasAudio: true },
+            { quality: "480p", itag: 135, container: "mp4", fps: 30, hasVideo: true, hasAudio: false },
+          ],
+          audioFormats: [
+            { quality: "128kbps", itag: 140, container: "m4a", audioBitrate: 128, hasAudio: true, hasVideo: false },
+            { quality: "256kbps", itag: 141, container: "m4a", audioBitrate: 256, hasAudio: true, hasVideo: false },
+          ],
+        });
+        setSelectedVideoItag("22"); // Default to a video+audio format
+        setSelectedAudioItag("140");
+      } else {
+        toast({ title: dictionary?.errorInvalidUrlTitle || "Invalid URL", description: dictionary?.errorInvalidUrlDesc || "Could not identify a video or playlist ID.", variant: "destructive" });
       }
-    } catch (error) {
-      toast({ title: dictionary?.errorNetworkTitle || "Network/Parsing Error", description: dictionary?.errorNetworkDesc || "Could not fetch information. Check network or URL.", variant: "destructive" });
-      setCurrentContent(null);
-    } finally {
       setIsLoadingInfo(false);
-    }
+    }, 1500);
   };
   
   const handleDownload = async (videoToDownload?: VideoInfo) => {
@@ -224,31 +232,24 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
     }
     
     let itag: string | undefined;
-    let downloadApiEndpoint: string;
-
     if (selectedDownloadType === 'audioonly') {
       itag = selectedAudioItag;
-      downloadApiEndpoint = '/api/youtube/download-audio';
     } else { 
       itag = selectedVideoItag;
-      downloadApiEndpoint = '/api/youtube/download-video';
     }
 
     if (!itag) {
       toast({ title: dictionary?.errorSelectFormatTitle || "Select Format", description: `${dictionary?.errorSelectFormatDesc || "Please select a quality for"} ${selectedDownloadType}.`, variant: "destructive" });
       return;
     }
-
-    const sourceUrl = videoToDownload ? `https://www.youtube.com/watch?v=${videoToDownload.id}` : currentUrl;
-    const downloadUrl = `${downloadApiEndpoint}?url=${encodeURIComponent(sourceUrl)}&itag=${itag}&title=${encodeURIComponent(contentToUse.title)}&type=${selectedDownloadType}&audioFormat=${selectedAudioFormat}`;
     
     setIsDownloading(true);
-    window.location.href = downloadUrl;
-
-    setTimeout(() => {
-      setIsDownloading(false);
-      toast({ title: dictionary?.downloadStartedTitle || "Download Started", description: `${contentToUse.title} ${dictionary?.downloadStartedDesc || "should begin downloading shortly."}`});
-    }, 3000); 
+    console.log(`[YouTubeDownloader] "Download" clicked for: ${contentToUse.title}, Type: ${selectedDownloadType}, ITAG: ${itag}, Audio Format: ${selectedAudioFormat}. Action stubbed.`);
+    toast({
+      title: dictionary?.downloadStubTitle || "Download (Stubbed)",
+      description: `${dictionary?.downloadStubDesc || "Downloading"} "${contentToUse.title}" (${selectedDownloadType}, Quality ITAG: ${itag}). ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
+    });
+    setTimeout(() => setIsDownloading(false), 2000);
   };
 
   const handleDownloadPlaylist = async () => {
@@ -263,12 +264,12 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
       }
 
       setIsDownloading(true);
-      toast({title: dictionary?.playlistDownloadStartedTitle || "Playlist Download Started", description: `${dictionary?.playlistDownloadStartedDesc || "Starting download for"} ${selectedItems.length} ${dictionary?.items || "items"}.`});
-
-      for (const item of selectedItems) {
-          await new Promise(resolve => setTimeout(resolve, 500)); 
-          await handleDownload(item); 
-      }
+      console.log(`[YouTubeDownloader] "Download Playlist" clicked for ${selectedItems.length} items. Action stubbed.`);
+      toast({
+        title: dictionary?.playlistDownloadStubTitle || "Playlist Download (Stubbed)",
+        description: `${dictionary?.playlistDownloadStubDesc || "Downloading"} ${selectedItems.length} ${dictionary?.items || "items"}. ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
+      });
+      setTimeout(() => setIsDownloading(false), 2000 + selectedItems.length * 500); // Simulate longer for more items
   };
   
   const togglePlaylistItemSelection = (itemId: string) => {
