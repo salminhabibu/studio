@@ -1,4 +1,3 @@
-
 {
   "sidebar": {
     "home": "Nyumbani",
@@ -182,7 +181,10 @@
         "toastServerAPIErrorDesc": "Hitilafu ya API ya Seva (mfano)",
         "toastSuccessStreamTitle": "Uchezaji Tayari (Mfano)",
         "streamingVideoTitle": "Video Inacheza",
-        "backdropAltText": "bango la nyuma"
+        "backdropAltText": "bango la nyuma",
+        "downloadMovieButton": "Pakua",
+        "downloadNotAvailableTitle": "Upakuaji Haupatikani",
+        "downloadNotAvailableDesc": "Hakuna chanzo cha upakuaji kilichopatikana kwa filamu hii."
     },
     "overview": {
         "title": "Muhtasari",
@@ -276,7 +278,23 @@
         "featureToImplement": "Kipengele kitatekelezwa kikamilifu.",
         "toastPlayingEpisodeStubDesc": "Inacheza kipindi",
         "inQuality": "katika ubora wa",
-        "selectQualityPlaceholder": "Chagua ubora"
+        "selectQualityPlaceholder": "Chagua ubora",
+        "downloadEpisodeButton": "Pakua Kipindi",
+        "downloadButtonShort": "Pakua",
+        "downloadSeasonButton": "Pakua Msimu",
+        "downloadNotAvailableTitle": "Upakuaji Haupatikani",
+        "downloadNotAvailableDescEpisode": "Hakuna chanzo cha upakuaji kilichopatikana kwa kipindi hiki.",
+        "seasonNotReadyTitle": "Msimu Hauko Tayari",
+        "seasonNotReadyDesc": "Tafadhali fungua msimu na subiri vipindi vipakie kabla ya kupakua.",
+        "noEpisodesTitle": "Hakuna Vipindi",
+        "noEpisodesDesc": "Hakuna vipindi vilivyopatikana kwa msimu huu vya kupakua.",
+        "noDownloadableEpisodesTitle": "Hakuna Vipindi Vinavyoweza Kupakuliwa",
+        "noDownloadableEpisodesDesc": "Hakuna vipindi vyenye vyanzo vya upakuaji vilivyopatikana kwa msimu huu.",
+        "seasonDownloadAttemptedTitle": "Upakuaji wa Msimu Umeanzishwa",
+        "seasonDownloadAttemptedDesc": "Imejaribu kuongeza vipindi {count}. {successCount} vimefaulu, {failCount} vimeshindwa.",
+        "episodesText": "vipindi",
+        "succeededText": "vimefaulu",
+        "failedText": "vimeshindwa"
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
@@ -397,14 +415,14 @@
     }
   },
   "downloadsPage": {
-    "mainTitle": "Vipakuliwa (Kiolezo cha UI)",
-    "mainDescription": "Dhibiti vipakuliwa vyako. Utendaji utatekelezwa.",
-    "tabs": {
+    "mainTitleOld": "Vipakuliwa (Kiolezo cha UI)",
+    "mainDescriptionOld": "Dhibiti vipakuliwa vyako. Utendaji utatekelezwa.",
+    "tabsOld": {
       "webTorrents": "Vipakuliwa vya Kلاینتي",
       "serverDownloads": "Vipakuliwa vya Seva",
       "history": "Historia"
     },
-    "activeWebTorrents": {
+    "activeWebTorrentsOld": {
       "title": "Vipakuliwa vya Kلاینتي Vinavyoendelea (Mfano)",
       "fetchingName": "Inatafuta jina...",
       "na": "H/P",
@@ -414,7 +432,7 @@
       "noActiveDescriptionStub": "Utendaji wa upakuaji upande wa kلاینتي utatekelezwa.",
       "downloadStalledMessage": "Upakuaji umekwama (Mfano)."
     },
-    "serverDownloads": {
+    "serverDownloadsOld": {
       "title": "Vipakuliwa vya Seva Vinavyoendelea (Mfano)",
       "description": "Hali ya upakuaji unaodhibitiwa na seva ingeonekana hapa.",
       "loadingStatus": "Inapakia hali za vipakuliwa vya seva (Mfano)...",
@@ -423,7 +441,7 @@
       "na": "H/P",
       "peersLabel": "Wenza/Miunganisho"
     },
-    "history": {
+    "historyOld": {
       "title": "Historia ya Vipakuliwa (Mfano)",
       "clearAllButton": "Futa Historia",
       "alertTitle": "Futa Historia ya Vipakuliwa?",
@@ -440,7 +458,7 @@
       "noHistoryTitle": "Hakuna Historia ya Vipakuliwa",
       "noHistoryDescription": "Vipakuliwa vilivyokamilika au vilivyoshindwa vingeonekana hapa."
     },
-    "statusLabels": {
+    "statusLabelsOld": {
       "idle": "Tulia",
       "downloading": "Inachakata",
       "seeding": "Inakamilisha",
@@ -458,11 +476,39 @@
       "waiting": "Inasubiri",
       "unknown": "Haijulikani"
     },
-    "pauseLabel": "Sitisha (Mfano)",
-    "resumeLabel": "Endeleza (Mfano)",
-    "playStreamLabel": "Chakata (Mfano)",
-    "removeLabel": "Ondoa (Mfano)",
-    "downloadFileLabel": "Fungua Faili (Mfano)",
-    "removeTaskLabel": "Ondoa Kazi (Mfano)"
+    "pauseLabelOld": "Sitisha (Mfano)",
+    "resumeLabelOld": "Endeleza (Mfano)",
+    "playStreamLabelOld": "Chakata (Mfano)",
+    "removeLabelOld": "Ondoa (Mfano)",
+    "downloadFileLabelOld": "Fungua Faili (Mfano)",
+    "removeTaskLabelOld": "Ondoa Kazi (Mfano)",
+    "title": "Vipakuliwa Vinavyoendelea",
+    "noActiveDownloads": "Hakuna vipakuliwa vinavyoendelea.",
+    "labelId": "Kitambulisho",
+    "labelType": "Aina",
+    "labelStatus": "Hali",
+    "labelProgress": "Maendeleo",
+    "labelSpeed": "Kasi",
+    "labelEta": "Muda Uliobakia",
+    "labelError": "Hitilafu",
+    "buttonSimulateProgress": "Iga Maendeleo",
+    "buttonRefreshStatus": "Onyesha Upya Hali",
+    "statusQueued": "Kwenye Foleni",
+    "statusInitializing": "Inaanzishwa",
+    "statusDownloading": "Inapakua",
+    "statusPaused": "Imesitishwa",
+    "statusCompleted": "Imekamilika",
+    "statusError": "Hitilafu",
+    "statusCancelled": "Imeghairiwa"
+  },
+  "toasts": {
+    "downloadStartedTitle": "Upakuaji Umeanza",
+    "downloadStartedDescription": "{title} imeongezwa kwenye vipakuliwa.",
+    "downloadErrorTitle": "Hitilafu Kuanzisha Upakuaji",
+    "downloadErrorDescription": "Imeshindwa kuanzisha upakuaji. Tafadhali jaribu tena.",
+    "taskStatusRefreshedTitle": "Hali ya Upakuaji Imesasishwa",
+    "taskStatusRefreshedDescription": "Hali ya {title} imesasishwa.",
+    "taskNotFoundTitle": "Imeshindwa Kusasisha",
+    "taskNotFoundDescription": "Imeshindwa kusasisha hali ya kazi kwani haikupatikana."
   }
 }

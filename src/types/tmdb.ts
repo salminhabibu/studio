@@ -35,7 +35,8 @@ export interface TMDBMovie extends TMDBBaseMovie {
   videos?: {
     results: TMDBVideo[];
   };
-  imdb_id?: string; 
+  imdb_id?: string;
+  magnetLink?: string; // Added for consistency
   torrentQuality?: string; // Added for YTS torrent quality
 }
 
@@ -68,6 +69,8 @@ export interface TMDBEpisode {
   vote_average: number;
   season_number: number;
   runtime: number | null;
+  magnetLink?: string; // Added
+  torrentQuality?: string; // Added
 }
 
 export interface TMDBSeason {
@@ -97,8 +100,10 @@ export interface TMDBTVSeries extends TMDBBaseTVSeries {
 }
 
 export interface TMDBTvSeasonDetails extends TMDBSeason {
-  _id: string; 
+  _id: string;
   episodes: TMDBEpisode[];
+  magnetLink?: string; // Added for season pack
+  torrentQuality?: string; // Added for season pack
 }
 
 interface TMDBPersonResult {

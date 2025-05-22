@@ -205,7 +205,45 @@ export async function getTvSeriesDetails(tvId: number | string): Promise<TMDBTVS
 
 export async function getTvSeasonDetails(tvId: number | string, seasonNumber: number | string): Promise<TMDBTvSeasonDetails> {
   console.log(`[TMDB Fetch] TV Season Details for TV ID: ${tvId}, Season: ${seasonNumber}`);
-  return fetchTMDB<TMDBTvSeasonDetails>(`tv/${tvId}/season/${seasonNumber}`);
+  
+  let seriesName: string | undefined;
+  try {
+    // Fetch basic series details to get the name for getEpisodeMagnetLink
+    // We only need the 'name' field, but TMDB API might not allow fetching just one field directly without GraphQL.
+    // Fetching the main TV details is one way, or if there's a lighter endpoint, that could be used.
+    const seriesDetails = await fetchTMDB<TMDBTVSeries>(`tv/${tvId}`); 
+    seriesName = seriesDetails.name;
+  } catch (error) {
+    console.error(`[TMDB getTvSeasonDetails] Failed to fetch series details for TV ID ${tvId}:`, error);
+    // Depending on requirements, might throw error or proceed without seriesName
+  }
+
+  if (!seriesName) {
+    console.warn(`[TMDB getTvSeasonDetails] Could not determine series name for TV ID: ${tvId}. Magnet links for episodes will not be fetched.`);
+  }
+
+  const seasonData = await fetchTMDB<TMDBTvSeasonDetails>(`tv/${tvId}/season/${seasonNumber}`);
+  
+  if (seriesName && seasonData.episodes && seasonData.episodes.length > 0) {
+    console.log(`[TMDB getTvSeasonDetails] Fetching magnet links for ${seriesName} S${seasonNumber}, ${seasonData.episodes.length} episodes.`);
+    for (const episode of seasonData.episodes) {
+      try {
+        const magnet = await getEpisodeMagnetLink(seriesName, seasonData.season_number, episode.episode_number);
+        episode.magnetLink = magnet || undefined; // Store magnet or undefined if null
+        episode.torrentQuality = undefined; // Placeholder, as getEpisodeMagnetLink does not currently return quality
+      } catch (error) {
+        console.error(`[TMDB getTvSeasonDetails] Failed to get magnet for ${seriesName} S${seasonData.season_number}E${episode.episode_number}:`, error);
+        episode.magnetLink = undefined;
+        episode.torrentQuality = undefined;
+      }
+    }
+  }
+  
+  // Placeholder for season pack magnet link
+  seasonData.magnetLink = undefined; 
+  seasonData.torrentQuality = undefined;
+
+  return seasonData;
 }
 
 export async function getEpisodeMagnetLink(seriesTitle: string, seasonNumber: number, episodeNumber: number, qualityHint?: string): Promise<string | null> {
