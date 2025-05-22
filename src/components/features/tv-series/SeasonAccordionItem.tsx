@@ -1,8 +1,8 @@
 // src/components/features/tv-series/SeasonAccordionItem.tsx
-"use client"; 
+"use client";
 
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
-import { ChevronDown, ClapperboardIcon, Loader2Icon, PlayIcon } from "lucide-react"; // Added PlayIcon
+import { ChevronDown, ClapperboardIcon, Loader2Icon, PlayIcon, DownloadIcon } from "lucide-react"; // Added PlayIcon, DownloadIcon
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getFullImagePath, getTvSeasonDetails } from "@/lib/tmdb";
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast"; // Added useToast
 import { useEffect, useState } from "react";
 import type { Locale } from "@/config/i18n.config";
+import { useDownload } from "@/contexts/DownloadContext"; // Added
+import { DownloadTaskCreationData } from "@/types/download"; // Added
 
 const QUALITIES = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; // Moved from Download buttons
 
@@ -37,6 +39,7 @@ export function SeasonAccordionItem({
   const [isInternallyOpen, setIsInternallyOpen] = useState(initialOpen || false);
   const [selectedQuality, setSelectedQuality] = useState(QUALITIES[0]);
   const { toast } = useToast();
+  const { addDownloadTask } = useDownload(); // Added
 
   useEffect(() => {
     async function fetchEpisodes() {
@@ -75,6 +78,99 @@ export function SeasonAccordionItem({
     });
   };
 
+  const handleDownloadEpisode = async (episode: TMDBEpisode, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!episode.magnetLink || !episode.id) {
+      toast({
+        title: dictionary?.downloadNotAvailableTitle || "Download Not Available",
+        description: dictionary?.downloadNotAvailableDescEpisode || "No download source found for this episode.",
+        variant: "default"
+      });
+      return;
+    }
+
+    const taskData: DownloadTaskCreationData = {
+      title: `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`,
+      type: 'tvEpisode' as 'tvEpisode', // Ensure type literal
+      source: episode.magnetLink,
+      metadata: {
+        tmdbId: episode.id,
+        seriesTmdbId: seriesId,
+        seriesTitle: seriesTitle,
+        seasonNumber: episode.season_number,
+        episodeNumber: episode.episode_number,
+        episodeTitle: episode.name,
+        quality: (episode as any).torrentQuality || selectedQuality.split(" ")[0] || 'Unknown',
+        posterPath: season.poster_path, 
+        airDate: episode.air_date,
+      },
+    };
+    await addDownloadTask(taskData);
+  };
+
+  const handleDownloadSeason = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    if (!isInternallyOpen || isLoading) {
+      toast({
+        title: dictionary?.seasonNotReadyTitle || "Season Not Ready",
+        description: dictionary?.seasonNotReadyDesc || "Please open the season and wait for episodes to load before downloading.",
+        variant: "default",
+      });
+      return;
+    }
+    if (episodes.length === 0) {
+      toast({
+        title: dictionary?.noEpisodesTitle || "No Episodes",
+        description: dictionary?.noEpisodesDesc || "No episodes found for this season to download.",
+        variant: "default",
+      });
+      return;
+    }
+
+    const downloadableEpisodes = episodes.filter(ep => ep.magnetLink);
+    if (downloadableEpisodes.length === 0) {
+      toast({
+        title: dictionary?.noDownloadableEpisodesTitle || "No Downloadable Episodes",
+        description: dictionary?.noDownloadableEpisodesDesc || "No episodes with download sources found for this season.",
+        variant: "default",
+      });
+      return;
+    }
+
+    let successCount = 0;
+    let failCount = 0;
+    for (const episode of downloadableEpisodes) {
+      const taskData: DownloadTaskCreationData = {
+        title: `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`,
+        type: 'tvEpisode' as 'tvEpisode',
+        source: episode.magnetLink!, // We've filtered for magnetLink
+        metadata: {
+          tmdbId: episode.id,
+          seriesTmdbId: seriesId,
+          seriesTitle: seriesTitle,
+          seasonNumber: episode.season_number,
+          episodeNumber: episode.episode_number,
+          episodeTitle: episode.name,
+          quality: (episode as any).torrentQuality || selectedQuality.split(" ")[0] || 'Unknown',
+          posterPath: season.poster_path,
+          airDate: episode.air_date,
+        },
+      };
+      try {
+        const result = await addDownloadTask(taskData);
+        if (result) successCount++; else failCount++;
+      } catch (error) {
+        failCount++;
+        console.error("Failed to add download task for episode:", episode.name, error);
+      }
+    }
+    
+    toast({
+      title: dictionary?.seasonDownloadAttemptedTitle || "Season Download Initiated",
+      description: `${dictionary?.seasonDownloadAttemptedDesc || "Attempted to add"} ${downloadableEpisodes.length} ${dictionary?.episodesText || "episodes"}. ${successCount} ${dictionary?.succeededText || "succeeded"}, ${failCount} ${dictionary?.failedText || "failed"}.`,
+    });
+  };
 
   return (
     <AccordionPrimitive.Item 
@@ -142,8 +238,19 @@ export function SeasonAccordionItem({
               disabled={isLoading}
               aria-label={`${dictionary?.playSeasonButton || "Play Season"} ${season.season_number}: ${season.name} ${dictionary?.inQuality || "in"} ${selectedQuality}`}
             >
-              {isLoading ? <Loader2Icon className="animate-spin h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+              {isLoading && !isInternallyOpen ? <Loader2Icon className="animate-spin h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
               <span className="ml-1.5 hidden sm:inline">{dictionary?.playSeasonButton || "Play Season"}</span>
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-9"
+              onClick={handleDownloadSeason}
+              disabled={isLoading || (isInternallyOpen && episodes.length === 0 && !error && season.episode_count > 0)}
+              aria-label={`${dictionary?.downloadSeasonButton || "Download Season"} ${season.season_number}: ${season.name}`}
+            >
+              {isLoading && isInternallyOpen ? <Loader2Icon className="animate-spin h-4 w-4" /> : <DownloadIcon className="h-4 w-4" />}
+              <span className="ml-1.5 hidden sm:inline">{dictionary?.downloadSeasonButton || "Download Season"}</span>
             </Button>
           </div>
         </div>
@@ -192,6 +299,17 @@ export function SeasonAccordionItem({
                     >
                         <PlayIcon className="h-4 w-4" />
                         <span className="ml-1.5 hidden sm:inline">{dictionary?.playEpisodeButton || "Play"}</span>
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="ghost"
+                        className="flex-shrink-0 text-primary hover:text-primary/80 h-9"
+                        onClick={(e) => handleDownloadEpisode(episode, e)}
+                        disabled={!episode.magnetLink} 
+                        aria-label={`${dictionary?.downloadEpisodeButton || "Download Episode"} S${episode.season_number}E${episode.episode_number}: ${episode.name}`}
+                    >
+                        <DownloadIcon className="h-4 w-4" />
+                        <span className="ml-1.5 hidden sm:inline">{dictionary?.downloadButtonShort || "Download"}</span>
                     </Button>
                 </div>
               </CardContent>

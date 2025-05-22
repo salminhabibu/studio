@@ -1,4 +1,3 @@
-
 {
   "sidebar": {
     "home": "Home",
@@ -182,7 +181,10 @@
         "toastServerAPIErrorDesc": "Server API Error (stubbed)",
         "toastSuccessStreamTitle": "Playback Ready (Stubbed)",
         "streamingVideoTitle": "Streaming Video",
-        "backdropAltText": "backdrop"
+        "backdropAltText": "backdrop",
+        "downloadMovieButton": "Download",
+        "downloadNotAvailableTitle": "Download Not Available",
+        "downloadNotAvailableDesc": "No download source found for this movie."
     },
     "overview": {
         "title": "Overview",
@@ -276,7 +278,23 @@
         "featureToImplement": "Feature to be fully implemented.",
         "toastPlayingEpisodeStubDesc": "Playing episode",
         "inQuality": "in",
-        "selectQualityPlaceholder": "Select quality"
+        "selectQualityPlaceholder": "Select quality",
+        "downloadEpisodeButton": "Download Episode",
+        "downloadButtonShort": "Download",
+        "downloadSeasonButton": "Download Season",
+        "downloadNotAvailableTitle": "Download Not Available", 
+        "downloadNotAvailableDescEpisode": "No download source found for this episode.",
+        "seasonNotReadyTitle": "Season Not Ready",
+        "seasonNotReadyDesc": "Please open the season and wait for episodes to load before downloading.",
+        "noEpisodesTitle": "No Episodes",
+        "noEpisodesDesc": "No episodes found for this season to download.",
+        "noDownloadableEpisodesTitle": "No Downloadable Episodes",
+        "noDownloadableEpisodesDesc": "No episodes with download sources found for this season.",
+        "seasonDownloadAttemptedTitle": "Season Download Initiated",
+        "seasonDownloadAttemptedDesc": "Attempted to add {count} episodes. {successCount} succeeded, {failCount} failed.",
+        "episodesText": "episodes",
+        "succeededText": "succeeded",
+        "failedText": "failed"
     },
     "recommendations": {
         "title": "You Might Also Like",
@@ -440,7 +458,7 @@
       "noHistoryTitle": "No Download History",
       "noHistoryDescription": "Completed or failed downloads would appear here."
     },
-    "statusLabels": {
+    "statusLabelsOld": {
       "idle": "Idle",
       "downloading": "Processing",
       "seeding": "Finalizing",
@@ -458,11 +476,39 @@
       "waiting": "Waiting",
       "unknown": "Unknown"
     },
-    "pauseLabel": "Pause (Stub)",
-    "resumeLabel": "Resume (Stub)",
-    "playStreamLabel": "Process (Stub)",
-    "removeLabel": "Remove (Stub)",
-    "downloadFileLabel": "Open File (Stub)",
-    "removeTaskLabel": "Remove Task (Stub)"
+    "pauseLabelOld": "Pause (Stub)",
+    "resumeLabelOld": "Resume (Stub)",
+    "playStreamLabelOld": "Process (Stub)",
+    "removeLabelOld": "Remove (Stub)",
+    "downloadFileLabelOld": "Open File (Stub)",
+    "removeTaskLabelOld": "Remove Task (Stub)",
+    "title": "Active Downloads",
+    "noActiveDownloads": "No active downloads.",
+    "labelId": "ID",
+    "labelType": "Type",
+    "labelStatus": "Status",
+    "labelProgress": "Progress",
+    "labelSpeed": "Speed",
+    "labelEta": "ETA",
+    "labelError": "Error",
+    "buttonSimulateProgress": "Simulate Progress",
+    "buttonRefreshStatus": "Refresh Status",
+    "statusQueued": "Queued",
+    "statusInitializing": "Initializing",
+    "statusDownloading": "Downloading",
+    "statusPaused": "Paused",
+    "statusCompleted": "Completed",
+    "statusError": "Error",
+    "statusCancelled": "Cancelled"
+  },
+  "toasts": {
+    "downloadStartedTitle": "Download Started",
+    "downloadStartedDescription": "{title} added to downloads.",
+    "downloadErrorTitle": "Error Starting Download",
+    "downloadErrorDescription": "Could not start the download. Please try again.",
+    "taskStatusRefreshedTitle": "Download Status Updated",
+    "taskStatusRefreshedDescription": "Status for {title} has been updated.",
+    "taskNotFoundTitle": "Update Failed",
+    "taskNotFoundDescription": "Could not update status for a task as it was not found."
   }
 }

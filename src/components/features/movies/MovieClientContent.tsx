@@ -5,11 +5,13 @@ import type { TMDBMovie } from "@/types/tmdb";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { PlayCircleIcon, PlayIcon, Loader2Icon } from "lucide-react";
+import { PlayCircleIcon, PlayIcon, Loader2Icon, DownloadIcon } from "lucide-react"; // Added DownloadIcon
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState } from "react";
 // import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI, but stub source
 import { useToast } from "@/hooks/use-toast";
+import { useDownload } from "@/contexts/DownloadContext"; // Added useDownload
+import { DownloadTaskCreationData } from "@/types/download"; // Added DownloadTaskCreationData
 
 interface MovieClientContentProps {
   movie: TMDBMovie;
@@ -26,6 +28,7 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
   // const [streamUrl, setStreamUrl] = useState<string | null>(null); // Stubbed
   const [streamTitle, setStreamTitle] = useState<string>("");
   const [isPlayLoading, setIsPlayLoading] = useState(false);
+  const { addDownloadTask } = useDownload(); // Added
 
   const handleWatchTrailer = () => {
     if (trailerKey) {
@@ -53,6 +56,34 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
     setTimeout(() => setIsPlayLoading(false), 1500);
   };
 
+  const handleDownloadMovie = async () => {
+    if (!movie.magnetLink || !movie.id) {
+      toast({ 
+        title: dictionary?.downloadNotAvailableTitle || "Download Not Available", 
+        description: dictionary?.downloadNotAvailableDesc || "No download source found for this movie.", 
+        variant: "default" 
+      });
+      return;
+    }
+
+    const taskData: DownloadTaskCreationData = {
+      title: movie.title,
+      type: 'movie' as 'movie', // Ensure type literal
+      source: movie.magnetLink,
+      metadata: { 
+        tmdbId: movie.id.toString(), // Ensure tmdbId is string if your type expects string
+        imdbId: movie.imdb_id, 
+        quality: movie.torrentQuality || 'Unknown', // Use torrentQuality if available
+        posterPath: movie.poster_path, // For display in download list
+        releaseDate: movie.release_date,
+        // Add any other relevant movie metadata
+      },
+      // destinationPath could be set by a global setting later
+    };
+    
+    // addDownloadTask will show its own toasts for success/failure
+    await addDownloadTask(taskData);
+  };
 
   return (
     <>
@@ -95,6 +126,16 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
             >
               <PlayCircleIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
               {dictionary?.watchTrailerButton || "Watch Trailer"}
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-12 px-6 sm:h-14 sm:px-8 text-base sm:text-lg group/button"
+              onClick={handleDownloadMovie}
+              disabled={!movie.magnetLink || !movie.id} // Disable if no magnet link or ID
+            >
+              <DownloadIcon className="mr-2 sm:mr-3 h-5 w-5 sm:h-6 sm:w-6 transition-transform duration-300 group-hover/button:scale-110" />
+              {dictionary?.downloadMovieButton || "Download"}
             </Button>
           </div>
         </div>
