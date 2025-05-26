@@ -11,6 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Accordion } from "@/components/ui/accordion";
 import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon, Loader2Icon } from "lucide-react";
 import Link from "next/link";
+// Types for torrents (assuming they are defined in a central place, e.g., types/torrents.ts or similar)
+// For now, let's define a placeholder if not already globally available.
+// Ensure TorrentFindResultItem is imported or defined if not already.
+// import type { TorrentFindResultItem } from '@/types/torrents'; 
+interface TorrentFindResultItem { magnetLink: string; torrentQuality: string; fileName?: string; source?: string; /* ... other fields */ }
+
+
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 import { SeasonAccordionItem } from "@/components/features/tv-series/SeasonAccordionItem";
 import { TVSeriesClientContent } from "@/components/features/tv-series/TVSeriesClientContent";
@@ -32,6 +39,7 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dictionary, setDictionary] = useState<any>(null);
+  const [torrentResults, setTorrentResults] = useState<TorrentFindResultItem[]>([]);
 
   useEffect(() => {
     const fetchDict = async () => {
@@ -57,10 +65,36 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
       const videos: TMDBVideo[] = seriesData.videos?.results || [];
       const officialTrailer = videos.find(
         (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
-      ) || videos.find( 
+      ) || videos.find(
         (video) => video.site === "YouTube" && video.type === "Trailer"
       );
       setTrailerKey(officialTrailer?.key || null);
+
+      // Fetch torrent data for the series
+      if (seriesData) {
+        try {
+          const torrentResponse = await fetch('/api/torrents/find', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: seriesData.name,
+              tmdbId: seriesData.id.toString(),
+              type: 'tv',
+              // Not sending season number here to get all series-related torrents
+            }),
+          });
+          if (torrentResponse.ok) {
+            const torrentData = await torrentResponse.json();
+            if (torrentData.results) {
+              setTorrentResults(torrentData.results);
+            }
+          } else {
+            console.error(`Failed to fetch torrents for TV series ${seriesData.name}: ${torrentResponse.status}`);
+          }
+        } catch (torrentError) {
+          console.error(`Error fetching torrents for TV series ${seriesData.name}:`, torrentError);
+        }
+      }
 
     } catch (e) {
       console.error(`Failed to fetch TV series details for ID ${id}:`, e);
@@ -69,7 +103,7 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, dictionary]); 
+  }, [id, dictionary]);
 
   useEffect(() => {
     if (dictionary && id) { 
@@ -124,7 +158,7 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
 
   return (
     <div className="container mx-auto py-6 sm:py-8 px-2 sm:px-4">
-      <TVSeriesClientContent series={series} trailerKey={trailerKey} dictionary={dictionary.clientContent}>
+      <TVSeriesClientContent series={series} trailerKey={trailerKey} dictionary={dictionary.clientContent} torrentResults={torrentResults}>
         <div className="grid md:grid-cols-12 gap-6 sm:gap-8">
           <div className="md:col-span-4 lg:col-span-3">
             <Card className="overflow-hidden shadow-xl sticky top-20 sm:top-24">
@@ -140,11 +174,12 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
                 />
               </div>
                <CardContent className="p-3 sm:p-4 space-y-3">
-                  <DownloadAllSeasonsWithOptionsButton 
-                    seriesId={series.id} 
-                    seriesName={series.name} 
-                    seriesTitle={series.name} 
+                  <DownloadAllSeasonsWithOptionsButton
+                    seriesId={series.id}
+                    seriesName={series.name}
+                    seriesTitle={series.name}
                     dictionary={dictionary.downloadAllSeasonsButton}
+                    torrentResults={torrentResults} // Pass torrentResults here
                   />
                   {series.homepage && (
                   <Button variant="outline" className="w-full h-11 text-sm" asChild>
@@ -208,14 +243,15 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
                 <CardContent className="p-0">
                    <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
                     {sortedSeasons.map(season => (
-                      <SeasonAccordionItem 
-                          key={season.id} 
-                          seriesId={series!.id} 
-                          seriesTitle={series!.name} 
-                          season={season} 
+                      <SeasonAccordionItem
+                          key={season.id}
+                          seriesId={series!.id}
+                          seriesTitle={series!.name}
+                          season={season}
                           initialOpen={defaultAccordionValue === `season-${season.season_number}`}
                           dictionary={dictionary.seasonAccordionItem}
                           locale={locale}
+                          allSeriesTorrents={torrentResults} // Pass torrentResults here
                       />
                     ))}
                   </Accordion>

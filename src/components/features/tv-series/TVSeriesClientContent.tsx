@@ -11,15 +11,22 @@ import { useState } from "react";
 // import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI
 import { useToast } from "@/hooks/use-toast";
 
+// Placeholder, ensure this type is aligned with your actual TorrentFindResultItem definition
+interface TorrentFindResultItem { magnetLink: string; torrentQuality: string; fileName?: string; source?: string; }
+
 interface TVSeriesClientContentProps {
   series: TMDBTVSeries;
   trailerKey: string | null;
   children: React.ReactNode;
-  dictionary: any; 
+  dictionary: any;
   locale: string;
+  torrentResults: TorrentFindResultItem[]; // Added prop
 }
 
-export function TVSeriesClientContent({ series, trailerKey, children, dictionary, locale }: TVSeriesClientContentProps) {
+export function TVSeriesClientContent({ series, trailerKey, children, dictionary, locale, torrentResults }: TVSeriesClientContentProps) {
+  // The torrentResults prop is now available here if needed for any direct logic within TVSeriesClientContent.
+  // For this subtask, its main purpose is to demonstrate it can be passed down.
+  // The actual passing to DownloadAllSeasonsWithOptionsButton and SeasonAccordionItem is handled by the parent page.
   const { toast } = useToast();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   
