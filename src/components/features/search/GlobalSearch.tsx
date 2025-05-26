@@ -49,7 +49,7 @@ const GlobalSearch = () => {
       }
     } catch (err) {
       // Fallback error for unexpected issues during the action call itself
-      console.error("Error calling handleSearch:", err);
+      // console.error removed as setError provides user feedback.
       setError("Failed to fetch results. Please try again.");
       setResults([]);
     } finally {

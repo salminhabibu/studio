@@ -30,7 +30,6 @@ interface DownloadStartResponse {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    console.log("[API /aria2/add] Received request to add download:", body);
 
     // Validate that the parsed body contains the required fields for DownloadStartRequest
     if (!body.title || !body.type || !body.source || !body.metadata || 

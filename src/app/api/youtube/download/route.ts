@@ -33,7 +33,6 @@ export async function POST(request: NextRequest) {
     let videoData: YouTubeVideo;
     try {
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      console.log(`Fetching video info for: ${youtubeUrl}`);
       videoData = await play.video_info(youtubeUrl);
       // play.video_info throws an error if video not found or other issues occur,
       // so a !videoData check is usually redundant if the call completes without throwing.
@@ -49,11 +48,9 @@ export async function POST(request: NextRequest) {
     const format = videoData.format.find(f => f.itag === itag);
 
     if (!format || !format.url) {
-      console.warn(`Format with itag ${itag} for video ${videoId} not found or has no direct download URL.`);
       return NextResponse.json({ error: `Requested format (itag ${itag}) for video ${videoId} is not available or does not have a direct download URL.` }, { status: 404 });
     }
     const downloadUrl = format.url;
-    console.log(`Attempting to add download to Aria2: URL: ${downloadUrl}, Filename: ${fileName}`);
 
     // 3. Interface with Aria2
     try {

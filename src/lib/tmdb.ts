@@ -77,17 +77,14 @@ async function fetchTMDB<T>(endpoint: string, params: Record<string, string | nu
 }
 
 export async function getMovieGenres(): Promise<{ genres: TMDBGenre[] }> {
-  console.log('[TMDB Fetch] Movie Genres');
   return fetchTMDB<{ genres: TMDBGenre[] }>('genre/movie/list');
 }
 
 export async function getTvGenres(): Promise<{ genres: TMDBGenre[] }> {
-  console.log('[TMDB Fetch] TV Genres');
   return fetchTMDB<{ genres: TMDBGenre[] }>('genre/tv/list');
 }
 
 export async function discoverMovies(page: number = 1, filters: TMDBDiscoverFilters = {}): Promise<TMDBPaginatedResponse<TMDBBaseMovie>> {
-  console.log('[TMDB Fetch] Discover Movies, Page:', page, 'Filters:', filters);
   const params: Record<string, string | number | boolean> = { page, sort_by: filters.sort_by || 'popularity.desc', ...filters };
   if (filters.with_genres && Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
     params.with_genres = filters.with_genres.join(',');
@@ -100,7 +97,6 @@ export async function discoverMovies(page: number = 1, filters: TMDBDiscoverFilt
 }
 
 export async function discoverTvSeries(page: number = 1, filters: TMDBDiscoverFilters = {}): Promise<TMDBPaginatedResponse<TMDBBaseTVSeries>> {
-  console.log('[TMDB Fetch] Discover TV Series, Page:', page, 'Filters:', filters);
   const params: Record<string, string | number | boolean> = { page, sort_by: filters.sort_by || 'popularity.desc', ...filters };
    if (filters.with_genres && Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
     params.with_genres = filters.with_genres.join(',');
@@ -114,16 +110,13 @@ export async function discoverTvSeries(page: number = 1, filters: TMDBDiscoverFi
 
 
 export async function getPopularMovies(page: number = 1): Promise<TMDBPaginatedResponse<TMDBBaseMovie>> {
-  console.log('[TMDB Fetch] Popular Movies, Page:', page);
   return discoverMovies(page);
 }
 
 export async function getMovieDetails(movieId: number | string): Promise<TMDBMovie & { magnetLink?: string, torrentQuality?: string }> {
-  console.log(`[TMDB Fetch] Movie Details for ID: ${movieId}`);
   const movieDetails = await fetchTMDB<TMDBMovie>(`movie/${movieId}`, { append_to_response: 'videos,external_ids' });
 
   if (movieDetails.imdb_id) {
-    console.log(`[YTS Search] Attempting for IMDB ID: ${movieDetails.imdb_id} for movie: ${movieDetails.title}`);
     try {
       // YTS API can be unreliable, use a proxy or direct if allowed.
       // const ytsQueryUrl = `https://yts.mx/api/v2/list_movies.json?query_term=${movieDetails.imdb_id}&limit=1&sort_by=seeds&quality=1080p,720p`;
@@ -135,11 +128,10 @@ export async function getMovieDetails(movieId: number | string): Promise<TMDBMov
 
       for (const quality of qualitiesToTry) {
         const ytsQueryUrl = `https://yts.mx/api/v2/list_movies.json?query_term=${movieDetails.imdb_id}&limit=5&sort_by=seeds${quality !== 'all' ? `&quality=${quality}` : ''}`;
-        console.log(`[YTS Search] Query URL: ${ytsQueryUrl}`);
         const ytsResponse = await fetch(ytsQueryUrl, { cache: 'no-store' }); // Avoid caching YTS results aggressively here
         
         if (!ytsResponse.ok) {
-          console.warn(`[YTS Search] API request failed for ${movieDetails.imdb_id}, quality ${quality}. Status: ${ytsResponse.status}`);
+          // console.warn removed
           continue; 
         }
         const ytsData: YTSResponse = await ytsResponse.json();
@@ -178,10 +170,9 @@ export async function getMovieDetails(movieId: number | string): Promise<TMDBMov
           'udp://tracker.internetwarriors.net:1337/announce',
         ].map(tr => `&tr=${encodeURIComponent(tr)}`).join('');
         const magnet = `magnet:?xt=urn:btih:${bestTorrent.hash}&dn=${encodeURIComponent(movieDetails.title)}${trackers}`;
-        console.log(`[YTS Search] Found magnet for ${movieDetails.title} (Quality: ${foundQuality}): ${magnet.substring(0, 60)}...`);
         return { ...movieDetails, magnetLink: magnet, torrentQuality: foundQuality };
       } else {
-        console.log(`[YTS Search] No suitable torrent found for ${movieDetails.title} via IMDB ID ${movieDetails.imdb_id}`);
+        // console.log removed
       }
     } catch (error) {
       console.error(`[YTS Search] Error for ${movieDetails.imdb_id}:`, error);
@@ -195,101 +186,22 @@ export async function getMovieVideos(movieId: number | string): Promise<TMDBVide
 }
 
 export async function getPopularTvSeries(page: number = 1): Promise<TMDBPaginatedResponse<TMDBBaseTVSeries>> {
-  console.log('[TMDB Fetch] Popular TV Series, Page:', page);
   return discoverTvSeries(page);
 }
 
 export async function getTvSeriesDetails(tvId: number | string): Promise<TMDBTVSeries> {
-  console.log(`[TMDB Fetch] TV Series Details for ID: ${tvId}`);
   return fetchTMDB<TMDBTVSeries>(`tv/${tvId}`, { append_to_response: 'videos,external_ids' });
 }
 
 export async function getTvSeasonDetails(tvId: number | string, seasonNumber: number | string): Promise<TMDBTvSeasonDetails> {
-  console.log(`[TMDB Fetch] TV Season Details for TV ID: ${tvId}, Season: ${seasonNumber}`);
-  
-  let seriesName: string | undefined;
-  try {
-    // Fetch basic series details to get the name for getEpisodeMagnetLink
-    // We only need the 'name' field, but TMDB API might not allow fetching just one field directly without GraphQL.
-    // Fetching the main TV details is one way, or if there's a lighter endpoint, that could be used.
-    const seriesDetails = await fetchTMDB<TMDBTVSeries>(`tv/${tvId}`); 
-    seriesName = seriesDetails.name;
-  } catch (error) {
-    console.error(`[TMDB getTvSeasonDetails] Failed to fetch series details for TV ID ${tvId}:`, error);
-    // Depending on requirements, might throw error or proceed without seriesName
-  }
-
-  if (!seriesName) {
-    console.warn(`[TMDB getTvSeasonDetails] Could not determine series name for TV ID: ${tvId}. Magnet links for episodes will not be fetched.`);
-  }
-
+  // Torrent fetching logic and seriesName fetching for that purpose have been removed.
+  // The page component tv-series/[id]/page.tsx is now responsible for fetching torrents.
   const seasonData = await fetchTMDB<TMDBTvSeasonDetails>(`tv/${tvId}/season/${seasonNumber}`);
-  
-  if (seriesName && seasonData.episodes && seasonData.episodes.length > 0) {
-    console.log(`[TMDB getTvSeasonDetails] Fetching torrent options for ${seriesName} S${seasonNumber}, ${seasonData.episodes.length} episodes.`);
-    for (const episode of seasonData.episodes) {
-      try {
-        const torrentOptions = await getEpisodeTorrentOptions(seriesName, seasonData.season_number, episode.episode_number);
-        // Ensure the property is correctly assigned to the episode object
-        // This assumes TMDBEpisode in '@/types/tmdb' will be updated to have `torrentOptions?: TVEpisodeTorrentResultItem[];`
-        (episode as any).torrentOptions = torrentOptions || []; 
-      } catch (error) {
-        console.error(`[TMDB getTvSeasonDetails] Failed to get torrent options for ${seriesName} S${seasonData.season_number}E${episode.episode_number}:`, error);
-        (episode as any).torrentOptions = [];
-      }
-    }
-  }
-  
-  // Placeholder for season pack magnet link
-  seasonData.magnetLink = undefined; 
-  seasonData.torrentQuality = undefined;
-
+  // Placeholders for magnetLink and torrentQuality have been removed.
   return seasonData;
 }
 
-// Renamed from getEpisodeMagnetLink and updated as per example
-export async function getEpisodeTorrentOptions(
-  seriesTitle: string,
-  seasonNumber: number,
-  episodeNumber: number,
-  qualityHint?: string
-): Promise<TVEpisodeTorrentResultItem[] | null> {
-  const queryParams = new URLSearchParams({
-    title: seriesTitle,
-    season: String(seasonNumber),
-    episode: String(episodeNumber),
-  });
-  if (qualityHint) queryParams.set('quality', qualityHint);
-
-  const apiUrl = `/api/torrents/tv?${queryParams.toString()}`;
-  try {
-    console.log(`[getEpisodeTorrentOptions] Fetching from: ${apiUrl}`);
-    const absoluteApiUrl = new URL(apiUrl, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
-    const response = await fetch(absoluteApiUrl, { cache: 'no-store' });
-
-    if (!response.ok) {
-      let errorBody;
-      try {
-        errorBody = await response.json();
-      } catch (e) {
-        errorBody = { error: `API call failed with status ${response.status}, non-JSON response` };
-      }
-      console.warn(`[getEpisodeTorrentOptions] API call failed for S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}: ${response.status}, Body: ${errorBody.error || 'Unknown error'}`);
-      return null;
-    }
-    const data = await response.json();
-    if (data.error || !Array.isArray(data.results)) { // Check if data.results is an array
-      console.warn(`[getEpisodeTorrentOptions] API returned error or no results array: ${data.error || 'No results array'}`);
-      return []; // Return empty array for "no results" or malformed results
-    }
-    console.log(`[getEpisodeTorrentOptions] Found ${data.results.length} options for S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`);
-    return data.results as TVEpisodeTorrentResultItem[];
-  } catch (error) {
-    console.error(`[getEpisodeTorrentOptions] Network error for ${apiUrl}:`, error);
-    return null;
-  }
-}
-
+// getEpisodeTorrentOptions function has been removed as it's no longer used.
 
 export async function searchMulti(query: string, page: number = 1): Promise<TMDBMultiPaginatedResponse> {
   if (!query.trim()) {
@@ -304,7 +216,6 @@ export async function getMovieRecommendations(movieId: number | string, page: nu
 }
 
 export async function getTvSeriesRecommendations(tvId: number | string, page: number = 1): Promise<TMDBPaginatedResponse<TMDBBaseTVSeries>> {
-  console.log(`[TMDB Fetch] TV Series Recommendations for ID: ${tvId}, Page: ${page}`);
   return fetchTMDB<TMDBPaginatedResponse<TMDBBaseTVSeries>>(`tv/${tvId}/recommendations`, { page });
 }
 

@@ -1,22 +1,17 @@
 // src/app/[locale]/(main)/tv-series/[id]/page.tsx
-"use client"; 
+"use client";
 
 import React, { useState, useEffect, useCallback, use } from 'react';
-import { getTvSeriesDetails, getFullImagePath } from "@/lib/tmdb";
-import type { TMDBTVSeries, TMDBSeason, TMDBVideo } from "@/types/tmdb";
+import { getTvSeriesDetails, getFullImagePath, getTvSeasonDetails } from "@/lib/tmdb"; // Added getTvSeasonDetails
+import type { TMDBTVSeries, TMDBSeason, TMDBVideo, TMDBEpisode } from "@/types/tmdb"; // Added TMDBEpisode
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Accordion } from "@/components/ui/accordion";
-import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon, Loader2Icon } from "lucide-react";
+import { CalendarDaysIcon, Tv2Icon, InfoIcon, UsersIcon, ExternalLinkIcon, StarIcon, HashIcon, ClapperboardIcon, Loader2Icon, AlertTriangleIcon } from "lucide-react"; // Added AlertTriangleIcon
 import Link from "next/link";
-// Types for torrents (assuming they are defined in a central place, e.g., types/torrents.ts or similar)
-// For now, let's define a placeholder if not already globally available.
-// Ensure TorrentFindResultItem is imported or defined if not already.
-// import type { TorrentFindResultItem } from '@/types/torrents'; 
-interface TorrentFindResultItem { magnetLink: string; torrentQuality: string; fileName?: string; source?: string; /* ... other fields */ }
-
+import type { TorrentFindResultItem } from '@/types/torrent'; // Assuming this is the correct path and type
 
 import { DownloadAllSeasonsWithOptionsButton } from "@/components/features/tv-series/DownloadAllSeasonsWithOptionsButton";
 import { SeasonAccordionItem } from "@/components/features/tv-series/SeasonAccordionItem";
@@ -26,12 +21,21 @@ import { Separator } from "@/components/ui/separator";
 import type { Locale } from '@/config/i18n.config';
 import { getDictionary } from '@/lib/getDictionary';
 
+// Augment TMDBEpisode to include torrentOptions
+interface EpisodeWithTorrents extends TMDBEpisode {
+  torrentOptions?: TorrentFindResultItem[];
+}
+
+interface SeasonWithEpisodesAndTorrents extends TMDBSeason {
+  episodes: EpisodeWithTorrents[];
+}
+
 interface TvSeriesDetailsPageProps {
-  params: Promise<{ id: string; locale: Locale }>; // Updated to reflect params might be a Promise
+  params: Promise<{ id: string; locale: Locale }>;
 }
 
 export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
-  const resolvedParams = use(props.params); // Use React.use to unwrap the promise
+  const resolvedParams = use(props.params);
   const { id, locale } = resolvedParams;
 
   const [series, setSeries] = useState<TMDBTVSeries | null>(null);
@@ -39,11 +43,14 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dictionary, setDictionary] = useState<any>(null);
-  const [torrentResults, setTorrentResults] = useState<TorrentFindResultItem[]>([]);
+
+  const [seasonPackResults, setSeasonPackResults] = useState<Map<number, TorrentFindResultItem[]>>(new Map());
+  const [isLoadingTorrents, setIsLoadingTorrents] = useState(false);
+  const [torrentError, setTorrentError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDict = async () => {
-      if (locale) { // Ensure locale is available
+      if (locale) {
         const dict = await getDictionary(locale);
         setDictionary(dict.tvSeriesDetailsPage);
       }
@@ -58,60 +65,106 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
       return;
     }
     setIsLoading(true);
+    setError(null);
+    setTorrentError(null);
+
     try {
       const seriesData = await getTvSeriesDetails(id);
-      setSeries(seriesData);
+      setSeries(seriesData); // Set initial series data
 
       const videos: TMDBVideo[] = seriesData.videos?.results || [];
-      const officialTrailer = videos.find(
-        (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
-      ) || videos.find(
-        (video) => video.site === "YouTube" && video.type === "Trailer"
-      );
+      const officialTrailer = videos.find(v => v.site === "YouTube" && v.type === "Trailer" && v.official) || videos.find(v => v.site === "YouTube" && v.type === "Trailer");
       setTrailerKey(officialTrailer?.key || null);
 
-      // Fetch torrent data for the series
-      if (seriesData) {
-        try {
-          const torrentResponse = await fetch('/api/torrents/find', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              query: seriesData.name,
-              tmdbId: seriesData.id.toString(),
-              type: 'tv',
-              // Not sending season number here to get all series-related torrents
-            }),
-          });
-          if (torrentResponse.ok) {
-            const torrentData = await torrentResponse.json();
-            if (torrentData.results) {
-              setTorrentResults(torrentData.results);
-            }
-          } else {
-            console.error(`Failed to fetch torrents for TV series ${seriesData.name}: ${torrentResponse.status}`);
-          }
-        } catch (torrentError) {
-          console.error(`Error fetching torrents for TV series ${seriesData.name}:`, torrentError);
-        }
+      // Start fetching torrents
+      if (seriesData && seriesData.seasons && seriesData.seasons.length > 0) {
+        setIsLoadingTorrents(true);
+        const newSeasonPackResults = new Map<number, TorrentFindResultItem[]>();
+
+        const seasonsWithEpisodesAndTorrents = await Promise.all(
+          seriesData.seasons
+            .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0)) // Filter out "Specials" unless they have episodes
+            .map(async (seasonSummary) => {
+              try {
+                // Fetch season pack torrents
+                const seasonPackResponse = await fetch('/api/torrents/find', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    query: seriesData.name,
+                    type: 'tv',
+                    season: seasonSummary.season_number,
+                  }),
+                });
+                if (seasonPackResponse.ok) {
+                  const seasonPackData = await seasonPackResponse.json();
+                  newSeasonPackResults.set(seasonSummary.season_number, seasonPackData.results || []);
+                } else {
+                  console.warn(`Failed to fetch season pack for S${seasonSummary.season_number}: ${seasonPackResponse.status}`);
+                  newSeasonPackResults.set(seasonSummary.season_number, []);
+                }
+
+                // Fetch detailed season data for episodes
+                const detailedSeason = await getTvSeasonDetails(seriesData.id, seasonSummary.season_number);
+                const episodesWithTorrents: EpisodeWithTorrents[] = await Promise.all(
+                  detailedSeason.episodes.map(async (episode) => {
+                    try {
+                      const torrentResponse = await fetch('/api/torrents/find', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          query: seriesData.name,
+                          type: 'tv',
+                          season: episode.season_number,
+                          episode: episode.episode_number,
+                        }),
+                      });
+                      if (torrentResponse.ok) {
+                        const torrentData = await torrentResponse.json();
+                        return { ...episode, torrentOptions: torrentData.results || [] };
+                      }
+                       console.warn(`Failed to fetch torrents for S${episode.season_number}E${episode.episode_number}: ${torrentResponse.status}`);
+                      return { ...episode, torrentOptions: [] };
+                    } catch (epTorrentError) {
+                      console.error(`Error fetching torrents for S${episode.season_number}E${episode.episode_number}:`, epTorrentError);
+                      return { ...episode, torrentOptions: [] }; // Attach empty options on error
+                    }
+                  })
+                );
+                return { ...detailedSeason, episodes: episodesWithTorrents }; // Return the detailed season with augmented episodes
+              } catch (seasonFetchError) {
+                console.error(`Error fetching details or torrents for season ${seasonSummary.season_number}:`, seasonFetchError);
+                // Return the summary season with empty episodes/torrents if detailed fetch fails
+                return { ...seasonSummary, episodes: [] as EpisodeWithTorrents[] }; 
+              }
+            })
+        );
+        
+        // Update series state with seasons that now include detailed episodes and their torrents
+        setSeries(prevSeries => prevSeries ? { ...prevSeries, seasons: seasonsWithEpisodesAndTorrents as SeasonWithEpisodesAndTorrents[] } : null);
+        setSeasonPackResults(newSeasonPackResults);
+        setIsLoadingTorrents(false);
+      } else {
+        setIsLoadingTorrents(false); // No seasons to fetch torrents for
       }
 
     } catch (e) {
       console.error(`Failed to fetch TV series details for ID ${id}:`, e);
-      setError(dictionary?.errorCouldNotLoad || "Could not load TV series details. Please try again later or check if the series ID is correct.");
+      setError(dictionary?.errorCouldNotLoad || "Could not load TV series details. Please try again or check if the series ID is correct.");
+      setIsLoadingTorrents(false);
     } finally {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, dictionary]);
+  }, [id, dictionary]); // dictionary dependency for error messages
 
   useEffect(() => {
-    if (dictionary && id) { 
-        fetchData();
+    if (dictionary && id) {
+      fetchData();
     }
   }, [fetchData, dictionary, id]);
-  
-  if (isLoading || !dictionary || !locale) { // Ensure dictionary and locale are loaded
+
+  if (isLoading || !dictionary || !locale) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Loader2Icon className="w-16 h-16 text-primary animate-spin mb-6" />
@@ -119,7 +172,7 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
       </div>
     );
   }
-  
+
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
@@ -134,11 +187,12 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
   }
 
   if (!series) {
+    // This case might be hit briefly if series is null before error is set, or if fetchData fails silently on seriesData
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-10rem)] text-center p-6">
         <Tv2Icon className="w-24 h-24 text-muted-foreground/70 mb-6" />
         <h1 className="text-3xl font-bold mb-3">{dictionary?.seriesNotFoundTitle || "TV Series Not Found"}</h1>
-        <p className="text-muted-foreground max-w-md">{dictionary?.seriesNotFoundDescription || "The TV series you are looking for could not be found."}</p>
+        <p className="text-muted-foreground max-w-md">{dictionary?.seriesNotFoundDescription || "The TV series you are looking for could not be found, or an error occurred."}</p>
          <Button asChild variant="outline" className="mt-8 text-lg px-6 py-3">
           <Link href={`/${locale}/tv-series`}>{dictionary?.backToTvSeriesButton || "Back to TV Series"}</Link>
         </Button>
@@ -146,7 +200,10 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
     );
   }
   
-  const sortedSeasons = (series.seasons || [])
+  // Ensure series.seasons is treated as SeasonWithEpisodesAndTorrents[] for type safety
+  const typedSeasons: SeasonWithEpisodesAndTorrents[] = (series.seasons || []) as SeasonWithEpisodesAndTorrents[];
+  
+  const sortedSeasons = typedSeasons
     .filter(s => s.season_number > 0 || (s.season_number === 0 && s.episode_count > 0)) 
     .sort((a, b) => a.season_number - b.season_number);
 
@@ -155,10 +212,18 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
     ? `season-${firstAiringSeason.season_number}` 
     : (sortedSeasons.length > 0 && sortedSeasons[0].episode_count > 0 ? `season-${sortedSeasons[0].season_number}` : undefined);
 
-
   return (
     <div className="container mx-auto py-6 sm:py-8 px-2 sm:px-4">
-      <TVSeriesClientContent series={series} trailerKey={trailerKey} dictionary={dictionary.clientContent} torrentResults={torrentResults}>
+      {/* Pass new torrent-related states to TVSeriesClientContent */}
+      <TVSeriesClientContent 
+        series={series as TMDBTVSeries & { seasons: SeasonWithEpisodesAndTorrents[] }} // Cast for safety, series state is updated
+        trailerKey={trailerKey} 
+        dictionary={dictionary.clientContent} 
+        seasonPackResults={seasonPackResults}
+        isLoadingTorrents={isLoadingTorrents}
+        torrentError={torrentError}
+        locale={locale}
+      >
         <div className="grid md:grid-cols-12 gap-6 sm:gap-8">
           <div className="md:col-span-4 lg:col-span-3">
             <Card className="overflow-hidden shadow-xl sticky top-20 sm:top-24">
@@ -176,10 +241,12 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
                <CardContent className="p-3 sm:p-4 space-y-3">
                   <DownloadAllSeasonsWithOptionsButton
                     seriesId={series.id}
-                    seriesName={series.name}
-                    seriesTitle={series.name}
+                    seriesName={series.name} // series.name is fine
+                    seriesTitle={series.name} // series.name is fine
                     dictionary={dictionary.downloadAllSeasonsButton}
-                    torrentResults={torrentResults} // Pass torrentResults here
+                    // torrentResults prop will be replaced/updated based on new data structure
+                    // This component will need to be adapted to use seasonPackResults
+                    allSeasonPackResults={seasonPackResults} // Pass the map
                   />
                   {series.homepage && (
                   <Button variant="outline" className="w-full h-11 text-sm" asChild>
@@ -193,6 +260,27 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
           </div>
 
           <div className="md:col-span-8 lg:col-span-9 space-y-6 sm:space-y-8">
+            {/* Torrent Loading/Error Display Area */}
+            {isLoadingTorrents && (
+              <Card className="shadow-md border-border/40">
+                <CardContent className="p-4 flex items-center justify-center">
+                  <Loader2Icon className="w-6 h-6 text-primary animate-spin mr-3" />
+                  <p className="text-muted-foreground">{dictionary?.loadingTorrentsText || "Loading torrent information..."}</p>
+                </CardContent>
+              </Card>
+            )}
+            {torrentError && !isLoadingTorrents && (
+              <Card className="shadow-md border-destructive bg-destructive/10">
+                <CardContent className="p-4 flex items-center text-destructive">
+                  <AlertTriangleIcon className="w-6 h-6 mr-3 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold">{dictionary?.errorTorrentsTitle || "Error Fetching Torrents"}</p>
+                    <p className="text-sm">{torrentError}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            
             <Card className="shadow-lg border-border/40">
               <CardHeader className="pb-4">
                 <CardTitle className="flex items-center text-xl sm:text-2xl gap-2"><InfoIcon className="h-5 w-5 sm:h-6 sm:w-6 text-primary"/> {dictionary.overview.title}</CardTitle>
@@ -242,16 +330,17 @@ export default function TvSeriesDetailsPage(props: TvSeriesDetailsPageProps) {
                 </CardHeader>
                 <CardContent className="p-0">
                    <Accordion type="single" collapsible defaultValue={defaultAccordionValue} className="w-full">
-                    {sortedSeasons.map(season => (
+                    {sortedSeasons.map(season => ( // season is now SeasonWithEpisodesAndTorrents
                       <SeasonAccordionItem
                           key={season.id}
-                          seriesId={series!.id}
+                          seriesId={series!.id} // series is guaranteed to be non-null here
                           seriesTitle={series!.name}
-                          season={season}
+                          season={season} // Pass the augmented season object
                           initialOpen={defaultAccordionValue === `season-${season.season_number}`}
                           dictionary={dictionary.seasonAccordionItem}
                           locale={locale}
-                          allSeriesTorrents={torrentResults} // Pass torrentResults here
+                          // allSeriesTorrents prop will be replaced with specific season pack torrents
+                          seasonPackTorrentOptions={seasonPackResults.get(season.season_number) || []}
                       />
                     ))}
                   </Accordion>

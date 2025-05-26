@@ -58,8 +58,8 @@ async function handleApiError(url: string, message: string, status: number): Pro
     const aiFeedback: SmartErrorMessagesOutput = await smartErrorMessages({ url });
     return NextResponse.json({ error: message, details: aiFeedback.feedback }, { status });
   } catch (aiError) {
-    console.error('Error calling smartErrorMessages:', aiError);
-    // Fallback if smartErrorMessages itself fails
+    // console.error for smartErrorMessages removed as the fallback message is sufficient for server logs.
+    // The user will see the main error message or "Error processing this URL."
     return NextResponse.json({ error: message, details: "Error processing this URL." }, { status });
   }
 }
