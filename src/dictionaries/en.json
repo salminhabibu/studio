@@ -186,6 +186,19 @@
         "downloadNotAvailableTitle": "Download Not Available",
         "downloadNotAvailableDesc": "No download source found for this movie."
     },
+    "downloadCard": {
+      "downloadTitle": "Download Options",
+      "selectQualityPlaceholder": "Select quality...",
+      "downloadButton": "Download",
+      "visitHomepageButton": "Visit Homepage",
+      "noDownloadsAvailable": "No downloads found for this movie.",
+      "selectQualityTitle": "Select Option",
+      "selectQualityDesc": "Please select a download option.",
+      "downloadStartedServerTitle": "Sent to Server Download",
+      "downloadErrorServerTitle": "Server Download Error",
+      "errorServerApi": "Server API Error",
+      "errorServerApiDesc": "Could not communicate with download server."
+    },
     "overview": {
         "title": "Overview",
         "noOverview": "No overview available for this movie."
@@ -294,7 +307,32 @@
         "seasonDownloadAttemptedDesc": "Attempted to add {count} episodes. {successCount} succeeded, {failCount} failed.",
         "episodesText": "episodes",
         "succeededText": "succeeded",
-        "failedText": "failed"
+    "failedText": "failed",
+    "noEpisodeDownloads": "No download options found for this episode.",
+    "selectDownloadOption": "Select Download Option",
+    "cancelButton": "Cancel",
+    "downloadSelectedButton": "Download Selected",
+    "noTorrentsFoundItem": "No torrents found for this episode."
+    },
+    "downloadAllSeasonsButton": {
+      "noOptionSelectedTitle": "No Option Selected",
+      "noOptionSelectedDesc": "Please select a season pack to download.",
+      "torrentNotFoundTitle": "Torrent Not Found",
+      "torrentNotFoundDesc": "Selected torrent could not be found.",
+      "successTitle": "Sent to Server Download",
+      "successDesc": "sent to server. Task ID:",
+      "checkDownloadsPage": "Check Downloads page.",
+      "errorServerTitle": "Server Download Error",
+      "errorServerDesc": "Failed to start download on server.",
+      "errorApiTitle": "Server API Error",
+      "errorApiDesc": "Could not communicate with download server.",
+      "noTorrentsPlaceholder": "No season packs found",
+      "selectTorrentPlaceholder": "Select season pack...",
+      "noTorrentsFoundItem": "No season packs available",
+      "downloadAllSeasonsAriaLabel": "Download season pack for {seriesName} via Server",
+      "downloadSelectedPackButtonText": "Download Selected Pack",
+      "downloadNote": "Note: This downloads a multi-season pack or full series.",
+      "noSeasonPacksFound": "No suitable season packs found."
     },
     "recommendations": {
         "title": "You Might Also Like",
@@ -352,7 +390,22 @@
     "toastPreferenceSavedTitle": "Preference Saved",
     "toastPreferenceQualitySet": "Preferred streaming quality set to",
     "toastHistoryClearedTitle": "Playback History Cleared (Conceptual)",
-    "toastHistoryClearedDesc": "Your playback history has been conceptually cleared."
+    "toastHistoryClearedDesc": "Your playback history has been conceptually cleared.",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode"
+  },
+  "cacheManagement": {
+    "title": "Data Management",
+    "description": "Manage application data and cache.",
+    "clearDiscoveryCache": {
+      "label": "Clear Discovery Cache",
+      "description": "This will reset your filters and scroll position on the Movies and TV Series pages.",
+      "buttonText": "Clear Cache"
+    },
+    "clearedToast": {
+      "title": "Cache Cleared",
+      "description": "Movie and TV discovery cache has been cleared."
+    }
   },
   "aboutPage": {
     "mainTitle": "About ChillyMovies",
@@ -510,5 +563,27 @@
     "taskStatusRefreshedDescription": "Status for {title} has been updated.",
     "taskNotFoundTitle": "Update Failed",
     "taskNotFoundDescription": "Could not update status for a task as it was not found."
+  },
+  "aboutPage": {
+    "mainTitle": "About Chilly Movies",
+    "description": {
+        "title": "What is Chilly Movies?",
+        "text": "Chilly Movies is your ultimate companion for discovering, tracking, and downloading your favorite movies and TV series. Enjoy a seamless experience with integrated download capabilities and smart features."
+    },
+    "version": {
+        "title": "Version",
+        "prefix": "Current Version"
+    },
+    "acknowledgements": {
+      "title": "Acknowledgements",
+      "poweredByTMDB": "Movie & TV Data:",
+      "aiFeaturesByGenkit": "AI Features:",
+      "builtWith": "Framework & UI:",
+      "downloadManagement": "Download Core:"
+    },
+    "contact": {
+      "title": "Feedback & Contact",
+      "text": "For feedback or issues, please reach out via our community forum or support email: feedback@chillymovies.example"
+    }
   }
 }

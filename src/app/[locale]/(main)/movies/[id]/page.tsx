@@ -13,7 +13,8 @@ import { RecommendedMoviesSection } from "@/components/features/movies/Recommend
 import { Separator } from "@/components/ui/separator";
 import type { Locale } from '@/config/i18n.config';
 import { getDictionary } from '@/lib/getDictionary';
-import { Suspense } from "react";
+import { Suspense, useState } from "react"; // Added useState
+import type { TorrentFindResultItem } from '@/types/torrent'; // Added TorrentFindResultItem
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface MovieDetailsPageProps {
@@ -24,7 +25,11 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
   const dictionary = await getDictionary(locale);
   const t = dictionary.movieDetailsPage;
 
-  let movie: (TMDBMovie & { magnetLink?: string; torrentQuality?: string }) | null = null;
+  // Use a local state for movieTorrentOptions within the async component.
+  // This will be passed down. For client-side interactions, state is managed in client components.
+  let movieTorrentOptions: TorrentFindResultItem[] = [];
+
+  let movie: TMDBMovie | null = null; // Removed magnetLink and torrentQuality from here
   let trailerKey: string | null = null;
   let error: string | null = null;
 
@@ -60,11 +65,10 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
           if (torrentResponse.ok) {
             const torrentData = await torrentResponse.json();
             if (torrentData.results && torrentData.results.length > 0) {
-              const bestTorrent = torrentData.results[0]; // API returns sorted by seeders
-              movie.magnetLink = bestTorrent.magnetLink;
-              movie.torrentQuality = bestTorrent.torrentQuality;
+              movieTorrentOptions = torrentData.results; // Store all results
             } else {
               console.log(`No torrents found for movie: ${movie.title}`);
+              movieTorrentOptions = []; // Ensure it's an empty array
             }
           } else {
             const errorText = await torrentResponse.text();
@@ -114,7 +118,14 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
       <MovieClientContent movie={movie} trailerKey={trailerKey} dictionary={t.clientContent}>
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-4 lg:col-span-3">
-            <MovieDownloadCard movie={movie} dictionary={t.downloadCard} locale={locale} />
+            <MovieDownloadCard 
+              movieTitle={movie.title}
+              moviePosterPath={movie.poster_path}
+              movieHomepage={movie.homepage}
+              torrentOptions={movieTorrentOptions} 
+              dictionary={t.downloadCard} 
+              locale={locale} 
+            />
           </div>
 
           <div className="md:col-span-8 lg:col-span-9 space-y-8">

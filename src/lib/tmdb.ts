@@ -1,5 +1,6 @@
 // src/lib/tmdb.ts
 import type { TMDBMovie, TMDBPaginatedResponse, TMDBBaseMovie, TMDBTVSeries, TMDBBaseTVSeries, TMDBTvSeasonDetails, TMDBMultiPaginatedResponse, TMDBVideoResponse, TMDBGenre, TMDBDiscoverFilters } from '@/types/tmdb';
+import type { TVEpisodeTorrentResultItem } from '@/types/torrent'; // Import from shared types file
 
 const API_KEY = process.env.NEXT_PUBLIC_TMDB_API_KEY;
 const BASE_URL = 'https://api.themoviedb.org/3';
@@ -225,16 +226,16 @@ export async function getTvSeasonDetails(tvId: number | string, seasonNumber: nu
   const seasonData = await fetchTMDB<TMDBTvSeasonDetails>(`tv/${tvId}/season/${seasonNumber}`);
   
   if (seriesName && seasonData.episodes && seasonData.episodes.length > 0) {
-    console.log(`[TMDB getTvSeasonDetails] Fetching magnet links for ${seriesName} S${seasonNumber}, ${seasonData.episodes.length} episodes.`);
+    console.log(`[TMDB getTvSeasonDetails] Fetching torrent options for ${seriesName} S${seasonNumber}, ${seasonData.episodes.length} episodes.`);
     for (const episode of seasonData.episodes) {
       try {
-        const magnet = await getEpisodeMagnetLink(seriesName, seasonData.season_number, episode.episode_number);
-        episode.magnetLink = magnet || undefined; // Store magnet or undefined if null
-        episode.torrentQuality = undefined; // Placeholder, as getEpisodeMagnetLink does not currently return quality
+        const torrentOptions = await getEpisodeTorrentOptions(seriesName, seasonData.season_number, episode.episode_number);
+        // Ensure the property is correctly assigned to the episode object
+        // This assumes TMDBEpisode in '@/types/tmdb' will be updated to have `torrentOptions?: TVEpisodeTorrentResultItem[];`
+        (episode as any).torrentOptions = torrentOptions || []; 
       } catch (error) {
-        console.error(`[TMDB getTvSeasonDetails] Failed to get magnet for ${seriesName} S${seasonData.season_number}E${episode.episode_number}:`, error);
-        episode.magnetLink = undefined;
-        episode.torrentQuality = undefined;
+        console.error(`[TMDB getTvSeasonDetails] Failed to get torrent options for ${seriesName} S${seasonData.season_number}E${episode.episode_number}:`, error);
+        (episode as any).torrentOptions = [];
       }
     }
   }
@@ -246,36 +247,49 @@ export async function getTvSeasonDetails(tvId: number | string, seasonNumber: nu
   return seasonData;
 }
 
-export async function getEpisodeMagnetLink(seriesTitle: string, seasonNumber: number, episodeNumber: number, qualityHint?: string): Promise<string | null> {
-  // The qualityHint is conceptual for now; the backend /api/torrents/tv needs to support it.
+// Renamed from getEpisodeMagnetLink and updated as per example
+export async function getEpisodeTorrentOptions(
+  seriesTitle: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  qualityHint?: string
+): Promise<TVEpisodeTorrentResultItem[] | null> {
   const queryParams = new URLSearchParams({
     title: seriesTitle,
     season: String(seasonNumber),
     episode: String(episodeNumber),
   });
   if (qualityHint) queryParams.set('quality', qualityHint);
-  
+
   const apiUrl = `/api/torrents/tv?${queryParams.toString()}`;
   try {
-    console.log(`[getEpisodeMagnetLink] Fetching from: ${apiUrl}`);
-    const response = await fetch(apiUrl, { cache: 'no-store' }); 
+    console.log(`[getEpisodeTorrentOptions] Fetching from: ${apiUrl}`);
+    const absoluteApiUrl = new URL(apiUrl, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000').toString();
+    const response = await fetch(absoluteApiUrl, { cache: 'no-store' });
+
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.warn(`[getEpisodeMagnetLink] API call failed for S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}: ${response.status}, Body: ${errorBody}`);
+      let errorBody;
+      try {
+        errorBody = await response.json();
+      } catch (e) {
+        errorBody = { error: `API call failed with status ${response.status}, non-JSON response` };
+      }
+      console.warn(`[getEpisodeTorrentOptions] API call failed for S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}: ${response.status}, Body: ${errorBody.error || 'Unknown error'}`);
       return null;
     }
     const data = await response.json();
-    if (data.error) {
-      console.warn(`[getEpisodeMagnetLink] API returned error: ${data.error}`);
-      return null;
+    if (data.error || !Array.isArray(data.results)) { // Check if data.results is an array
+      console.warn(`[getEpisodeTorrentOptions] API returned error or no results array: ${data.error || 'No results array'}`);
+      return []; // Return empty array for "no results" or malformed results
     }
-    console.log(`[getEpisodeMagnetLink] Found magnet: ${data.magnet ? data.magnet.substring(0,60)+'...' : 'None'}`);
-    return data.magnet || null;
+    console.log(`[getEpisodeTorrentOptions] Found ${data.results.length} options for S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}`);
+    return data.results as TVEpisodeTorrentResultItem[];
   } catch (error) {
-    console.error(`[getEpisodeMagnetLink] Network error:`, error);
+    console.error(`[getEpisodeTorrentOptions] Network error for ${apiUrl}:`, error);
     return null;
   }
 }
+
 
 export async function searchMulti(query: string, page: number = 1): Promise<TMDBMultiPaginatedResponse> {
   if (!query.trim()) {

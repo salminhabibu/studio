@@ -1,4 +1,5 @@
 // src/types/tmdb.ts
+import type { TVEpisodeTorrentResultItem } from './torrent'; // Import the new type
 
 export interface TMDBGenre {
   id: number;
@@ -69,8 +70,7 @@ export interface TMDBEpisode {
   vote_average: number;
   season_number: number;
   runtime: number | null;
-  magnetLink?: string; // Added
-  torrentQuality?: string; // Added
+  torrentOptions?: TVEpisodeTorrentResultItem[]; // Replaces magnetLink and torrentQuality
 }
 
 export interface TMDBSeason {

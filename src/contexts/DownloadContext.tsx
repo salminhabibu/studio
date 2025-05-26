@@ -36,6 +36,9 @@ export interface DownloadContextValue {
   addDownloadTask: (taskData: DownloadTaskCreationData) => Promise<DownloadTask | null>;
   refreshTaskStatus: (taskId: string) => Promise<DownloadTask | null>;
   getTask: (taskId: string) => DownloadTask | undefined;
+  pauseDownload: (gid: string) => Promise<void>;
+  resumeDownload: (gid: string) => Promise<void>;
+  cancelDownload: (gid: string) => Promise<void>;
   _simulateProgress: (taskId: string) => void; // For stubbing
 }
 
@@ -161,6 +164,64 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     [toast, activeTasks] // activeTasks needed for the oldTask check
   );
 
+  const pauseDownload = useCallback(
+    async (gid: string) => {
+      try {
+        const response = await fetch(`/api/aria2/pause/${gid}`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to pause download');
+        }
+        toast({ title: 'Download Paused', description: data.message || `Task ${gid} paused.` });
+        refreshTaskStatus(gid);
+      } catch (error: any) {
+        toast({ title: 'Error Pausing', description: error.message, variant: 'destructive' });
+      }
+    },
+    [toast, refreshTaskStatus]
+  );
+
+  const resumeDownload = useCallback(
+    async (gid: string) => {
+      try {
+        const response = await fetch(`/api/aria2/resume/${gid}`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to resume download');
+        }
+        toast({ title: 'Download Resumed', description: data.message || `Task ${gid} resumed.` });
+        refreshTaskStatus(gid);
+      } catch (error: any) {
+        toast({ title: 'Error Resuming', description: error.message, variant: 'destructive' });
+      }
+    },
+    [toast, refreshTaskStatus]
+  );
+
+  const cancelDownload = useCallback(
+    async (gid: string) => {
+      try {
+        const response = await fetch(`/api/aria2/remove/${gid}`, { method: 'POST' });
+        const data = await response.json();
+        if (!response.ok) {
+          // Handle 404 specifically if the task was already removed or not found
+          if (response.status === 404) {
+             toast({ title: 'Download Not Found', description: data.message || `Task ${gid} not found or already removed.`, variant: 'default' });
+          } else {
+            throw new Error(data.error || 'Failed to cancel download');
+          }
+        } else {
+          toast({ title: 'Download Cancelled', description: data.message || `Task ${gid} cancelled successfully.` });
+        }
+        // Remove from active tasks list immediately
+        setActiveTasks((prevTasks) => prevTasks.filter((task) => task.id !== gid));
+      } catch (error: any) {
+        toast({ title: 'Error Cancelling', description: error.message, variant: 'destructive' });
+      }
+    },
+    [toast, setActiveTasks, refreshTaskStatus] // refreshTaskStatus might be redundant if item is removed, but kept for consistency or future use
+  );
+
   const getTask = useCallback(
     (taskId: string): DownloadTask | undefined => {
       return activeTasks.find((task) => task.id === taskId);
@@ -206,6 +267,9 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     addDownloadTask,
     refreshTaskStatus,
     getTask,
+    pauseDownload,
+    resumeDownload,
+    cancelDownload,
     _simulateProgress,
   };
 

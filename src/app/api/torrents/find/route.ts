@@ -4,6 +4,8 @@ import { z } from 'zod';
 import fetch from 'node-fetch'; // For making HTTP requests
 import cheerio from 'cheerio'; // For parsing HTML
 
+const NYAA_BASE_URL = process.env.NYAA_BASE_URL || 'https://nyaa.si';
+
 /**
  * Interface for the request parameters to find torrents.
  */
@@ -74,7 +76,7 @@ export async function POST(request: Request) {
       try {
         // Nyaa.si uses category c=1_2 for English-translated Live Action, c=1_4 for Raw Live Action.
         // c=1_0 is "Live Action (All)". Using this for broader movie search.
-        const nyaaSearchUrl = `https://nyaa.si/?f=0&c=1_0&q=${encodeURIComponent(searchQuery)}&s=seeders&o=desc`;
+        const nyaaSearchUrl = `${NYAA_BASE_URL}/?f=0&c=1_0&q=${encodeURIComponent(searchQuery)}&s=seeders&o=desc`;
         const response = await fetch(nyaaSearchUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -105,7 +107,7 @@ export async function POST(request: Request) {
           }
           
           const detailsUrlPath = titleAnchor.attr('href');
-          const detailsUrl = detailsUrlPath ? `https://nyaa.si${detailsUrlPath}` : undefined;
+          const detailsUrl = detailsUrlPath ? `${NYAA_BASE_URL}${detailsUrlPath}` : undefined;
 
           const magnetLink = $row.find('td.text-center a[href^="magnet:?"]').attr('href');
           const size = $row.find('td.text-center').eq(1).text().trim(); // Size is usually in the 2nd text-center td
@@ -173,7 +175,7 @@ export async function POST(request: Request) {
         // Nyaa.si category 1_0 (Live Action - All) is used.
         // Consider 1_2 (Eng-translated) or 1_3 (Non-Eng) if more specific results are needed.
         // For TV, sorting by seeders is crucial.
-        const nyaaSearchUrl = `https://nyaa.si/?f=0&c=1_0&q=${encodeURIComponent(tvSearchQuery)}&s=seeders&o=desc`;
+        const nyaaSearchUrl = `${NYAA_BASE_URL}/?f=0&c=1_0&q=${encodeURIComponent(tvSearchQuery)}&s=seeders&o=desc`;
         const response = await fetch(nyaaSearchUrl, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
@@ -197,7 +199,7 @@ export async function POST(request: Request) {
           let fileName = titleAnchor.attr('title') || titleAnchor.text().trim();
           
           const detailsUrlPath = titleAnchor.attr('href');
-          const detailsUrl = detailsUrlPath ? `https://nyaa.si${detailsUrlPath}` : undefined;
+          const detailsUrl = detailsUrlPath ? `${NYAA_BASE_URL}${detailsUrlPath}` : undefined;
           const magnetLink = $row.find('td.text-center a[href^="magnet:?"]').attr('href');
           const size = $row.find('td.text-center').eq(1).text().trim();
           const seeds = parseInt($row.find('td.text-center').eq(3).text().trim(), 10);
