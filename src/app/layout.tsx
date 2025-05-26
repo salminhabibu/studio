@@ -3,6 +3,7 @@ import { Poppins } from 'next/font/google';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import type { Locale } from '@/config/i18n.config';
+import { ThemeProvider } from '@/contexts/ThemeContext';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -26,10 +27,12 @@ export default function RootLayout({
   params: { locale },
 }: Readonly<RootLayoutProps>) {
   return (
-    <html lang={locale} className="dark">
+    <html lang={locale} suppressHydrationWarning>
       <body className={`${poppins.variable} font-sans antialiased bg-background text-foreground`}>
-        {children}
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

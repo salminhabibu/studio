@@ -24,7 +24,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; 
+import { getDictionary } from '@/lib/getDictionary';
+import { getSmartFeedback } from '@/lib/actions/ai.actions';
 
 const youtubeUrlFormSchema = z.object({
   url: z.string().url({ message: "Please enter a valid YouTube URL (video or playlist)." })
@@ -204,10 +205,24 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
+        const errorData = await response.json().catch(() => ({ error: "Unknown error structure" }));
+        
+        // Call the AI flow for smarter feedback
+        const aiFeedback = await getSmartFeedback({ url: data.url });
+
+        let description = aiFeedback.feedback; // Use AI feedback by default
+        // Optional: if AI feedback is generic or indicates success (which it shouldn't here),
+        // you might append or use original error as fallback.
+        // For instance, if (!aiFeedback.isValid && errorData.error) {
+        //   description += ` (Original error: ${errorData.error})`;
+        // } else if (aiFeedback.isValid) { 
+        //   // This case should ideally not happen if response.ok is false
+        //   description = `AI suggested the URL is valid, but server processing failed: ${errorData.error || "Unknown server error"}`;
+        // }
+
         toast({
           title: dictionary?.errorFetchInfoTitle || "Error Fetching Information",
-          description: `${errorData.error || dictionary?.unknownErrorOccurred || "An unknown error occurred."}${errorData.details ? ` (${errorData.details})` : ''}`,
+          description: description, // Use the AI-generated feedback
           variant: "destructive",
         });
         setCurrentContent(null);
@@ -699,7 +714,6 @@ useEffect(() => {
 
                         <ScrollArea className="h-[400px] border rounded-md p-2 bg-muted/30">
                             <div className="space-y-3">
-                            {currentContent.items.map((item) => (
                             {currentContent.videos.map((item) => (
                                 <Card key={item.id} className="flex items-center gap-3 p-3 bg-card hover:bg-card/80 shadow-sm">
                                     <Checkbox checked={playlistItemsSelection[item.id] || false} onCheckedChange={() => togglePlaylistItemSelection(item.id)} id={`item-${item.id}`} />

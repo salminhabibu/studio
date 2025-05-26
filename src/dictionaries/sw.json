@@ -186,6 +186,19 @@
         "downloadNotAvailableTitle": "Upakuaji Haupatikani",
         "downloadNotAvailableDesc": "Hakuna chanzo cha upakuaji kilichopatikana kwa filamu hii."
     },
+    "downloadCard": {
+      "downloadTitle": "Chaguo za Upakuaji",
+      "selectQualityPlaceholder": "Chagua ubora...",
+      "downloadButton": "Pakua",
+      "visitHomepageButton": "Tembelea Ukurasa Mkuu",
+      "noDownloadsAvailable": "Hakuna vipakuliwa vilivyopatikana kwa filamu hii.",
+      "selectQualityTitle": "Chagua Chaguo",
+      "selectQualityDesc": "Tafadhali chagua chaguo la kupakua.",
+      "downloadStartedServerTitle": "Imetumwa kwa Upakuaji wa Seva",
+      "downloadErrorServerTitle": "Hitilafu ya Upakuaji wa Seva",
+      "errorServerApi": "Hitilafu ya API ya Seva",
+      "errorServerApiDesc": "Imeshindwa kuwasiliana na seva ya upakuaji."
+    },
     "overview": {
         "title": "Muhtasari",
         "noOverview": "Hakuna muhtasari unaopatikana kwa filamu hii."
@@ -294,7 +307,32 @@
         "seasonDownloadAttemptedDesc": "Imejaribu kuongeza vipindi {count}. {successCount} vimefaulu, {failCount} vimeshindwa.",
         "episodesText": "vipindi",
         "succeededText": "vimefaulu",
-        "failedText": "vimeshindwa"
+    "failedText": "vimeshindwa",
+    "noEpisodeDownloads": "Hakuna chaguo za upakuaji zilizopatikana kwa kipindi hiki.",
+    "selectDownloadOption": "Chagua Chaguo la Upakuaji",
+    "cancelButton": "Ghairi",
+    "downloadSelectedButton": "Pakua Lililochaguliwa",
+    "noTorrentsFoundItem": "Hakuna torrenti zilizopatikana kwa kipindi hiki."
+    },
+    "downloadAllSeasonsButton": {
+      "noOptionSelectedTitle": "Hakuna Chaguo Lililochaguliwa",
+      "noOptionSelectedDesc": "Tafadhali chagua kifurushi cha msimu cha kupakua.",
+      "torrentNotFoundTitle": "Torrenti Haikupatikana",
+      "torrentNotFoundDesc": "Torrenti iliyochaguliwa haikupatikana.",
+      "successTitle": "Imetumwa kwa Upakuaji wa Seva",
+      "successDesc": "imetumwa kwa seva. Kitambulisho cha Kazi:",
+      "checkDownloadsPage": "Angalia ukurasa wa Vipakuliwa.",
+      "errorServerTitle": "Hitilafu ya Upakuaji wa Seva",
+      "errorServerDesc": "Imeshindwa kuanzisha upakuaji kwenye seva.",
+      "errorApiTitle": "Hitilafu ya API ya Seva",
+      "errorApiDesc": "Imeshindwa kuwasiliana na seva ya upakuaji.",
+      "noTorrentsPlaceholder": "Hakuna vifurushi vya msimu vilivyopatikana",
+      "selectTorrentPlaceholder": "Chagua kifurushi cha msimu...",
+      "noTorrentsFoundItem": "Hakuna vifurushi vya msimu vinavyopatikana",
+      "downloadAllSeasonsAriaLabel": "Pakua kifurushi cha msimu kwa {seriesName} kupitia Seva",
+      "downloadSelectedPackButtonText": "Pakua Kifurushi Kilichochaguliwa",
+      "downloadNote": "Kumbuka: Hii hupakua kifurushi cha misimu mingi au mfululizo kamili.",
+      "noSeasonPacksFound": "Hakuna vifurushi vya msimu vinavyofaa vilivyopatikana."
     },
     "recommendations": {
         "title": "Unaweza Pia Kupenda",
@@ -352,7 +390,22 @@
     "toastPreferenceSavedTitle": "Upendeleo Umehifadhiwa",
     "toastPreferenceQualitySet": "Ubora unaopendelewa wa utiririshaji umewekwa kuwa",
     "toastHistoryClearedTitle": "Historia ya Uchezaji Imefutwa (Kimfano)",
-    "toastHistoryClearedDesc": "Historia yako ya uchezaji imefutwa kifikra."
+    "toastHistoryClearedDesc": "Historia yako ya uchezaji imefutwa kifikra.",
+    "darkMode": "Hali Nyeusi",
+    "lightMode": "Hali Nyeupe"
+  },
+  "cacheManagement": {
+    "title": "Usimamizi wa Data",
+    "description": "Simamia data ya programu na akiba.",
+    "clearDiscoveryCache": {
+      "label": "Futa Akiba ya Ugunduzi",
+      "description": "Hii itaweka upya vichujio vyako na nafasi ya kusogeza kwenye kurasa za Filamu na Tamthilia.",
+      "buttonText": "Futa Akiba"
+    },
+    "clearedToast": {
+      "title": "Akiba Imefutwa",
+      "description": "Akiba ya ugunduzi wa filamu na tamthilia imefutwa."
+    }
   },
   "aboutPage": {
     "mainTitle": "Kuhusu ChillyMovies",
@@ -510,5 +563,27 @@
     "taskStatusRefreshedDescription": "Hali ya {title} imesasishwa.",
     "taskNotFoundTitle": "Imeshindwa Kusasisha",
     "taskNotFoundDescription": "Imeshindwa kusasisha hali ya kazi kwani haikupatikana."
+  },
+  "aboutPage": {
+    "mainTitle": "Kuhusu Chilly Movies",
+    "description": {
+        "title": "Chilly Movies ni Nini?",
+        "text": "Chilly Movies ni mwandani wako mkuu wa kugundua, kufuatilia, na kupakua filamu na tamthilia zako uzipendazo. Furahia uzoefu mwanana na uwezo jumuishi wa upakuaji na vipengele mahiri."
+    },
+    "version": {
+        "title": "Toleo",
+        "prefix": "Toleo la Sasa"
+    },
+    "acknowledgements": {
+      "title": "Shukrani",
+      "poweredByTMDB": "Data ya Filamu na Tamthilia:",
+      "aiFeaturesByGenkit": "Vipengele vya Akili Bandia:",
+      "builtWith": "Mfumo na UI:",
+      "downloadManagement": "Msingi wa Upakuaji:"
+    },
+    "contact": {
+      "title": "Maoni na Mawasiliano",
+      "text": "Kwa maoni au masuala, tafadhali wasiliana nasi kupitia jukwaa letu la jamii au barua pepe ya usaidizi: feedback@chillymovies.example"
+    }
   }
 }

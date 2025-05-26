@@ -1,9 +1,15 @@
 // src/app/[locale]/(main)/downloads/page.tsx
 "use client";
 
-import React, { useEffect } from 'react'; // Removed useState, useCallback, use as they are not used here
+import React, { useEffect, useState } from 'react';
 import { useDownload } from '@/contexts/DownloadContext';
 import { DownloadTask } from '@/types/download';
+import {
+  PauseIcon,
+  PlayIcon,
+  XCircleIcon,
+  Loader2Icon,
+} from 'lucide-react';
 import {
   Card,
   CardHeader,
@@ -17,7 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 // Removed Table components as Card-based layout is used
 // import { getDictionary } from '@/lib/getDictionary'; // Not using for this basic version
-// import { Loader2Icon } from 'lucide-react'; // Not using for this basic version
 
 // For a real app, you'd likely pass the locale to getDictionary
 // interface DownloadsPageProps {
@@ -26,7 +31,8 @@ import { Button } from '@/components/ui/button';
 
 // Ensure this matches the actual directory structure for locale, if used
 export default function DownloadsPage(/*{ params: { locale } }: { params: { locale: string } }*/) {
-  const { activeTasks, _simulateProgress, refreshTaskStatus } = useDownload();
+  const { activeTasks, _simulateProgress, refreshTaskStatus, pauseDownload, resumeDownload, cancelDownload } = useDownload();
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
   // const dictionary = await getDictionary(locale); // If using i18n texts
 
   // Optional: If you want to show a loading state while dictionary loads, or initial tasks
@@ -99,13 +105,43 @@ export default function DownloadsPage(/*{ params: { locale } }: { params: { loca
                   </div>
                 )}
               </CardContent>
-              <CardFooter className="flex justify-end gap-2 pt-3 border-t bg-slate-50/50 dark:bg-slate-800/20 p-3">
+              <CardFooter className="flex justify-end flex-wrap gap-2 pt-3 border-t bg-slate-50/50 dark:bg-slate-800/20 p-3">
                 {task.status === 'downloading' && (
-                  <Button variant="outline" size="xs" onClick={() => _simulateProgress(task.id)}>
+                  <Button variant="outline" size="xs" onClick={async () => {
+                    setLoadingStates(prev => ({ ...prev, [`pause-${task.id}`]: true }));
+                    await pauseDownload(task.id);
+                    setLoadingStates(prev => ({ ...prev, [`pause-${task.id}`]: false }));
+                  }} disabled={loadingStates[`pause-${task.id}`]}>
+                    {loadingStates[`pause-${task.id}`] ? <Loader2Icon className="h-3 w-3 animate-spin" /> : <PauseIcon className="h-3 w-3" />}
+                    <span className="ml-1">Pause</span>
+                  </Button>
+                )}
+                {task.status === 'paused' && (
+                  <Button variant="outline" size="xs" onClick={async () => {
+                    setLoadingStates(prev => ({ ...prev, [`resume-${task.id}`]: true }));
+                    await resumeDownload(task.id);
+                    setLoadingStates(prev => ({ ...prev, [`resume-${task.id}`]: false }));
+                  }} disabled={loadingStates[`resume-${task.id}`]}>
+                    {loadingStates[`resume-${task.id}`] ? <Loader2Icon className="h-3 w-3 animate-spin" /> : <PlayIcon className="h-3 w-3" />}
+                    <span className="ml-1">Resume</span>
+                  </Button>
+                )}
+                {['downloading', 'paused', 'waiting', 'error'].includes(task.status) && (
+                  <Button variant="destructive" size="xs" onClick={async () => {
+                    setLoadingStates(prev => ({ ...prev, [`cancel-${task.id}`]: true }));
+                    await cancelDownload(task.id);
+                    // No need to setLoading false here if task is removed from list by cancelDownload
+                  }} disabled={loadingStates[`cancel-${task.id}`]}>
+                    {loadingStates[`cancel-${task.id}`] ? <Loader2Icon className="h-3 w-3 animate-spin" /> : <XCircleIcon className="h-3 w-3" />}
+                    <span className="ml-1">Cancel</span>
+                  </Button>
+                )}
+                {task.status === 'downloading' && ( // Simulate Progress button (can be removed)
+                  <Button variant="outline" size="xs" onClick={() => _simulateProgress(task.id)} className="hidden sm:flex">
                     Simulate Progress
                   </Button>
                 )}
-                <Button variant="ghost" size="xs" onClick={() => refreshTaskStatus(task.id)}>
+                <Button variant="ghost" size="xs" onClick={() => refreshTaskStatus(task.id)} disabled={Object.values(loadingStates).some(s => s)}>
                   Refresh
                 </Button>
               </CardFooter>
