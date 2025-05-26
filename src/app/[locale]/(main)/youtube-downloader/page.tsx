@@ -151,6 +151,10 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
   const [playlistItemsSelection, setPlaylistItemsSelection] = useState<Record<string, boolean>>({});
   const [dictionary, setDictionary] = useState<any>(null);
 
+  // For UI Clarification when playlist is loaded
+  const [isPlaylistLoaded, setIsPlaylistLoaded] = useState(false);
+
+
   useEffect(() => {
     const fetchDictionary = async () => {
       if (locale) { 
@@ -238,44 +242,46 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
         // Auto-select default itags will be handled by useEffect listening to videoFormatsToShow/audioFormatsToShow
       } else if (result.type === 'playlist' && result.playlistInfo) {
         const playlistInfo = result.playlistInfo as ApiPlaylistInfo;
-        // Transform playlist videos to include 'selected' property for local state management
         const itemsWithSelection: PlaylistItem[] = playlistInfo.videos.map(video => ({
           ...video,
-          selected: true // Default to all selected
+          selected: true 
         }));
-        setCurrentContent({ ...playlistInfo, videos: itemsWithSelection }); // Store items in `videos` field
+        setCurrentContent({ ...playlistInfo, videos: itemsWithSelection });
         
         setPlaylistItemsSelection(itemsWithSelection.reduce((acc: Record<string, boolean>, item) => {
           acc[item.id] = true;
           return acc;
         }, {}));
         
-        // Set preview to the first video in the playlist if available
+        setIsPlaylistLoaded(true); // Set flag for UI note
+
         if (playlistInfo.videos.length > 0) {
           setPreviewVideoId(playlistInfo.videos[0].id);
-          // Note: Global format selectors might not be meaningful for a whole playlist.
-          // The useEffect for videoFormatsToShow/audioFormatsToShow will clear them if currentContent is a playlist.
         } else {
           setPreviewVideoId(null);
+          setIsPlaylistLoaded(false); // Reset if playlist is empty
         }
       } else {
         toast({ title: dictionary?.errorInvalidResponseTitle || "Invalid API Response", description: dictionary?.errorInvalidResponseDesc || "Received an unexpected response from the server.", variant: "destructive" });
         setCurrentContent(null);
+        setIsPlaylistLoaded(false);
       }
     } catch (error) {
       console.error("onSearch error:", error);
+      setIsPlaylistLoaded(false);
       toast({
         title: dictionary?.errorNetworkTitle || "Network Error",
         description: (error as Error).message || dictionary?.errorNetworkDesc || "Could not connect to the server.",
         variant: "destructive",
       });
       setCurrentContent(null);
+      setIsPlaylistLoaded(false);
     } finally {
       setIsLoadingInfo(false);
     }
   };
   
-  const handleDownload = async (videoToDownload?: ApiVideoInfo) => { // Parameter type updated
+  const handleDownload = async (videoToDownload?: ApiVideoInfo) => { 
     const contentToUse = videoToDownload || (currentContent && 'formats' in currentContent ? currentContent : null);
 
     if (!contentToUse || !currentUrl || !contentToUse.id) {
@@ -284,18 +290,18 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
     }
     
     let finalItag: number | null = null;
-    let fileExtension: string = "mp4"; // Default extension
+    let fileExtension: string = "mp4"; 
 
     if (selectedDownloadType === 'audioonly') {
       finalItag = selectedAudioItag;
       const audioFormatDetails = audioFormatsToShow.find(f => f.itag === finalItag);
-      fileExtension = audioFormatDetails?.container || selectedAudioFormat; // opus or m4a (fallback to selected pref)
+      fileExtension = audioFormatDetails?.container || selectedAudioFormat; 
     } else if (selectedDownloadType === 'videoonly') {
       finalItag = selectedVideoItag;
       const videoFormatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
       fileExtension = videoFormatDetails?.container || "mp4";
-    } else { // videoaudio
-      finalItag = selectedVideoItag; // Assuming this itag contains both video and audio
+    } else { 
+      finalItag = selectedVideoItag; 
       const videoFormatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
       if (videoFormatDetails && !videoFormatDetails.hasAudio) {
          toast({ title: dictionary?.errorFormatNoAudioTitle || "Format Error", description: dictionary?.errorFormatNoAudioDesc || "Selected video quality does not have audio. Choose another or download audio separately.", variant: "destructive" });
@@ -346,8 +352,57 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
     }
   };
 
+  // Helper to sort video formats (simple sort, can be improved)
+  const sortVideoFormats = (formats: Format[]): Format[] => {
+    return formats.sort((a, b) => {
+      const qualityA = parseInt(a.qualityLabel || "0");
+      const qualityB = parseInt(b.qualityLabel || "0");
+      return qualityB - qualityA; // Descending
+    });
+  };
+
+  // Helper to sort audio formats
+  const sortAudioFormats = (formats: Format[]): Format[] => {
+    return formats.sort((a, b) => (b.audioBitrate || b.bitrate || 0) - (a.audioBitrate || a.bitrate || 0)); // Descending
+  };
+
+  const determineBestFormat = (
+    individualVideoInfo: ApiVideoInfo,
+    preferredVideoItag: number | null,
+    preferredAudioItag: number | null,
+    downloadType: 'videoaudio' | 'videoonly' | 'audioonly',
+    preferredAudioContainer: 'm4a' | 'opus'
+  ): { itag: number; container: string; } | null => {
+    const videoFormats = sortVideoFormats(individualVideoInfo.formats.video || []);
+    const audioFormats = sortAudioFormats(individualVideoInfo.formats.audio || []);
+
+    if (downloadType === 'videoaudio') {
+      if (preferredVideoItag) {
+        const preferred = videoFormats.find(f => f.itag === preferredVideoItag && f.hasAudio);
+        if (preferred) return { itag: preferred.itag, container: preferred.container || 'mp4' };
+      }
+      const bestWithAudio = videoFormats.find(f => f.hasAudio);
+      return bestWithAudio ? { itag: bestWithAudio.itag, container: bestWithAudio.container || 'mp4' } : null;
+    } else if (downloadType === 'videoonly') {
+      if (preferredVideoItag) {
+        const preferred = videoFormats.find(f => f.itag === preferredVideoItag);
+        if (preferred) return { itag: preferred.itag, container: preferred.container || 'mp4' };
+      }
+      return videoFormats.length > 0 ? { itag: videoFormats[0].itag, container: videoFormats[0].container || 'mp4' } : null;
+    } else { // audioonly
+      if (preferredAudioItag) {
+        const preferred = audioFormats.find(f => f.itag === preferredAudioItag);
+        if (preferred) return { itag: preferred.itag, container: preferred.container || preferredAudioContainer };
+      }
+      // Fallback: if preferred not found, try to find one matching the preferred container, then any.
+      let bestAudio = audioFormats.find(f => f.container === preferredAudioContainer);
+      if (!bestAudio && audioFormats.length > 0) bestAudio = audioFormats[0];
+      return bestAudio ? { itag: bestAudio.itag, container: bestAudio.container || preferredAudioContainer } : null;
+    }
+  };
+
   const handleDownloadPlaylist = async () => {
-      if (!currentContent || !('videos' in currentContent)) { // Check 'videos' field
+      if (!currentContent || !('videos' in currentContent)) {
           toast({title: dictionary?.errorNoPlaylistTitle || "Error", description: dictionary?.errorNoPlaylistDesc || "No playlist loaded.", variant: "destructive"});
           return;
       }
@@ -361,18 +416,6 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
       let successCount = 0;
       let errorCount = 0;
 
-      // Check if a global ITAG is selected based on download type
-      if (selectedDownloadType === 'audioonly' && !selectedAudioItag) {
-        toast({ title: dictionary?.errorSelectGlobalAudioTitle || "Select Audio Quality", description: dictionary?.errorSelectGlobalAudioDesc || "Please select a global audio quality for the playlist.", variant: "destructive" });
-        setIsDownloading(false);
-        return;
-      }
-      if ((selectedDownloadType === 'videoaudio' || selectedDownloadType === 'videoonly') && !selectedVideoItag) {
-        toast({ title: dictionary?.errorSelectGlobalVideoTitle || "Select Video Quality", description: dictionary?.errorSelectGlobalVideoDesc || "Please select a global video quality for the playlist.", variant: "destructive" });
-        setIsDownloading(false);
-        return;
-      }
-
       toast({
         title: dictionary?.playlistDownloadStartingTitle || "Playlist Download Starting",
         description: `${dictionary?.playlistDownloadStartingDesc || "Attempting to download"} ${selectedItems.length} ${dictionary?.items || "items"}.`,
@@ -380,36 +423,37 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 
       for (const item of selectedItems) {
         try {
-          let finalItag: number | null = null;
-          let fileExtension: string = "mp4"; // Default
-          let determinedItagFromGlobal = false;
+          const videoInfoResponse = await fetch('/api/youtube/info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${item.id}` }),
+          });
 
-          if (selectedDownloadType === 'audioonly') {
-            finalItag = selectedAudioItag;
-            fileExtension = selectedAudioFormat; // 'm4a' or 'opus'
-            determinedItagFromGlobal = !!finalItag;
-          } else { // 'videoaudio' or 'videoonly'
-            finalItag = selectedVideoItag;
-            // Attempt to get container from the globally selected format if possible (though videoFormatsToShow might be from 1st item)
-            const formatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
-            fileExtension = formatDetails?.container || "mp4";
-            determinedItagFromGlobal = !!finalItag;
-          }
-          
-          if (!determinedItagFromGlobal || !finalItag) {
-            // This check should ideally be redundant due to the checks at the start of the function
-            console.warn(`Skipping playlist item ${item.title}: Global ITAG for type ${selectedDownloadType} is not set.`);
-            toast({
-                title: `Skipping ${item.title.substring(0,20)}...`,
-                description: `Global quality for ${selectedDownloadType} not available/selected.`,
-                variant: "default"
-            });
+          if (!videoInfoResponse.ok) {
+            toast({ title: `Error fetching info for ${item.title.substring(0,30)}...`, description: "Skipping this video.", variant: "destructive" });
             errorCount++;
             continue;
           }
+          const videoInfoData = await videoInfoResponse.json();
+          if (videoInfoData.type !== 'video' || !videoInfoData.videoInfo) {
+              toast({ title: `Could not parse info for ${item.title.substring(0,30)}...`, description: "Skipping this video.", variant: "destructive" });
+              errorCount++;
+              continue;
+          }
+          const individualVideoInfo = videoInfoData.videoInfo as ApiVideoInfo;
 
+          const bestFormat = determineBestFormat(individualVideoInfo, selectedVideoItag, selectedAudioItag, selectedDownloadType, selectedAudioFormat);
+
+          if (!bestFormat) {
+            toast({ title: `No suitable format for ${item.title.substring(0,30)}... (${selectedDownloadType})`, description: "Skipping this video.", variant: "destructive" });
+            errorCount++;
+            continue;
+          }
+          
+          const { itag: finalItag, container: fileExtension } = bestFormat;
           const fileName = sanitizeFileName(item.title, fileExtension);
-          const response = await fetch('/api/youtube/download', {
+
+          const downloadResponse = await fetch('/api/youtube/download', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -420,17 +464,17 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
             }),
           });
 
-          if (response.ok) {
+          if (downloadResponse.ok) {
             successCount++;
-            const successData = await response.json();
-             toast({ // Individual success toast
+            const successData = await downloadResponse.json();
+             toast({
                 title: `Started: ${item.title.substring(0,30)}...`,
                 description: `Task ID: ${successData.taskId}`,
                 variant: "success"
             });
           } else {
             errorCount++;
-            const errorData = await response.json();
+            const errorData = await downloadResponse.json();
             toast({
                 title: `Error: ${item.title.substring(0,30)}...`,
                 description: errorData.error || "Failed to start download.",
@@ -439,11 +483,10 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
           }
         } catch (error) {
           errorCount++;
-          console.error(`Error downloading playlist item ${item.title}:`, error);
-          toast({ title: `Error: ${item.title.substring(0,30)}...`, description: (error as Error).message, variant: "destructive" });
+          console.error(`Error processing playlist item ${item.title}:`, error);
+          toast({ title: `Error processing: ${item.title.substring(0,30)}...`, description: (error as Error).message, variant: "destructive" });
         }
-        // Optional: Add a small delay between requests if needed
-        // await new Promise(resolve => setTimeout(resolve, 300)); 
+         await new Promise(resolve => setTimeout(resolve, 200)); // Small delay
       }
 
       toast({
@@ -688,17 +731,22 @@ useEffect(() => {
                     </CardHeader>
                     <CardContent className="space-y-6">
                         {/* Global download options for playlist - may need refinement for how quality is selected for all items */}
-                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow /* These will be empty if not populated for playlist context */, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary, sectionTitle: dictionary.playlistGlobalSettingsTitle }} />
+                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary, sectionTitle: dictionary.playlistGlobalSettingsTitle }} />
                         
-                        <div className="flex justify-between items-center">
+                        {isPlaylistLoaded && ( // Show note only when a playlist is loaded
+                            <Alert variant="default" className="mt-4">
+                                <VideoIcon className="h-4 w-4" />
+                                <AlertTitle>{dictionary?.playlistQualityNoteTitle || "Playlist Download Quality"}</AlertTitle>
+                                <AlertDescription>
+                                    {dictionary?.playlistQualityNoteDesc || "The selected quality is a preference. For each video, the best available format matching this preference will be downloaded. If not available, a fallback quality will be chosen."}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        <div className="flex justify-between items-center mt-4">
                             <Button 
                               onClick={handleDownloadPlaylist} 
-                              disabled={
-                                isDownloading || 
-                                Object.values(playlistItemsSelection).every(v => !v) ||
-                                (selectedDownloadType === 'audioonly' && !selectedAudioItag) ||
-                                ((selectedDownloadType === 'videoaudio' || selectedDownloadType === 'videoonly') && !selectedVideoItag)
-                              } 
+                              disabled={isDownloading || Object.values(playlistItemsSelection).every(v => !v)} 
                               className="h-11"
                             >
                                 {isDownloading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}

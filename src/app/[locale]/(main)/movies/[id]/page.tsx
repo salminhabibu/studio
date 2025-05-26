@@ -119,6 +119,7 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-4 lg:col-span-3">
             <MovieDownloadCard 
+              movieId={movie.id.toString()} // Added movieId prop
               movieTitle={movie.title}
               moviePosterPath={movie.poster_path}
               movieHomepage={movie.homepage}

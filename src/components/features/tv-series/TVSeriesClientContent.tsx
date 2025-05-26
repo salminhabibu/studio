@@ -2,6 +2,7 @@
 "use client";
 
 import type { TMDBTVSeries } from "@/types/tmdb";
+import type { TorrentFindResultItem } from "@/types/torrent"; // Import the actual type
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
@@ -11,25 +12,33 @@ import { useState } from "react";
 // import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI
 import { useToast } from "@/hooks/use-toast";
 
-// Placeholder, ensure this type is aligned with your actual TorrentFindResultItem definition
-interface TorrentFindResultItem { magnetLink: string; torrentQuality: string; fileName?: string; source?: string; }
-
 interface TVSeriesClientContentProps {
   series: TMDBTVSeries;
   trailerKey: string | null;
   children: React.ReactNode;
   dictionary: any;
-  locale: string;
-  torrentResults: TorrentFindResultItem[]; // Added prop
+  locale: string; // Already present, good.
+  // New props related to torrent fetching, passed from parent page.tsx
+  seasonPackResults: Map<number, TorrentFindResultItem[]>;
+  isLoadingTorrents: boolean;
+  torrentError: string | null;
 }
 
-export function TVSeriesClientContent({ series, trailerKey, children, dictionary, locale, torrentResults }: TVSeriesClientContentProps) {
-  // The torrentResults prop is now available here if needed for any direct logic within TVSeriesClientContent.
-  // For this subtask, its main purpose is to demonstrate it can be passed down.
-  // The actual passing to DownloadAllSeasonsWithOptionsButton and SeasonAccordionItem is handled by the parent page.
+export function TVSeriesClientContent({ 
+  series, 
+  trailerKey, 
+  children, 
+  dictionary, 
+  locale, 
+  seasonPackResults, // These are now available if TVSeriesClientContent needs them
+  isLoadingTorrents, 
+  torrentError 
+}: TVSeriesClientContentProps) {
+  // For this subtask, TVSeriesClientContent doesn't directly use seasonPackResults, isLoadingTorrents, or torrentError.
+  // The loading/error UI for torrents is handled within the `children` passed from page.tsx.
+  // These props are declared here to correctly type the component based on what page.tsx passes.
   const { toast } = useToast();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
-  
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
   // const [streamUrl, setStreamUrl] = useState<string | null>(null); // Stubbed
   const [streamTitle, setStreamTitle] = useState<string>("");

@@ -80,6 +80,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "@types/torrent-search-api": "^2.0.3",
     "@types/webtorrent": "^0.109.9",
     "genkit-cli": "^1.8.0",
     "node-mocks-http": "^1.17.2",

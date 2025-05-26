@@ -1,7 +1,7 @@
 // src/components/features/tv-series/DownloadAllSeasonsWithOptionsButton.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { ServerIcon, Loader2Icon } from "lucide-react"; 
 import { useToast } from "@/hooks/use-toast";
@@ -12,18 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import type { TorrentFindResultItem } from "@/types/torrent";
 import type { ConceptualAria2Task } from "@/types/download";
-
-import { useEffect, useMemo } from "react"; // Added useEffect and useMemo
-
-import type { TorrentFindResultItem } from "@/types/torrent"; // Import the actual type
-import { useEffect, useMemo } from "react"; 
 
 interface DownloadAllSeasonsWithOptionsButtonProps {
   seriesId: number | string; 
-  seriesName: string; // Used for ARIA label
-  seriesTitle: string; // Used for task display name
-  torrentResults: TorrentFindResultItem[];
+  seriesName: string; 
+  seriesTitle: string; 
+  allSeasonPackResults: Map<number, TorrentFindResultItem[]>; // Changed from torrentResults
   dictionary?: any;
 }
 
@@ -31,56 +27,64 @@ export function DownloadAllSeasonsWithOptionsButton({
   seriesId,
   seriesName,
   seriesTitle,
-  torrentResults,
+  allSeasonPackResults, // Changed prop name
   dictionary,
 }: DownloadAllSeasonsWithOptionsButtonProps) {
   const { toast } = useToast();
-  // Store the magnet link of the selected torrent
   const [selectedMagnet, setSelectedMagnet] = useState<string>(""); 
   const [isLoading, setIsLoading] = useState(false);
 
   const t = dictionary || {};
 
-  // Filter for "all seasons" or "complete series" packs
-  const allSeasonsTorrents = useMemo(() => {
-    return torrentResults.filter(torrent => {
-      const qualityLower = torrent.torrentQuality?.toLowerCase() || "";
-      const fileNameLower = torrent.fileName?.toLowerCase() || "";
-      const hasSpecificSeasonInQuality = /s\d{1,2}(?!e\d{1,2})/.test(qualityLower);
-      const hasPackKeywords = /pack|batch|complete|all seasons|season \d{1,2}-\d{1,2}|seasons \d{1,2} & \d{1,2}/.test(fileNameLower);
-      // If torrentQuality is very generic like "HD" or "1080p" without season specifier, also consider it a pack
-      const isGenericQualityWithoutSeason = (qualityLower === "hd" || qualityLower === "fhd" || qualityLower === "1080p" || qualityLower === "720p") && !hasSpecificSeasonInQuality;
-      
-      return (!hasSpecificSeasonInQuality || hasPackKeywords || isGenericQualityWithoutSeason);
+  // Flatten all season pack torrents from the map and then filter for "all seasons" or "complete series" packs
+  const suitableSeriesPacks = useMemo(() => {
+    const flatTorrentList: TorrentFindResultItem[] = [];
+    allSeasonPackResults.forEach(torrents => {
+      flatTorrentList.push(...torrents);
     });
-  }, [torrentResults]);
+
+    // Deduplicate based on magnet link to avoid listing the same pack multiple times if it appeared for multiple seasons
+    const uniqueTorrents = Array.from(new Map(flatTorrentList.map(t => [t.magnetLink, t])).values());
+
+    return uniqueTorrents.filter(torrent => {
+      const fileNameLower = torrent.fileName?.toLowerCase() || "";
+      // Prioritize torrents that explicitly state "complete", "all seasons", "season 1-X", etc.
+      // More specific season packs (e.g. "Season 1", "Season 2") are typically handled by SeasonAccordionItem
+      const isCompleteSeriesPack = /pack|batch|complete|all seasons|full series|collection|season \d{1,2}-\d{1,2}|seasons \d{1,2} & \d{1,2}/.test(fileNameLower);
+      // Avoid single season packs unless they are the only thing available and filename suggests it's a large pack
+      const isSingleSeasonPack = /season\s\d{1,2}(?![\w-])/.test(fileNameLower) && !isCompleteSeriesPack; // e.g. "Season 1" but not "Season 1-3"
+      
+      if (isCompleteSeriesPack) return true;
+      // If no obvious "complete series" packs, consider any torrent that isn't clearly a single episode or specific single season.
+      // This part might need refinement based on typical naming conventions of torrents from the API.
+      // For now, we rely on the filtering done in page.tsx for `seasonPackResults` to primarily fetch season-level packs.
+      // The goal here is to find the "most encompassing" pack.
+      return !isSingleSeasonPack; 
+    }).sort((a,b) => (b.seeds ?? 0) - (a.seeds ?? 0)); // Sort by seeders
+  }, [allSeasonPackResults]);
 
   useEffect(() => {
-    // Auto-select the first torrent if available and none is selected
-    if (allSeasonsTorrents.length > 0 && !selectedMagnet) {
-      setSelectedMagnet(allSeasonsTorrents[0].magnetLink);
+    if (suitableSeriesPacks.length > 0 && !selectedMagnet) {
+      setSelectedMagnet(suitableSeriesPacks[0].magnetLink);
     }
-    // If the currently selected magnet is no longer in the filtered list (e.g. torrentResults changed),
-    // reset to the first available or empty if none.
-    if (selectedMagnet && !allSeasonsTorrents.find(t => t.magnetLink === selectedMagnet)) {
-      setSelectedMagnet(allSeasonsTorrents.length > 0 ? allSeasonsTorrents[0].magnetLink : "");
+    if (selectedMagnet && !suitableSeriesPacks.find(t => t.magnetLink === selectedMagnet)) {
+      setSelectedMagnet(suitableSeriesPacks.length > 0 ? suitableSeriesPacks[0].magnetLink : "");
     }
-  }, [allSeasonsTorrents, selectedMagnet]);
-
+  }, [suitableSeriesPacks, selectedMagnet]);
 
   const handleDownloadAllSeasons = async () => {
     if (!selectedMagnet) {
       toast({ 
         title: t.noOptionSelectedTitle || "No Option Selected", 
-        description: t.noOptionSelectedDesc || "Please select a season pack to download.", 
+        description: t.noOptionSelectedDesc || "Please select a series pack to download.", 
         variant: "destructive" 
       });
       return;
     }
 
-    const selectedTorrent = allSeasonsTorrents.find(t => t.magnetLink === selectedMagnet);
+    const selectedTorrent = suitableSeriesPacks.find(t => t.magnetLink === selectedMagnet);
 
-    if (!selectedTorrent) { // Should not happen if selectedMagnet is from the list
+    if (!selectedTorrent) {
       toast({ 
         title: t.torrentNotFoundTitle || "Torrent Not Found", 
         description: t.torrentNotFoundDesc || "Selected torrent could not be found.", 
@@ -90,25 +94,41 @@ export function DownloadAllSeasonsWithOptionsButton({
     }
 
     setIsLoading(true);
-    const taskDisplayName = selectedTorrent.fileName || `${seriesTitle} - ${selectedTorrent.torrentQuality || 'Season Pack'}`;
+    const taskDisplayName = selectedTorrent.fileName || `${seriesTitle} - (${selectedTorrent.torrentQuality || 'Series Pack'})`;
     
     try {
         const response = await fetch('/api/aria2/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                uri: selectedTorrent.magnetLink, // Use 'uri' for magnet
-                options: { dir: `tv-series/${seriesTitle}` }, // Example directory structure
+                uri: selectedTorrent.magnetLink,
+                options: { dir: `tv-series/${seriesTitle}` }, 
                 name: taskDisplayName,
             })
         });
         const result = await response.json();
-        if (response.ok && result.taskId) {
+        if (response.ok && result.gid) { // Expect 'gid' from Aria2
             toast({ 
-                title: t.successTitle || "Sent to Server Download", 
-                description: `${taskDisplayName} ${t.successDesc || "sent to server. Task ID:"} ${result.taskId}. ${t.checkDownloadsPage || "Check Downloads page."}` 
+                title: t.successTitle || "Download Started", 
+                description: `${taskDisplayName} ${t.successDesc || "sent to Aria2. GID:"} ${result.gid}. ${t.checkDownloadsPage || "Check Downloads page."}` 
             });
-            // Optional: Add to conceptual tasks if needed, but this might be better handled in DownloadContext
+            
+            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+            const newTask: ConceptualAria2Task = {
+                taskId: result.gid,
+                name: taskDisplayName,
+                quality: selectedTorrent.torrentQuality || "Unknown",
+                addedTime: Date.now(),
+                sourceUrlOrIdentifier: selectedTorrent.magnetLink,
+                type: 'tv_series_pack', // Distinguish from season_pack or episode
+                seriesTmdbId: String(seriesId),
+                // seasonNumber can be omitted or set to a special value (e.g., 0 or -1) for full series packs
+            };
+            if (!conceptualTasks.find(task => task.taskId === result.gid)) {
+                conceptualTasks.push(newTask);
+                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+            }
         } else {
             toast({ title: t.errorServerTitle || "Server Download Error", description: result.error || (t.errorServerDesc || "Failed to start download on server."), variant: "destructive" });
         }
@@ -120,7 +140,7 @@ export function DownloadAllSeasonsWithOptionsButton({
     }
   };
   
-  const noTorrentsAvailable = allSeasonsTorrents.length === 0;
+  const noTorrentsAvailable = suitableSeriesPacks.length === 0;
 
   return (
     <div className="space-y-3">
@@ -133,13 +153,13 @@ export function DownloadAllSeasonsWithOptionsButton({
          <SelectValue 
             placeholder={
                 noTorrentsAvailable 
-                ? (t.noTorrentsPlaceholder || "No season packs found") 
-                : (t.selectTorrentPlaceholder || "Select season pack...")
+                ? (t.noTorrentsPlaceholder || "No series packs found") 
+                : (t.selectTorrentPlaceholder || "Select series pack...")
             } 
          />
         </SelectTrigger>
         <SelectContent>
-          {allSeasonsTorrents.map((torrent, index) => (
+          {suitableSeriesPacks.map((torrent, index) => (
             <SelectItem key={torrent.magnetLink || index} value={torrent.magnetLink} className="text-xs">
               <div className="flex flex-col gap-0.5 py-1">
                 <span className="font-semibold truncate max-w-[300px] sm:max-w-[400px] md:max-w-[250px]" title={torrent.fileName}>{torrent.fileName || 'Unknown File Name'}</span>

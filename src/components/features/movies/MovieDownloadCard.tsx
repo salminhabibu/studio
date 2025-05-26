@@ -2,30 +2,32 @@
 "use client";
 
 import { useState } from "react";
-import type { TMDBMovie } from "@/types/tmdb"; // Keep for movie poster, homepage etc.
+import type { TMDBMovie } from "@/types/tmdb"; 
 import type { TorrentFindResultItem } from '@/types/torrent';
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; // Added CardHeader, CardTitle
-import { DownloadCloudIcon, ExternalLinkIcon, Loader2Icon, ServerIcon } from "lucide-react"; // Added DownloadCloudIcon, ServerIcon can be primary now
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"; 
+import { DownloadCloudIcon, ExternalLinkIcon, Loader2Icon } from "lucide-react"; 
 import Link from "next/link";
 import Image from "next/image";
 import { getFullImagePath } from "@/lib/tmdb";
-// import { useWebTorrent } from "@/contexts/WebTorrentContext"; // WebTorrent functionality removed for now for simplicity, can be added back
 import { useToast } from "@/hooks/use-toast";
-// import type { ConceptualAria2Task } from "@/types/download"; // Not directly used for adding, but for tracking if that logic is kept
-
+// ConceptualAria2Task might be relevant if we were to update localStorage here,
+// but the main task is to send the correct payload to the API.
+// import type { ConceptualAria2Task } from "@/types/download"; 
 
 interface MovieDownloadCardProps {
+  movieId: string; // Added movieId (TMDB ID)
   movieTitle: string;
-  moviePosterPath?: string | null; // For the image
-  movieHomepage?: string | null; // For the homepage link
+  moviePosterPath?: string | null; 
+  movieHomepage?: string | null; 
   torrentOptions: TorrentFindResultItem[];
-  dictionary: any; // For localization
-  locale: string; // For potential future use, not used in example logic
+  dictionary: any; 
+  locale: string; 
 }
 
 export function MovieDownloadCard({ 
+  movieId, // Destructure new prop
   movieTitle, 
   moviePosterPath,
   movieHomepage,
@@ -34,12 +36,16 @@ export function MovieDownloadCard({
   locale 
 }: MovieDownloadCardProps) {
   const { toast } = useToast();
-  // const { addTorrent, isClientReady } = useWebTorrent(); // WebTorrent parts commented out
-  const [selectedMagnet, setSelectedMagnet] = useState<string | null>(null);
+  const [selectedTorrent, setSelectedTorrent] = useState<TorrentFindResultItem | null>(null); // Store full object
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleSelectChange = (magnetLink: string) => {
+    const torrent = torrentOptions.find(opt => opt.magnetLink === magnetLink);
+    setSelectedTorrent(torrent || null);
+  };
+
   const handleDownload = async () => {
-    if (!selectedMagnet) {
+    if (!selectedTorrent) {
       toast({ 
         title: dictionary?.selectQualityTitle || "Select Option", 
         description: dictionary?.selectQualityDesc || "Please select a download option.", 
@@ -48,22 +54,42 @@ export function MovieDownloadCard({
       return;
     }
     setIsLoading(true);
-    console.log(`[MovieDownloadCard] Initiating Aria2 download for ${movieTitle}, Magnet: ${selectedMagnet.substring(0,50)}...`);
+    
+    const payload = {
+      title: movieTitle,
+      type: "movie",
+      source: selectedTorrent.magnetLink,
+      metadata: {
+        tmdbId: movieId, // Use the new movieId prop
+        selectedQuality: selectedTorrent.torrentQuality || "Unknown",
+        fileName: selectedTorrent.fileName || movieTitle, // Fallback to movieTitle if fileName is not present
+        // seeds: selectedTorrent.seeds, // Example of other metadata if needed by API
+        // size: selectedTorrent.size,   // Example
+      },
+      destinationPath: `movies/${movieTitle}` // Optional, based on API capability
+    };
     
     try {
         const response = await fetch('/api/aria2/add', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            // Body uses 'uri' for magnet links as per typical Aria2 usage
-            body: JSON.stringify({ uri: selectedMagnet, options: { dir: `movies/${movieTitle}` }, name: movieTitle }) 
+            body: JSON.stringify(payload) 
         });
         const result = await response.json();
 
-        if (response.ok && result.taskId) {
+        // Assuming the API returns a taskId (or gid from Aria2) on successful queuing
+        if (response.ok && (result.taskId || result.gid)) {
             toast({ 
-                title: dictionary?.downloadStartedServerTitle || "Sent to Server Download", 
-                description: `${movieTitle} sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
+                title: dictionary?.downloadStartedServerTitle || "Download Started", 
+                description: `${payload.metadata.fileName} sent to server. Task ID: ${result.taskId || result.gid}.` 
             });
+            // Logic for ConceptualAria2Task storage would go here if needed client-side after API call
+            // For example, if the API doesn't handle it:
+            // const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+            // const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+            // const newTask: ConceptualAria2Task = { /* ... construct task ... */ };
+            // localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+
         } else {
             toast({ 
               title: dictionary?.downloadErrorServerTitle || "Server Download Error", 
@@ -89,7 +115,7 @@ export function MovieDownloadCard({
         <div className="aspect-[2/3] relative w-full bg-muted">
           <Image
             src={getFullImagePath(moviePosterPath, "w500")}
-            alt={`${movieTitle} poster`}
+            alt={`${movieTitle} ${dictionary?.posterAltText || 'poster'}`}
             fill
             className="object-cover"
             data-ai-hint="movie poster"
@@ -106,17 +132,17 @@ export function MovieDownloadCard({
           <p className="text-sm text-muted-foreground">{dictionary?.noDownloadsAvailable || "No downloads available for this movie."}</p>
         ) : (
           <>
-            <Select onValueChange={(value) => setSelectedMagnet(value)} value={selectedMagnet || ""}>
+            <Select onValueChange={handleSelectChange} value={selectedTorrent?.magnetLink || ""}>
               <SelectTrigger className="h-11 text-xs">
                 <SelectValue placeholder={dictionary?.selectQualityPlaceholder || "Select quality..."} />
               </SelectTrigger>
               <SelectContent>
-                {torrentOptions.map((opt, index) => (
-                  <SelectItem key={index} value={opt.magnetLink} className="text-xs">
+                {torrentOptions.map((opt) => ( // Changed key to magnetLink for reliability
+                  <SelectItem key={opt.magnetLink} value={opt.magnetLink} className="text-xs">
                     <div className="flex flex-col gap-0.5 py-1">
-                       <span className="font-semibold truncate" title={opt.fileName}>{opt.fileName}</span>
+                       <span className="font-semibold truncate" title={opt.fileName}>{opt.fileName || dictionary?.unknownFileName || 'Unknown File Name'}</span>
                        <span className="text-muted-foreground">
-                         {opt.torrentQuality || 'N/A'} | {opt.size} | Seeds: {opt.seeds ?? 'N/A'}
+                         {opt.torrentQuality || 'N/A'} | {opt.size || 'N/A'} | Seeds: {opt.seeds ?? 'N/A'}
                        </span>
                     </div>
                   </SelectItem>
@@ -125,7 +151,7 @@ export function MovieDownloadCard({
             </Select>
             <Button 
               onClick={handleDownload} 
-              disabled={!selectedMagnet || isLoading} 
+              disabled={!selectedTorrent || isLoading} 
               className="w-full h-11 text-sm"
             >
               {isLoading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
