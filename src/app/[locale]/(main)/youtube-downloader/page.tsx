@@ -44,35 +44,59 @@ const youtubeUrlFormSchema = z.object({
 type YouTubeUrlFormValues = z.infer<typeof youtubeUrlFormSchema>;
 
 interface Format {
-  quality: string;
+  // Matches backend VideoFormat structure
   itag: number;
-  mimeType?: string;
-  container?: string;
-  fps?: number; 
-  audioBitrate?: number; 
-  hasAudio?: boolean; 
-  hasVideo?: boolean; 
+  qualityLabel: string | null;
+  container: string | null;
+  fps?: number;
+  hasVideo: boolean;
+  hasAudio: boolean;
+  url?: string; 
+  contentLength?: string;
+  bitrate?: number | null;
+  audioBitrate?: number | null;
 }
 
-interface VideoInfo {
+// Matches backend VideoInfo structure
+interface ApiVideoInfo {
   id: string;
   title: string;
-  thumbnail: string;
-  duration: string;
-  author: string;
-  videoFormats: Format[];
-  audioFormats: Format[];
+  thumbnail: string | undefined;
+  duration: number; // in seconds
+  author: {
+    name: string;
+    url?: string;
+    channelID?: string;
+  };
+  formats: {
+    video: Format[];
+    audio: Format[];
+  };
 }
 
-interface PlaylistItem extends VideoInfo {
-  selected?: boolean; 
-}
-
-interface PlaylistInfo {
+// Matches backend simplified video info for playlists
+interface ApiPlaylistVideoInfo { 
+  id: string;
   title: string;
-  author?: string; 
+  duration: number; // in seconds
+  authorName: string | undefined;
+  thumbnail?: string; // Add if backend sends this for playlist items
+}
+
+// Matches backend PlaylistInfo structure
+interface ApiPlaylistInfo {
+  title: string | undefined;
+  author: { 
+    name: string | undefined;
+    url?: string;
+  };
   itemCount: number;
-  items: PlaylistItem[];
+  videos: ApiPlaylistVideoInfo[]; 
+}
+
+// Extended for frontend state (e.g., selection)
+interface PlaylistItem extends ApiPlaylistVideoInfo {
+  selected?: boolean;
 }
 
 function getYouTubeId(url: string): { videoId?: string; playlistId?: string } {
@@ -92,12 +116,11 @@ function getYouTubeId(url: string): { videoId?: string; playlistId?: string } {
   }
 }
 
-function formatDuration(secondsStr: string, dict: any): string {
-    const seconds = parseInt(secondsStr, 10);
-    if (isNaN(seconds) || seconds < 0) return dict?.na || "N/A";
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
+function formatDuration(totalSeconds: number, dict: any): string {
+    if (isNaN(totalSeconds) || totalSeconds < 0) return dict?.na || "N/A";
+    const hrs = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
+    const secs = Math.floor(totalSeconds % 60);
     let timeString = "";
     if (hrs > 0) timeString += `${hrs}:`;
     timeString += `${mins.toString().padStart(hrs > 0 ? 2 : 1, '0')}:${secs.toString().padStart(2, '0')}`;
@@ -113,15 +136,16 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 
   const { toast } = useToast();
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
-  
-  const [currentContent, setCurrentContent] = useState<VideoInfo | PlaylistInfo | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false); // General download button state
+  // const [downloadProgress, setDownloadProgress] = useState<Record<string, number>>({}); // Future: for individual item progress
+
+  const [currentContent, setCurrentContent] = useState<ApiVideoInfo | ApiPlaylistInfo | null>(null);
   const [previewVideoId, setPreviewVideoId] = useState<string | null>(null);
 
   const [selectedDownloadType, setSelectedDownloadType] = useState<'videoaudio' | 'videoonly' | 'audioonly'>('videoaudio');
-  const [selectedVideoItag, setSelectedVideoItag] = useState<string>("");
-  const [selectedAudioItag, setSelectedAudioItag] = useState<string>("");
-  const [selectedAudioFormat, setSelectedAudioFormat] = useState<'aac' | 'opus'>('aac'); 
+  const [selectedVideoItag, setSelectedVideoItag] = useState<number | null>(null); // Store itag as number
+  const [selectedAudioItag, setSelectedAudioItag] = useState<number | null>(null); // Store itag as number
+  const [selectedAudioFormat, setSelectedAudioFormat] = useState<'m4a' | 'opus'>('m4a'); // User preference for audio container
 
   const [playlistItemsSelection, setPlaylistItemsSelection] = useState<Record<string, boolean>>({});
   const [dictionary, setDictionary] = useState<any>(null);
@@ -167,109 +191,252 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 
   const onSearch = async (data: YouTubeUrlFormValues) => {
     setIsLoadingInfo(true);
-    setCurrentContent(null); 
+    setCurrentContent(null);
     setPreviewVideoId(null);
-    console.log(`[YouTubeDownloader] "Fetch Info" for URL: ${data.url}. API call stubbed.`);
+    setSelectedVideoItag(null); // Reset selected itags
+    setSelectedAudioItag(null);
 
-    // STUB: Simulate API call and response for UI template
-    setTimeout(() => {
-      const { videoId, playlistId } = getYouTubeId(data.url);
-      if (playlistId) {
-        // Mock playlist data
-        const mockPlaylistItems: PlaylistItem[] = Array.from({ length: 5 }).map((_, i) => ({
-          id: `mock_video_id_${i+1}`,
-          title: `Mock Playlist Video ${i+1} - ${playlistId}`,
-          thumbnail: `https://placehold.co/320x180.png?text=Video+${i+1}`,
-          duration: `${120 + i * 30}`,
-          author: "Mock Author",
-          videoFormats: [{ quality: "720p", itag: 22, container: "mp4", fps: 30, hasVideo: true, hasAudio: true }],
-          audioFormats: [{ quality: "128kbps", itag: 140, container: "m4a", hasAudio: true, hasVideo: false }],
-          selected: true,
-        }));
-        setCurrentContent({
-          title: `Mock Playlist ${playlistId}`,
-          author: "Mock Playlist Author",
-          itemCount: mockPlaylistItems.length,
-          items: mockPlaylistItems,
+    try {
+      const response = await fetch('/api/youtube/info', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: data.url }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast({
+          title: dictionary?.errorFetchInfoTitle || "Error Fetching Information",
+          description: `${errorData.error || dictionary?.unknownErrorOccurred || "An unknown error occurred."}${errorData.details ? ` (${errorData.details})` : ''}`,
+          variant: "destructive",
         });
-        setPlaylistItemsSelection(mockPlaylistItems.reduce((acc: Record<string, boolean>, item: PlaylistItem) => {
-            acc[item.id] = true; 
-            return acc;
-          }, {}));
-      } else if (videoId) {
-        setPreviewVideoId(videoId);
-        setCurrentContent({
-          id: videoId,
-          title: `Mock Video: ${videoId}`,
-          thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
-          duration: "180",
-          author: "Mock Video Author",
-          videoFormats: [
-            { quality: "1080p", itag: 137, container: "mp4", fps: 30, hasVideo: true, hasAudio: false},
-            { quality: "720p", itag: 22, container: "mp4", fps: 30, hasVideo: true, hasAudio: true },
-            { quality: "480p", itag: 135, container: "mp4", fps: 30, hasVideo: true, hasAudio: false },
-          ],
-          audioFormats: [
-            { quality: "128kbps", itag: 140, container: "m4a", audioBitrate: 128, hasAudio: true, hasVideo: false },
-            { quality: "256kbps", itag: 141, container: "m4a", audioBitrate: 256, hasAudio: true, hasVideo: false },
-          ],
-        });
-        setSelectedVideoItag("22"); // Default to a video+audio format
-        setSelectedAudioItag("140");
-      } else {
-        toast({ title: dictionary?.errorInvalidUrlTitle || "Invalid URL", description: dictionary?.errorInvalidUrlDesc || "Could not identify a video or playlist ID.", variant: "destructive" });
+        setCurrentContent(null);
+        return;
       }
+
+      const result = await response.json();
+
+      if (result.type === 'video' && result.videoInfo) {
+        const videoInfo = result.videoInfo as ApiVideoInfo;
+        setCurrentContent(videoInfo);
+        setPreviewVideoId(videoInfo.id);
+        // Auto-select default itags will be handled by useEffect listening to videoFormatsToShow/audioFormatsToShow
+      } else if (result.type === 'playlist' && result.playlistInfo) {
+        const playlistInfo = result.playlistInfo as ApiPlaylistInfo;
+        // Transform playlist videos to include 'selected' property for local state management
+        const itemsWithSelection: PlaylistItem[] = playlistInfo.videos.map(video => ({
+          ...video,
+          selected: true // Default to all selected
+        }));
+        setCurrentContent({ ...playlistInfo, videos: itemsWithSelection }); // Store items in `videos` field
+        
+        setPlaylistItemsSelection(itemsWithSelection.reduce((acc: Record<string, boolean>, item) => {
+          acc[item.id] = true;
+          return acc;
+        }, {}));
+        
+        // Set preview to the first video in the playlist if available
+        if (playlistInfo.videos.length > 0) {
+          setPreviewVideoId(playlistInfo.videos[0].id);
+          // Note: Global format selectors might not be meaningful for a whole playlist.
+          // The useEffect for videoFormatsToShow/audioFormatsToShow will clear them if currentContent is a playlist.
+        } else {
+          setPreviewVideoId(null);
+        }
+      } else {
+        toast({ title: dictionary?.errorInvalidResponseTitle || "Invalid API Response", description: dictionary?.errorInvalidResponseDesc || "Received an unexpected response from the server.", variant: "destructive" });
+        setCurrentContent(null);
+      }
+    } catch (error) {
+      console.error("onSearch error:", error);
+      toast({
+        title: dictionary?.errorNetworkTitle || "Network Error",
+        description: (error as Error).message || dictionary?.errorNetworkDesc || "Could not connect to the server.",
+        variant: "destructive",
+      });
+      setCurrentContent(null);
+    } finally {
       setIsLoadingInfo(false);
-    }, 1500);
+    }
   };
   
-  const handleDownload = async (videoToDownload?: VideoInfo) => {
-    const contentToUse = videoToDownload || (currentContent && !('items' in currentContent) ? currentContent : null);
+  const handleDownload = async (videoToDownload?: ApiVideoInfo) => { // Parameter type updated
+    const contentToUse = videoToDownload || (currentContent && 'formats' in currentContent ? currentContent : null);
 
-    if (!contentToUse || !currentUrl) {
+    if (!contentToUse || !currentUrl || !contentToUse.id) {
       toast({ title: dictionary?.errorNoVideoTitle || "Error", description: dictionary?.errorNoVideoDesc || "No video selected or URL is missing.", variant: "destructive" });
       return;
     }
     
-    let itag: string | undefined;
+    let finalItag: number | null = null;
+    let fileExtension: string = "mp4"; // Default extension
+
     if (selectedDownloadType === 'audioonly') {
-      itag = selectedAudioItag;
-    } else { 
-      itag = selectedVideoItag;
+      finalItag = selectedAudioItag;
+      const audioFormatDetails = audioFormatsToShow.find(f => f.itag === finalItag);
+      fileExtension = audioFormatDetails?.container || selectedAudioFormat; // opus or m4a (fallback to selected pref)
+    } else if (selectedDownloadType === 'videoonly') {
+      finalItag = selectedVideoItag;
+      const videoFormatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
+      fileExtension = videoFormatDetails?.container || "mp4";
+    } else { // videoaudio
+      finalItag = selectedVideoItag; // Assuming this itag contains both video and audio
+      const videoFormatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
+      if (videoFormatDetails && !videoFormatDetails.hasAudio) {
+         toast({ title: dictionary?.errorFormatNoAudioTitle || "Format Error", description: dictionary?.errorFormatNoAudioDesc || "Selected video quality does not have audio. Choose another or download audio separately.", variant: "destructive" });
+         return;
+      }
+      fileExtension = videoFormatDetails?.container || "mp4";
     }
 
-    if (!itag) {
+    if (!finalItag) {
       toast({ title: dictionary?.errorSelectFormatTitle || "Select Format", description: `${dictionary?.errorSelectFormatDesc || "Please select a quality for"} ${selectedDownloadType}.`, variant: "destructive" });
       return;
     }
     
+    const fileName = sanitizeFileName(contentToUse.title, fileExtension);
+
     setIsDownloading(true);
-    console.log(`[YouTubeDownloader] "Download" clicked for: ${contentToUse.title}, Type: ${selectedDownloadType}, ITAG: ${itag}, Audio Format: ${selectedAudioFormat}. Action stubbed.`);
-    toast({
-      title: dictionary?.downloadStubTitle || "Download (Stubbed)",
-      description: `${dictionary?.downloadStubDesc || "Downloading"} "${contentToUse.title}" (${selectedDownloadType}, Quality ITAG: ${itag}). ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
-    });
-    setTimeout(() => setIsDownloading(false), 2000);
+    try {
+      const response = await fetch('/api/youtube/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          videoId: contentToUse.id,
+          itag: finalItag,
+          fileName: fileName,
+          title: contentToUse.title,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        toast({
+          title: dictionary?.errorDownloadStartTitle || "Download Error",
+          description: errorData.error || dictionary?.errorDownloadStartDesc || "Could not start download.",
+          variant: "destructive",
+        });
+      } else {
+        const successData = await response.json();
+        toast({
+          title: dictionary?.successDownloadStartTitle || "Download Started",
+          description: `${dictionary?.successDownloadStartDesc || "Task ID"}: ${successData.taskId}. (${fileName})`,
+        });
+      }
+    } catch (error) {
+      console.error("handleDownload error:", error);
+      toast({ title: dictionary?.errorNetworkTitle || "Network Error", description: (error as Error).message || dictionary?.errorNetworkDesc || "Could not connect to server.", variant: "destructive" });
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   const handleDownloadPlaylist = async () => {
-      if (!currentContent || !('items' in currentContent)) {
+      if (!currentContent || !('videos' in currentContent)) { // Check 'videos' field
           toast({title: dictionary?.errorNoPlaylistTitle || "Error", description: dictionary?.errorNoPlaylistDesc || "No playlist loaded.", variant: "destructive"});
           return;
       }
-      const selectedItems = currentContent.items.filter(item => playlistItemsSelection[item.id]);
+      const selectedItems = currentContent.videos.filter(item => playlistItemsSelection[item.id]);
       if (selectedItems.length === 0) {
           toast({title: dictionary?.errorNoItemsSelectedTitle || "No items selected", description: dictionary?.errorNoItemsSelectedDesc || "Please select at least one video from the playlist to download.", variant: "default"});
           return;
       }
 
       setIsDownloading(true);
-      console.log(`[YouTubeDownloader] "Download Playlist" clicked for ${selectedItems.length} items. Action stubbed.`);
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Check if a global ITAG is selected based on download type
+      if (selectedDownloadType === 'audioonly' && !selectedAudioItag) {
+        toast({ title: dictionary?.errorSelectGlobalAudioTitle || "Select Audio Quality", description: dictionary?.errorSelectGlobalAudioDesc || "Please select a global audio quality for the playlist.", variant: "destructive" });
+        setIsDownloading(false);
+        return;
+      }
+      if ((selectedDownloadType === 'videoaudio' || selectedDownloadType === 'videoonly') && !selectedVideoItag) {
+        toast({ title: dictionary?.errorSelectGlobalVideoTitle || "Select Video Quality", description: dictionary?.errorSelectGlobalVideoDesc || "Please select a global video quality for the playlist.", variant: "destructive" });
+        setIsDownloading(false);
+        return;
+      }
+
       toast({
-        title: dictionary?.playlistDownloadStubTitle || "Playlist Download (Stubbed)",
-        description: `${dictionary?.playlistDownloadStubDesc || "Downloading"} ${selectedItems.length} ${dictionary?.items || "items"}. ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
+        title: dictionary?.playlistDownloadStartingTitle || "Playlist Download Starting",
+        description: `${dictionary?.playlistDownloadStartingDesc || "Attempting to download"} ${selectedItems.length} ${dictionary?.items || "items"}.`,
       });
-      setTimeout(() => setIsDownloading(false), 2000 + selectedItems.length * 500); // Simulate longer for more items
+
+      for (const item of selectedItems) {
+        try {
+          let finalItag: number | null = null;
+          let fileExtension: string = "mp4"; // Default
+          let determinedItagFromGlobal = false;
+
+          if (selectedDownloadType === 'audioonly') {
+            finalItag = selectedAudioItag;
+            fileExtension = selectedAudioFormat; // 'm4a' or 'opus'
+            determinedItagFromGlobal = !!finalItag;
+          } else { // 'videoaudio' or 'videoonly'
+            finalItag = selectedVideoItag;
+            // Attempt to get container from the globally selected format if possible (though videoFormatsToShow might be from 1st item)
+            const formatDetails = videoFormatsToShow.find(f => f.itag === finalItag);
+            fileExtension = formatDetails?.container || "mp4";
+            determinedItagFromGlobal = !!finalItag;
+          }
+          
+          if (!determinedItagFromGlobal || !finalItag) {
+            // This check should ideally be redundant due to the checks at the start of the function
+            console.warn(`Skipping playlist item ${item.title}: Global ITAG for type ${selectedDownloadType} is not set.`);
+            toast({
+                title: `Skipping ${item.title.substring(0,20)}...`,
+                description: `Global quality for ${selectedDownloadType} not available/selected.`,
+                variant: "default"
+            });
+            errorCount++;
+            continue;
+          }
+
+          const fileName = sanitizeFileName(item.title, fileExtension);
+          const response = await fetch('/api/youtube/download', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              videoId: item.id,
+              itag: finalItag,
+              fileName: fileName,
+              title: item.title,
+            }),
+          });
+
+          if (response.ok) {
+            successCount++;
+            const successData = await response.json();
+             toast({ // Individual success toast
+                title: `Started: ${item.title.substring(0,30)}...`,
+                description: `Task ID: ${successData.taskId}`,
+                variant: "success"
+            });
+          } else {
+            errorCount++;
+            const errorData = await response.json();
+            toast({
+                title: `Error: ${item.title.substring(0,30)}...`,
+                description: errorData.error || "Failed to start download.",
+                variant: "destructive"
+            });
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error downloading playlist item ${item.title}:`, error);
+          toast({ title: `Error: ${item.title.substring(0,30)}...`, description: (error as Error).message, variant: "destructive" });
+        }
+        // Optional: Add a small delay between requests if needed
+        // await new Promise(resolve => setTimeout(resolve, 300)); 
+      }
+
+      toast({
+        title: dictionary?.playlistDownloadCompleteTitle || "Playlist Download Attempt Finished",
+        description: `${successCount} ${dictionary?.downloadsStarted || "downloads started"}, ${errorCount} ${dictionary?.errorsEncountered || "errors encountered"}.`,
+        variant: (errorCount > 0 && successCount === 0) ? "destructive" : (errorCount > 0 ? "default" : "success")
+      });
+      setIsDownloading(false);
   };
   
   const togglePlaylistItemSelection = (itemId: string) => {
@@ -277,36 +444,115 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
   };
 
   const toggleAllPlaylistItems = () => {
-    if (!currentContent || !('items' in currentContent)) return;
-    const allSelected = currentContent.items.every(item => playlistItemsSelection[item.id]);
+    if (!currentContent || !('videos' in currentContent)) return; // Check 'videos' field
+    const allSelected = currentContent.videos.every(item => playlistItemsSelection[item.id]);
     const newSelections: Record<string, boolean> = {};
-    currentContent.items.forEach(item => {
+    currentContent.videos.forEach(item => { // Iterate over 'videos'
       newSelections[item.id] = !allSelected;
     });
     setPlaylistItemsSelection(newSelections);
   };
 
-  const getFilteredFormats = (formats: Format[], type: 'videoaudio' | 'videoonly' | 'audioonly'): Format[] => {
-    if (!formats) return [];
-    switch (type) {
-        case 'videoaudio': return formats.filter(f => f.hasVideo && f.hasAudio);
-        case 'videoonly': return formats.filter(f => f.hasVideo && !f.hasAudio); 
-        case 'audioonly': return formats.filter(f => f.hasAudio && !f.hasVideo);
-        default: return formats;
+// Sanitize filename and add appropriate extension
+const sanitizeFileName = (name: string, desiredExtension: string): string => {
+  // Remove most non-alphanumeric characters, except for a few safe ones like underscore, hyphen, space
+  let saneName = name.replace(/[^\w\s.-]/gi, ''); 
+  // Replace multiple spaces/hyphens with a single underscore
+  saneName = saneName.replace(/[\s-]+/g, '_');
+  // Limit length to avoid issues
+  saneName = saneName.substring(0, 150); 
+  return `${saneName}.${desiredExtension}`;
+};
+
+// State for formats to display in dropdowns
+const [videoFormatsToShow, setVideoFormatsToShow] = useState<Format[]>([]);
+const [audioFormatsToShow, setAudioFormatsToShow] = useState<Format[]>([]);
+
+useEffect(() => {
+  const updateFormats = async () => {
+    if (currentContent && 'formats' in currentContent) { // Single ApiVideoInfo
+      const allVideoFormats = currentContent.formats.video || [];
+      const allAudioFormats = currentContent.formats.audio || [];
+
+      if (selectedDownloadType === 'videoaudio') {
+        setVideoFormatsToShow(allVideoFormats.filter(f => f.hasVideo && f.hasAudio));
+        setAudioFormatsToShow(allAudioFormats);
+      } else if (selectedDownloadType === 'videoonly') {
+        setVideoFormatsToShow(allVideoFormats.filter(f => f.hasVideo && !f.hasAudio));
+        setAudioFormatsToShow([]);
+      } else { // audioonly
+        setVideoFormatsToShow([]);
+        setAudioFormatsToShow(allAudioFormats);
+      }
+    } else if (currentContent && 'videos' in currentContent && currentContent.videos.length > 0) {
+      // For playlists, fetch info for the first video to populate global format selectors
+      // This is a common UX pattern for setting a "preferred" quality for batch operations.
+      try {
+        // Temporarily set loading for format fields or a subtle indicator if desired
+        const response = await fetch('/api/youtube/info', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: `https://www.youtube.com/watch?v=${currentContent.videos[0].id}` }),
+        });
+        if (response.ok) {
+          const result = await response.json();
+          if (result.type === 'video' && result.videoInfo) {
+            const firstVideoInfo = result.videoInfo as ApiVideoInfo;
+            const allVideoFormats = firstVideoInfo.formats.video || [];
+            const allAudioFormats = firstVideoInfo.formats.audio || [];
+
+            if (selectedDownloadType === 'videoaudio') {
+              setVideoFormatsToShow(allVideoFormats.filter(f => f.hasVideo && f.hasAudio));
+              setAudioFormatsToShow(allAudioFormats);
+            } else if (selectedDownloadType === 'videoonly') {
+              setVideoFormatsToShow(allVideoFormats.filter(f => f.hasVideo && !f.hasAudio));
+              setAudioFormatsToShow([]);
+            } else { // audioonly
+              setVideoFormatsToShow([]);
+              setAudioFormatsToShow(allAudioFormats);
+            }
+          } else { // Failed to get first video's info, clear formats
+            setVideoFormatsToShow([]);
+            setAudioFormatsToShow([]);
+          }
+        } else { // Response not ok
+          setVideoFormatsToShow([]);
+          setAudioFormatsToShow([]);
+        }
+      } catch (error) {
+        console.error("Error fetching first playlist video info for formats:", error);
+        setVideoFormatsToShow([]);
+        setAudioFormatsToShow([]);
+      }
+    } else { // No content or empty playlist
+      setVideoFormatsToShow([]);
+      setAudioFormatsToShow([]);
     }
   };
-  
-  const videoFormatsToShow = currentContent && 'videoFormats' in currentContent 
-    ? getFilteredFormats(currentContent.videoFormats, selectedDownloadType) 
-    : (currentContent && 'items' in currentContent && currentContent.items.length > 0 
-        ? getFilteredFormats(currentContent.items[0].videoFormats, selectedDownloadType) 
-        : []);
+  updateFormats();
+}, [currentContent, selectedDownloadType]);
 
-  const audioFormatsToShow = currentContent && 'audioFormats' in currentContent
-    ? getFilteredFormats(currentContent.audioFormats, 'audioonly') 
-    : (currentContent && 'items' in currentContent && currentContent.items.length > 0
-        ? getFilteredFormats(currentContent.items[0].audioFormats, 'audioonly')
-        : []);
+// Auto-select default itag when formats change
+useEffect(() => {
+  if (selectedDownloadType !== 'audioonly' && videoFormatsToShow.length > 0) {
+    if (!selectedVideoItag || !videoFormatsToShow.find(f => f.itag === selectedVideoItag)) {
+      setSelectedVideoItag(videoFormatsToShow[0].itag);
+    }
+  } else if (selectedDownloadType === 'audioonly') {
+     setSelectedVideoItag(null);
+  }
+}, [videoFormatsToShow, selectedDownloadType, selectedVideoItag]);
+
+useEffect(() => {
+  if (selectedDownloadType !== 'videoonly' && audioFormatsToShow.length > 0) {
+    if (!selectedAudioItag || !audioFormatsToShow.find(f => f.itag === selectedAudioItag)) {
+      setSelectedAudioItag(audioFormatsToShow[0].itag);
+    }
+  } else if (selectedDownloadType === 'videoonly') {
+    setSelectedAudioItag(null);
+  }
+}, [audioFormatsToShow, selectedDownloadType, selectedAudioItag]);
+
 
   if (!dictionary || !locale) { 
     return (
@@ -383,20 +629,29 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
             {'title' in currentContent && !('items' in currentContent) && (
               <>
                 <CardHeader>
+            {'formats' in currentContent && currentContent.formats && ( // ApiVideoInfo
+              <>
+                <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
                         <FilmIcon className="h-6 w-6 text-accent"/> {currentContent.title}
                     </CardTitle>
-                    <CardDescription>{dictionary.authorLabel}: {currentContent.author} &bull; {dictionary.durationLabel}: {formatDuration(currentContent.duration, dictionary)}</CardDescription>
+                    <CardDescription>
+                      {dictionary.authorLabel}: {currentContent.author.name} &bull; {dictionary.durationLabel}: {formatDuration(currentContent.duration, dictionary)}
+                    </CardDescription>
                 </CardHeader>
                 <CardContent className="grid md:grid-cols-2 gap-6">
                     {currentContent.thumbnail && (
                         <div className="aspect-video w-full overflow-hidden rounded-lg relative bg-muted shadow-inner">
-                            <Image src={currentContent.thumbnail} alt={dictionary.videoThumbnailAlt} fill objectFit="cover" data-ai-hint="video thumbnail"/>
+                            <Image src={currentContent.thumbnail} alt={currentContent.title || "Video thumbnail"} fill style={{objectFit:"cover"}} data-ai-hint="video thumbnail"/>
                         </div>
                     )}
                     <div className="space-y-6">
                         <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary }} />
-                        <Button onClick={() => handleDownload()} disabled={isDownloading} className="w-full h-12 text-base">
+                        <Button 
+                          onClick={() => handleDownload()} 
+                          disabled={isDownloading || (selectedDownloadType !== 'audioonly' && !selectedVideoItag) || (selectedDownloadType !== 'videoonly' && !selectedAudioItag)} 
+                          className="w-full h-12 text-base"
+                        >
                             {isDownloading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                             {dictionary.downloadButton}
                         </Button>
@@ -405,19 +660,32 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
               </>
             )}
 
-            {'items' in currentContent && (
+            {'videos' in currentContent && currentContent.videos && ( // ApiPlaylistInfo
                 <>
                     <CardHeader>
                         <CardTitle className="text-xl flex items-center gap-2">
                             <ListMusicIcon className="h-6 w-6 text-accent"/> {dictionary.playlistTitleLabel}: {currentContent.title}
                         </CardTitle>
-                        <CardDescription>{currentContent.itemCount} {dictionary.videosLabel}. {currentContent.author && `${dictionary.authorLabel}: ${currentContent.author}`}</CardDescription>
+                        <CardDescription>
+                          {currentContent.itemCount} {dictionary.videosLabel}. 
+                          {currentContent.author?.name && ` ${dictionary.authorLabel}: ${currentContent.author.name}`}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary, sectionTitle: dictionary.playlistGlobalSettingsTitle }} />
+                        {/* Global download options for playlist - may need refinement for how quality is selected for all items */}
+                        <DownloadOptionsFields {...{selectedDownloadType, setSelectedDownloadType, videoFormatsToShow /* These will be empty if not populated for playlist context */, selectedVideoItag, setSelectedVideoItag, audioFormatsToShow, selectedAudioItag, setSelectedAudioItag, selectedAudioFormat, setSelectedAudioFormat, dictionary, sectionTitle: dictionary.playlistGlobalSettingsTitle }} />
                         
                         <div className="flex justify-between items-center">
-                            <Button onClick={handleDownloadPlaylist} disabled={isDownloading || Object.values(playlistItemsSelection).every(v => !v) } className="h-11">
+                            <Button 
+                              onClick={handleDownloadPlaylist} 
+                              disabled={
+                                isDownloading || 
+                                Object.values(playlistItemsSelection).every(v => !v) ||
+                                (selectedDownloadType === 'audioonly' && !selectedAudioItag) ||
+                                ((selectedDownloadType === 'videoaudio' || selectedDownloadType === 'videoonly') && !selectedVideoItag)
+                              } 
+                              className="h-11"
+                            >
                                 {isDownloading ? <Loader2Icon className="mr-2 h-5 w-5 animate-spin" /> : <DownloadCloudIcon className="mr-2 h-5 w-5" />}
                                 {dictionary.downloadSelectedButton} ({Object.values(playlistItemsSelection).filter(v => v).length})
                             </Button>
@@ -432,14 +700,15 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
                         <ScrollArea className="h-[400px] border rounded-md p-2 bg-muted/30">
                             <div className="space-y-3">
                             {currentContent.items.map((item) => (
+                            {currentContent.videos.map((item) => (
                                 <Card key={item.id} className="flex items-center gap-3 p-3 bg-card hover:bg-card/80 shadow-sm">
                                     <Checkbox checked={playlistItemsSelection[item.id] || false} onCheckedChange={() => togglePlaylistItemSelection(item.id)} id={`item-${item.id}`} />
                                     <div className="relative w-24 h-14 rounded overflow-hidden flex-shrink-0 bg-muted/50">
-                                        <Image src={item.thumbnail} alt={item.title} fill objectFit="cover" data-ai-hint="video thumbnail small"/>
+                                        <Image src={item.thumbnail || `https://placehold.co/96x54.png?text=${item.title.substring(0,10)}`} alt={item.title} fill style={{objectFit:"cover"}} data-ai-hint="video thumbnail small"/>
                                     </div>
                                     <div className="flex-grow min-w-0">
                                         <p className="text-sm font-semibold truncate" title={item.title}>{item.title}</p>
-                                        <p className="text-xs text-muted-foreground">{item.author} &bull; {formatDuration(item.duration, dictionary)}</p>
+                                        <p className="text-xs text-muted-foreground">{item.authorName} &bull; {formatDuration(item.duration, dictionary)}</p>
                                     </div>
                                 </Card>
                             ))}
@@ -461,14 +730,14 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
 interface DownloadOptionsProps {
     selectedDownloadType: 'videoaudio' | 'videoonly' | 'audioonly';
     setSelectedDownloadType: (type: 'videoaudio' | 'videoonly' | 'audioonly') => void;
-    videoFormatsToShow: Format[];
-    selectedVideoItag: string;
-    setSelectedVideoItag: (itag: string) => void;
-    audioFormatsToShow: Format[];
-    selectedAudioItag: string;
-    setSelectedAudioItag: (itag: string) => void;
-    selectedAudioFormat: 'aac' | 'opus';
-    setSelectedAudioFormat: (format: 'aac' | 'opus') => void;
+    videoFormatsToShow: Format[]; // Uses the new Format type
+    selectedVideoItag: number | null;
+    setSelectedVideoItag: (itag: number | null) => void;
+    audioFormatsToShow: Format[]; // Uses the new Format type
+    selectedAudioItag: number | null;
+    setSelectedAudioItag: (itag: number | null) => void;
+    selectedAudioFormat: 'm4a' | 'opus';
+    setSelectedAudioFormat: (format: 'm4a' | 'opus') => void;
     sectionTitle?: string;
     dictionary: any; 
 }
@@ -479,6 +748,10 @@ function DownloadOptionsFields({
     audioFormatsToShow, selectedAudioItag, setSelectedAudioItag,
     selectedAudioFormat, setSelectedAudioFormat, sectionTitle, dictionary
 }: DownloadOptionsProps) {
+
+    const handleVideoItagChange = (value: string) => setSelectedVideoItag(value ? parseInt(value) : null);
+    const handleAudioItagChange = (value: string) => setSelectedAudioItag(value ? parseInt(value) : null);
+
     return (
         <div className="space-y-4 p-4 border rounded-lg bg-background/30">
             {sectionTitle && <h4 className="text-md font-semibold mb-3">{sectionTitle}</h4>}
@@ -494,12 +767,14 @@ function DownloadOptionsFields({
             {selectedDownloadType !== 'audioonly' && (
                 <div>
                     <FormLabel htmlFor="video-quality-select" className="text-base font-medium">{dictionary.videoQualityLabel}</FormLabel>
-                    <Select value={selectedVideoItag} onValueChange={setSelectedVideoItag} name="video-quality-select" disabled={videoFormatsToShow.length === 0}>
+                    <Select value={selectedVideoItag?.toString() || ""} onValueChange={handleVideoItagChange} name="video-quality-select" disabled={videoFormatsToShow.length === 0}>
                         <SelectTrigger className="h-11 mt-1" id="video-quality-select"><SelectValue placeholder={dictionary.selectVideoQualityPlaceholder} /></SelectTrigger>
                         <SelectContent>
                             {videoFormatsToShow.map((format) => (
                                 <SelectItem key={`v-${format.itag}`} value={format.itag.toString()}>
-                                    {format.quality} ({format.container}{format.fps ? `, ${format.fps}fps` : ''})
+                                    {format.qualityLabel || "N/A"} ({format.container || 'N/A'})
+                                    {format.fps ? `, ${format.fps}fps` : ''}
+                                    {format.hasAudio !== undefined ? `, Audio: ${format.hasAudio ? 'Yes' : 'No'}` : ''}
                                 </SelectItem>
                             ))}
                             {videoFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>{dictionary.noVideoFormats}</SelectItem>}
@@ -511,22 +786,22 @@ function DownloadOptionsFields({
             {selectedDownloadType !== 'videoonly' && (
                 <div>
                     <FormLabel htmlFor="audio-quality-select" className="text-base font-medium">{dictionary.audioQualityLabel}</FormLabel>
-                    <Select value={selectedAudioItag} onValueChange={setSelectedAudioItag} name="audio-quality-select" disabled={audioFormatsToShow.length === 0}>
+                    <Select value={selectedAudioItag?.toString() || ""} onValueChange={handleAudioItagChange} name="audio-quality-select" disabled={audioFormatsToShow.length === 0}>
                         <SelectTrigger className="h-11 mt-1" id="audio-quality-select"><SelectValue placeholder={dictionary.selectAudioQualityPlaceholder} /></SelectTrigger>
                         <SelectContent>
                             {audioFormatsToShow.map((format) => (
                                 <SelectItem key={`a-${format.itag}`} value={format.itag.toString()}>
-                                    {format.quality} ({format.container || format.mimeType?.split('/')[1]})
+                                    {format.qualityLabel || `${format.audioBitrate || 'N/A'}kbps`} ({format.container || 'N/A'})
                                 </SelectItem>
                             ))}
                             {audioFormatsToShow.length === 0 && <SelectItem value="disabled" disabled>{dictionary.noAudioFormats}</SelectItem>}
                         </SelectContent>
                     </Select>
                      <div className="mt-2">
-                        <FormLabel className="text-sm font-medium text-muted-foreground">{dictionary.audioContainerLabel}</FormLabel>
-                         <RadioGroup value={selectedAudioFormat} onValueChange={(value) => setSelectedAudioFormat(value as 'aac'|'opus')} className="flex gap-4 mt-1">
-                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="aac" id="format-aac" /><FormLabel htmlFor="format-aac" className="text-sm">{dictionary.aacLabel}</FormLabel></FormItem>
-                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="opus" id="format-opus" /><FormLabel htmlFor="format-opus" className="text-sm">{dictionary.opusLabel}</FormLabel></FormItem>
+                        <FormLabel className="text-sm font-medium text-muted-foreground">{dictionary.audioContainerPreferenceLabel || "Preferred Audio Container"}</FormLabel>
+                         <RadioGroup value={selectedAudioFormat} onValueChange={(value) => setSelectedAudioFormat(value as 'm4a'|'opus')} className="flex gap-4 mt-1">
+                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="m4a" id="format-m4a" /><FormLabel htmlFor="format-m4a" className="text-sm">M4A (AAC)</FormLabel></FormItem>
+                            <FormItem className="flex items-center space-x-2"><RadioGroupItem value="opus" id="format-opus" /><FormLabel htmlFor="format-opus" className="text-sm">Opus</FormLabel></FormItem>
                         </RadioGroup>
                         <p className="text-xs text-muted-foreground mt-1">{dictionary.audioContainerNote}</p>
                     </div>
