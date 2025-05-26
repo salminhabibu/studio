@@ -38,10 +38,44 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
       const videos: TMDBVideo[] = movieData.videos?.results || [];
       const officialTrailer = videos.find(
         (video) => video.site === "YouTube" && video.type === "Trailer" && video.official
-      ) || videos.find( 
+      ) || videos.find(
         (video) => video.site === "YouTube" && video.type === "Trailer"
       );
       trailerKey = officialTrailer?.key || null;
+
+      // --- Fetch Torrent Data ---
+      if (movie) { // Ensure movie data was fetched successfully
+        try {
+          const torrentResponse = await fetch('/api/torrents/find', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              query: movie.title,
+              imdbId: movie.imdb_id,
+              tmdbId: movie.id.toString(),
+              type: 'movie',
+            }),
+          });
+
+          if (torrentResponse.ok) {
+            const torrentData = await torrentResponse.json();
+            if (torrentData.results && torrentData.results.length > 0) {
+              const bestTorrent = torrentData.results[0]; // API returns sorted by seeders
+              movie.magnetLink = bestTorrent.magnetLink;
+              movie.torrentQuality = bestTorrent.torrentQuality;
+            } else {
+              console.log(`No torrents found for movie: ${movie.title}`);
+            }
+          } else {
+            const errorText = await torrentResponse.text();
+            console.error(`Failed to fetch torrents for ${movie.title}: ${torrentResponse.status} - ${errorText}`);
+          }
+        } catch (torrentError) {
+          console.error(`Error fetching or processing torrents for ${movie.title}:`, torrentError);
+          // Do not set page-level 'error', as torrents are secondary.
+        }
+      }
+      // --- End Fetch Torrent Data ---
 
     } catch (e) {
       console.error(`Failed to fetch movie details for ID ${id}:`, e);

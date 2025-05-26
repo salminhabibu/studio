@@ -31,9 +31,10 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useEffect, useState } from "react"; // Added useEffect and useState
-import { getDictionary } from "@/lib/getDictionary"; // Import getDictionary
-import type { Locale } from "@/config/i18n.config"; // Import Locale
+import { useEffect, useState } from "react";
+import { getDictionary } from "@/lib/getDictionary";
+import type { Locale } from "@/config/i18n.config";
+import GlobalSearch from "@/components/features/search/GlobalSearch"; // Import GlobalSearch
 
 const navItemsConfig = [
   { href: "/home", labelKey: "sidebar.home", icon: HomeIcon, defaultLabel: "Home" },
@@ -144,6 +145,9 @@ export function AppSidebar() {
         </Link>
       </SidebarHeader>
       <SidebarContent className="p-3 mt-4 flex-grow">
+        <div className="mb-4 px-1 group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:py-2">
+          <GlobalSearch />
+        </div>
         <SidebarMenu>
           {navItemsConfig.map((item) => {
             const baseHref = item.href;

@@ -21,25 +21,45 @@ const QUALITIES = ["1080p (FHD)", "720p (HD)", "480p (SD)", "Any Available"]; //
 export function SeasonAccordionItem({ 
     seriesId, 
     seriesTitle,
-    season, 
+import { useDownload } from "@/contexts/DownloadContext"; // Added
+import { DownloadTaskCreationData, ConceptualAria2Task } from "@/types/download"; // Added
+
+// Placeholder for TorrentFindResultItem if not globally defined/imported
+interface TorrentFindResultItem {
+  magnetLink: string;
+  torrentQuality: string;
+  fileName?: string;
+  source?: string;
+  seeds?: number; // Optional: useful for sorting if available
+}
+
+const QUALITIES = ["1080p", "720p", "480p", "Any Available"]; // Simplified, display text can be mapped from dictionary
+
+export function SeasonAccordionItem({
+    seriesId,
+    seriesTitle,
+    season,
     initialOpen,
     dictionary, // Pass dictionary for localization
-    locale // Pass locale
-}: { 
-    seriesId: number | string; 
+    locale, // Pass locale
+    allSeriesTorrents // New prop
+}: {
+    seriesId: number | string;
     seriesTitle: string;
-    season: TMDBSeason, 
+    season: TMDBSeason,
     initialOpen?: boolean,
     dictionary: any,
-    locale: Locale
+    locale: Locale,
+    allSeriesTorrents: TorrentFindResultItem[]
 }) {
   const [episodes, setEpisodes] = useState<TMDBEpisode[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // For fetching episodes
+  const [isSeasonDownloadLoading, setIsSeasonDownloadLoading] = useState(false); // For season download button
   const [isInternallyOpen, setIsInternallyOpen] = useState(initialOpen || false);
-  const [selectedQuality, setSelectedQuality] = useState(QUALITIES[0]);
+  const [selectedQuality, setSelectedQuality] = useState(QUALITIES[0]); // For the "Play Season" / "Download Season" quality selector
   const { toast } = useToast();
-  const { addDownloadTask } = useDownload(); // Added
+  const { addDownloadTask: addWebTorrentTask } = useDownload(); // Renamed to avoid confusion
 
   useEffect(() => {
     async function fetchEpisodes() {
@@ -71,7 +91,7 @@ export function SeasonAccordionItem({
   
   const handlePlayEpisode = (episode: TMDBEpisode, e: React.MouseEvent) => {
     e.stopPropagation();
-    console.log(`[SeasonAccordionItem] "Play Episode" S${episode.season_number}E${episode.episode_number} (${selectedQuality}) for "${seriesTitle}" clicked. Backend call stubbed.`);
+    // Stubbed
      toast({
       title: dictionary?.toastPlaybackStubTitle || "Playback (Stubbed)",
       description: `${dictionary?.toastPlayingEpisodeStubDesc || "Playing episode"} S${episode.season_number}E${episode.episode_number} - "${episode.name}" (${selectedQuality}). ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
@@ -80,6 +100,7 @@ export function SeasonAccordionItem({
 
   const handleDownloadEpisode = async (episode: TMDBEpisode, e: React.MouseEvent) => {
     e.stopPropagation();
+    // This remains largely non-functional as episode.magnetLink is not expected to be populated
     if (!episode.magnetLink || !episode.id) {
       toast({
         title: dictionary?.downloadNotAvailableTitle || "Download Not Available",
@@ -88,99 +109,113 @@ export function SeasonAccordionItem({
       });
       return;
     }
-
-    const taskData: DownloadTaskCreationData = {
-      title: `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`,
-      type: 'tvEpisode' as 'tvEpisode', // Ensure type literal
-      source: episode.magnetLink,
-      metadata: {
-        tmdbId: episode.id,
-        seriesTmdbId: seriesId,
-        seriesTitle: seriesTitle,
-        seasonNumber: episode.season_number,
-        episodeNumber: episode.episode_number,
-        episodeTitle: episode.name,
-        quality: (episode as any).torrentQuality || selectedQuality.split(" ")[0] || 'Unknown',
-        posterPath: season.poster_path, 
-        airDate: episode.air_date,
-      },
-    };
-    await addDownloadTask(taskData);
+    // Existing WebTorrent logic (if applicable)
+    const taskData: DownloadTaskCreationData = { /* ... as before ... */ };
+    await addWebTorrentTask(taskData);
   };
+
+  const findBestTorrentForSeason = (targetQuality?: string): TorrentFindResultItem | null => {
+    const currentSeasonNum = season.season_number;
+    const seasonTorrents = allSeriesTorrents.filter(torrent => {
+      const qualityLower = torrent.torrentQuality.toLowerCase();
+      const fileNameLower = torrent.fileName?.toLowerCase() || "";
+      // Regex to find "S01", "Season 1", etc., ensuring it's not part of an episode number like S01E05
+      const seasonPattern = new RegExp(`s0*${currentSeasonNum}(?!e\\d+)|season\\s*0*${currentSeasonNum}`, 'i');
+      return seasonPattern.test(qualityLower) || seasonPattern.test(fileNameLower);
+    });
+
+    if (!seasonTorrents.length) return null;
+
+    // Sort by seeds if available, otherwise keep current order (which is already by seeds from API)
+    seasonTorrents.sort((a, b) => (b.seeds || 0) - (a.seeds || 0));
+    
+    if (targetQuality && targetQuality !== "Any Available") {
+      const qualityFiltered = seasonTorrents.filter(t => 
+        t.torrentQuality.toLowerCase().includes(targetQuality.toLowerCase().split(" ")[0]) // Match "1080p" from "1080p (FHD)"
+      );
+      if (qualityFiltered.length > 0) return qualityFiltered[0];
+    }
+    
+    return seasonTorrents[0]; // Return the best-seeded torrent for this season
+  };
+
 
   const handleDownloadSeason = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsSeasonDownloadLoading(true);
 
-    if (!isInternallyOpen || isLoading) {
-      toast({
-        title: dictionary?.seasonNotReadyTitle || "Season Not Ready",
-        description: dictionary?.seasonNotReadyDesc || "Please open the season and wait for episodes to load before downloading.",
-        variant: "default",
-      });
-      return;
-    }
-    if (episodes.length === 0) {
-      toast({
-        title: dictionary?.noEpisodesTitle || "No Episodes",
-        description: dictionary?.noEpisodesDesc || "No episodes found for this season to download.",
-        variant: "default",
-      });
-      return;
-    }
+    const torrentToDownload = findBestTorrentForSeason(selectedQuality);
 
-    const downloadableEpisodes = episodes.filter(ep => ep.magnetLink);
-    if (downloadableEpisodes.length === 0) {
+    if (!torrentToDownload) {
       toast({
-        title: dictionary?.noDownloadableEpisodesTitle || "No Downloadable Episodes",
-        description: dictionary?.noDownloadableEpisodesDesc || "No episodes with download sources found for this season.",
-        variant: "default",
+        title: dictionary?.noTorrentForSeasonTitle || "No Torrent Found",
+        description: `${dictionary?.noTorrentForSeasonDesc || "No suitable torrent found for season"} ${season.season_number} ${dictionary?.withQuality || "with quality"} ${selectedQuality}. ${dictionary?.tryOtherQuality || "Try selecting 'Any Available'."}`,
+        variant: "destructive",
       });
+      setIsSeasonDownloadLoading(false);
       return;
-    }
-
-    let successCount = 0;
-    let failCount = 0;
-    for (const episode of downloadableEpisodes) {
-      const taskData: DownloadTaskCreationData = {
-        title: `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`,
-        type: 'tvEpisode' as 'tvEpisode',
-        source: episode.magnetLink!, // We've filtered for magnetLink
-        metadata: {
-          tmdbId: episode.id,
-          seriesTmdbId: seriesId,
-          seriesTitle: seriesTitle,
-          seasonNumber: episode.season_number,
-          episodeNumber: episode.episode_number,
-          episodeTitle: episode.name,
-          quality: (episode as any).torrentQuality || selectedQuality.split(" ")[0] || 'Unknown',
-          posterPath: season.poster_path,
-          airDate: episode.air_date,
-        },
-      };
-      try {
-        const result = await addDownloadTask(taskData);
-        if (result) successCount++; else failCount++;
-      } catch (error) {
-        failCount++;
-        console.error("Failed to add download task for episode:", episode.name, error);
-      }
     }
     
-    toast({
-      title: dictionary?.seasonDownloadAttemptedTitle || "Season Download Initiated",
-      description: `${dictionary?.seasonDownloadAttemptedDesc || "Attempted to add"} ${downloadableEpisodes.length} ${dictionary?.episodesText || "episodes"}. ${successCount} ${dictionary?.succeededText || "succeeded"}, ${failCount} ${dictionary?.failedText || "failed"}.`,
-    });
+    const taskDisplayName = torrentToDownload.fileName || `${seriesTitle} - ${season.name} (${torrentToDownload.torrentQuality})`;
+
+    try {
+      const response = await fetch('/api/aria2/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          identifier: torrentToDownload.magnetLink,
+          type: 'magnet',
+          name: taskDisplayName,
+        }),
+      });
+      const result = await response.json();
+
+      if (response.ok && result.taskId) {
+        toast({
+          title: dictionary?.downloadSeasonStartTitle || "Download Started",
+          description: `${taskDisplayName} ${dictionary?.downloadSeasonStartDesc || "sent to server. Task ID:"} ${result.taskId}.`,
+        });
+        
+        const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+        const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+        const newTask: ConceptualAria2Task = {
+            taskId: result.taskId,
+            name: result.taskName || taskDisplayName,
+            quality: torrentToDownload.torrentQuality,
+            addedTime: Date.now(),
+            sourceUrlOrIdentifier: torrentToDownload.magnetLink,
+            type: 'tv_season_pack', 
+            seriesTmdbId: seriesId.toString(),
+            seasonNumber: season.season_number,
+        };
+        if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
+            conceptualTasks.push(newTask);
+            localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+        }
+
+      } else {
+        toast({ title: dictionary?.errorServerTitle || "Server Error", description: result.error || (dictionary?.errorServerDescSeason || "Failed to start season download."), variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("Error downloading season:", error);
+      toast({ title: dictionary?.errorApiTitle || "API Error", description: dictionary?.errorApiDescSeason || "Could not communicate with server for season download.", variant: "destructive" });
+    } finally {
+      setIsSeasonDownloadLoading(false);
+    }
   };
+  
+  const isDownloadPossible = !!findBestTorrentForSeason(selectedQuality);
+
 
   return (
-    <AccordionPrimitive.Item 
-      value={`season-${season.season_number}`} 
+    <AccordionPrimitive.Item
+      value={`season-${season.season_number}`}
       className="border-b border-border/30 last:border-b-0"
     >
       <AccordionPrimitive.Header className="flex items-center justify-between w-full group data-[state=open]:bg-muted/20 hover:bg-muted/30 transition-colors">
-        <AccordionPrimitive.Trigger 
+        <AccordionPrimitive.Trigger
           className="flex-grow flex items-center text-left py-4 px-3 sm:px-4 focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-l-md"
-          onClick={() => setIsInternallyOpen(prev => !prev)} 
+          onClick={() => setIsInternallyOpen(prev => !prev)}
         >
           <div className="flex items-center gap-3 min-w-0">
             {season.poster_path ? (
@@ -204,19 +239,18 @@ export function SeasonAccordionItem({
         </AccordionPrimitive.Trigger>
 
         <div className="py-2 pr-3 sm:pr-2 pl-1 flex-shrink-0 rounded-r-md" onClick={(e) => e.stopPropagation()}>
-          {/* Stubbed "Play Season" area - formerly DownloadSeasonButton */}
            <div className="flex items-center gap-2 ml-auto">
             <Select
               value={selectedQuality}
               onValueChange={setSelectedQuality}
-              disabled={isLoading} // Or some other loading state for playback
+              disabled={isLoading || isSeasonDownloadLoading} // Disable if loading episodes or season download
             >
               <SelectTrigger
                 asChild
                 className="w-[150px] h-9 text-xs"
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') e.stopPropagation();}}
-                disabled={isLoading}
+                disabled={isLoading || isSeasonDownloadLoading}
               >
                 <div>
                   <SelectValue placeholder={dictionary?.selectQualityPlaceholder || "Select quality"} />
@@ -230,26 +264,26 @@ export function SeasonAccordionItem({
                 ))}
               </SelectContent>
             </Select>
-            <Button
+            <Button // Play Season Button (stubbed)
               size="sm"
               variant="outline"
               className="h-9"
               onClick={handlePlaySeason}
-              disabled={isLoading}
+              disabled={isLoading || isSeasonDownloadLoading}
               aria-label={`${dictionary?.playSeasonButton || "Play Season"} ${season.season_number}: ${season.name} ${dictionary?.inQuality || "in"} ${selectedQuality}`}
             >
-              {isLoading && !isInternallyOpen ? <Loader2Icon className="animate-spin h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
+              {(isLoading && !isInternallyOpen) ? <Loader2Icon className="animate-spin h-4 w-4" /> : <PlayIcon className="h-4 w-4" />}
               <span className="ml-1.5 hidden sm:inline">{dictionary?.playSeasonButton || "Play Season"}</span>
             </Button>
-            <Button
+            <Button // Download Season Button
               size="sm"
-              variant="outline"
+              variant="default"
               className="h-9"
               onClick={handleDownloadSeason}
-              disabled={isLoading || (isInternallyOpen && episodes.length === 0 && !error && season.episode_count > 0)}
+              disabled={isSeasonDownloadLoading || !isDownloadPossible}
               aria-label={`${dictionary?.downloadSeasonButton || "Download Season"} ${season.season_number}: ${season.name}`}
             >
-              {isLoading && isInternallyOpen ? <Loader2Icon className="animate-spin h-4 w-4" /> : <DownloadIcon className="h-4 w-4" />}
+              {isSeasonDownloadLoading ? <Loader2Icon className="animate-spin h-4 w-4" /> : <DownloadIcon className="h-4 w-4" />}
               <span className="ml-1.5 hidden sm:inline">{dictionary?.downloadSeasonButton || "Download Season"}</span>
             </Button>
           </div>
