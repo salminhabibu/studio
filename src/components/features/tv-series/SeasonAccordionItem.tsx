@@ -4,11 +4,11 @@
 import * as AccordionPrimitive from "@radix-ui/react-accordion";
 import { ChevronDown, ClapperboardIcon, Loader2Icon, PlayIcon, DownloadIcon as DownloadIconLucide, DownloadCloudIcon } from "lucide-react";
 import Image from "next/image";
-import { cn } from "@/lib/utils";
-import { getFullImagePath, getTvSeasonDetails } from "@/lib/tmdb";
+import { cn, selectVideoFileFromTorrent } from "@/lib/utils"; // Added selectVideoFileFromTorrent
+import { getFullImagePath, getEpisodeMagnetLink } from "@/lib/tmdb"; // Added getEpisodeMagnetLink, removed getTvSeasonDetails as it's not used here directly
 import type { TMDBEpisode, TMDBSeason } from "@/types/tmdb";
 // TVEpisodeTorrentResultItem is structurally compatible with TorrentFindResultItem from the new API
-import type { TorrentFindResultItem as TVEpisodeTorrentResultItem, TorrentFindResultItem } from "@/types/torrent"; 
+import type { TorrentFindResultItem as TVEpisodeTorrentResultItem, TorrentFindResultItem } from "@/types/torrent";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
@@ -89,17 +89,6 @@ export function SeasonAccordionItem({
   
   const handlePlayEpisode = async (episode: EpisodeWithTorrents, e: React.MouseEvent) => {
     e.stopPropagation();
-    const episodeMagnetLink = episode.torrentOptions?.[0]?.magnetLink;
-
-    if (!episodeMagnetLink) {
-      toast({
-        title: dictionary?.noStreamSourceTitle || "Streaming Source Error",
-        description: dictionary?.noStreamSourceDescEpisode || `No magnet link available for S${episode.season_number}E${episode.episode_number} to start streaming.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
     setIsEpisodeStreamLoading(true);
     setEpisodeStreamUrl(null);
     setEpisodeStreamTitle(`${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`);
@@ -108,11 +97,46 @@ export function SeasonAccordionItem({
       description: dictionary?.preparingStreamDescEpisode || `Please wait for S${episode.season_number}E${episode.episode_number} stream...`,
     });
 
+    let magnetUriToUse: string | null = null;
+    let preferredQuality: string | undefined = undefined; // Or set a default like "720p" or "1080p"
+
+    // 1. Try getEpisodeMagnetLink (which uses the new torrentProvider)
+    try {
+      console.log(`[SeasonAccordionItem] Attempting to fetch magnet via getEpisodeMagnetLink for S${episode.season_number}E${episode.episode_number}`);
+      magnetUriToUse = await getEpisodeMagnetLink(seriesTitle, episode.season_number, episode.episode_number, preferredQuality);
+      if (magnetUriToUse) {
+        console.log(`[SeasonAccordionItem] Magnet found via getEpisodeMagnetLink for S${episode.season_number}E${episode.episode_number}`);
+      }
+    } catch (error) {
+      console.error(`[SeasonAccordionItem] Error calling getEpisodeMagnetLink for S${episode.season_number}E${episode.episode_number}:`, error);
+    }
+
+    // 2. Fallback to torrentOptions from page props if getEpisodeMagnetLink fails or returns null
+    if (!magnetUriToUse && episode.torrentOptions && episode.torrentOptions.length > 0) {
+      // Simple fallback: use the first available torrentOption.
+      // More sophisticated logic could be added here to select based on quality from torrentOptions.
+      const fallbackTorrent = episode.torrentOptions.sort((a,b) => (b.seeds || 0) - (a.seeds || 0))[0]; // Example: Pick best seeded
+      magnetUriToUse = fallbackTorrent?.magnetLink || null;
+      if (magnetUriToUse) {
+        console.log(`[SeasonAccordionItem] Using fallback magnet from torrentOptions for S${episode.season_number}E${episode.episode_number}`);
+      }
+    }
+    
+    if (!magnetUriToUse) {
+      toast({
+        title: dictionary?.noStreamSourceTitle || "Streaming Source Error",
+        description: dictionary?.noStreamSourceDescEpisode || `No magnet link could be found for S${episode.season_number}E${episode.episode_number} to start streaming.`,
+        variant: "destructive",
+      });
+      setIsEpisodeStreamLoading(false);
+      return;
+    }
+
     try {
       const addResponse = await fetch('/api/webtorrent/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ magnetUri: episodeMagnetLink }),
+        body: JSON.stringify({ magnetUri: magnetUriToUse }), // Use the determined magnet URI
       });
 
       if (!addResponse.ok) {
@@ -124,21 +148,17 @@ export function SeasonAccordionItem({
       const { torrentId, files, name: torrentName } = result;
 
       if (!files || files.length === 0) {
-        throw new Error("No files found in the torrent.");
+        throw new Error(dictionary?.noFilesInTorrentError || "No files found in the torrent.");
+      }
+      
+      // Use the utility function to select the video file
+      const selectedFile = selectVideoFileFromTorrent(files.map((f: any) => ({ path: f.path, length: f.length })));
+
+      if (!selectedFile) {
+        throw new Error(dictionary?.noPlayableFileError || "No playable video file found in the torrent for this episode.");
       }
 
-      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
-      const videoFiles = files.filter((file: { name: string; length: number }) =>
-        videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
-      ).sort((a: { length: number }, b: { length: number }) => b.length - a.length);
-
-      if (videoFiles.length === 0) {
-        throw new Error("No playable video file found in the torrent for this episode.");
-      }
-
-      const largestVideoFile = videoFiles[0];
-      const filePath = largestVideoFile.path;
-      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(filePath)}`;
+      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(selectedFile.path)}`;
       
       setEpisodeStreamUrl(newStreamUrl);
       setEpisodeStreamTitle(torrentName || `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`);

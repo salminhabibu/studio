@@ -231,17 +231,36 @@ export async function getTvSeasonDetails(tvId: number | string, seasonNumber: nu
   return seasonData;
 }
 
-// getEpisodeTorrentOptions function has been removed as it's no longer used.
+import { getTvSeriesMagnet } from './torrentProvider'; // Import the new function
 
-// Stub function to satisfy DownloadEpisodeButton.tsx, actual implementation needed for WebTorrent downloads.
+// Function to get magnet link for a specific TV series episode.
+// This now calls the centralized getTvSeriesMagnet from torrentProvider.ts
 export async function getEpisodeMagnetLink(
   seriesTitle: string,
   seasonNumber: number,
   episodeNumber: number,
-  qualityPreference: string
+  qualityPreference?: string // Made optional to align with getTvSeriesMagnet
 ): Promise<string | null> {
-  console.warn(`[getEpisodeMagnetLink] STUB: Called for ${seriesTitle} S${seasonNumber}E${episodeNumber} (${qualityPreference}). Returning null.`);
-  return null;
+  console.log(`[TMDB - getEpisodeMagnetLink] Requesting magnet for: "${seriesTitle}" S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}, Quality: ${qualityPreference || 'any'}`);
+  
+  try {
+    const magnetLink = await getTvSeriesMagnet(
+      seriesTitle,
+      seasonNumber,
+      episodeNumber,
+      qualityPreference
+    );
+
+    if (magnetLink) {
+      console.log(`[TMDB - getEpisodeMagnetLink] Magnet found for "${seriesTitle}" S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}.`);
+    } else {
+      console.log(`[TMDB - getEpisodeMagnetLink] No magnet found for "${seriesTitle}" S${String(seasonNumber).padStart(2, '0')}E${String(episodeNumber).padStart(2, '0')}.`);
+    }
+    return magnetLink;
+  } catch (error) {
+    console.error(`[TMDB - getEpisodeMagnetLink] Error getting magnet for "${seriesTitle}" S${seasonNumber}E${episodeNumber}:`, error);
+    return null;
+  }
 }
 
 export async function searchMulti(query: string, page: number = 1): Promise<TMDBMultiPaginatedResponse> {

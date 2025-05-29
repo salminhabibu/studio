@@ -75,25 +75,27 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
       }
 
       const result = await addResponse.json();
+import { selectVideoFileFromTorrent } from "@/lib/utils"; // Import the utility function
+
+// ... (other imports) ...
+
+// ... (inside MovieClientContent component) ...
+
+// ... (inside handlePlayMovie async function) ...
       const { torrentId, files, name: torrentName } = result;
 
       if (!files || files.length === 0) {
-        throw new Error("No files found in the torrent.");
+        throw new Error(dictionary?.noFilesInTorrentError || "No files found in the torrent.");
       }
 
-      // Find the largest video file
-      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
-      const videoFiles = files.filter((file: { name: string; length: number }) => 
-        videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
-      ).sort((a: { length: number }, b: { length: number }) => b.length - a.length);
+      // Use the utility function to select the video file
+      const selectedFile = selectVideoFileFromTorrent(files.map((f: any) => ({ path: f.path, length: f.length })));
 
-      if (videoFiles.length === 0) {
-        throw new Error("No playable video file found in the torrent.");
+      if (!selectedFile) {
+        throw new Error(dictionary?.noPlayableFileError || "No playable video file found in the torrent.");
       }
-
-      const largestVideoFile = videoFiles[0];
-      const filePath = largestVideoFile.path; // path is relative to torrent root
-      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(filePath)}`;
+      
+      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(selectedFile.path)}`;
       
       setStreamUrl(newStreamUrl);
       setStreamTitle(torrentName || movie.title); // Prefer torrent name if available
