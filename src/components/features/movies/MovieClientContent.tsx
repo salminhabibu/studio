@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PlayCircleIcon, PlayIcon, Loader2Icon, DownloadIcon } from "lucide-react"; // Added DownloadIcon
 import { getFullImagePath } from "@/lib/tmdb";
 import { useState } from "react";
-// import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Keep if you want player UI, but stub source
+import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Uncommented
 import { useToast } from "@/hooks/use-toast";
 import { useDownload } from "@/contexts/DownloadContext"; // Added useDownload
 import { DownloadTaskCreationData } from "@/types/download"; // Added DownloadTaskCreationData
@@ -25,9 +25,10 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
   const { toast } = useToast();
   const [isTrailerModalOpen, setIsTrailerModalOpen] = useState(false);
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
-  // const [streamUrl, setStreamUrl] = useState<string | null>(null); // Stubbed
+  const [streamUrl, setStreamUrl] = useState<string | null>(null); // For VideoPlayer src
+  const [isStreamReady, setIsStreamReady] = useState(false); // To show VideoPlayer only when ready
   const [streamTitle, setStreamTitle] = useState<string>("");
-  const [isPlayLoading, setIsPlayLoading] = useState(false);
+  const [isPlayLoading, setIsPlayLoading] = useState(false); // For "Play Movie" button loading state
   const { addDownloadTask } = useDownload(); // Added
 
   const handleWatchTrailer = () => {
@@ -43,17 +44,77 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
   };
 
   const handlePlayMovie = async () => {
+    if (!movie.magnetLink) {
+      toast({
+        title: dictionary?.noStreamSourceTitle || "Streaming Source Error",
+        description: dictionary?.noStreamSourceDesc || "No magnet link available for this movie to start streaming.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPlayLoading(true);
+    setIsStreamReady(false);
+    setStreamUrl(null);
     setStreamTitle(movie.title);
-    console.log(`[MovieClientContent] "Play Movie" clicked for: ${movie.title}. Backend call stubbed.`);
     toast({
-      title: "Playback (Stubbed)",
-      description: `Playing "${movie.title}". Feature to be fully implemented.`,
+      title: dictionary?.preparingStreamTitle || "Preparing Stream",
+      description: dictionary?.preparingStreamDesc || "Please wait while we prepare the movie stream...",
     });
-    // Simulate a delay then open modal with placeholder
-    // setStreamUrl("placeholder_stream_url"); // Or keep null and let VideoPlayer handle it
-    setIsPlayerModalOpen(true); 
-    setTimeout(() => setIsPlayLoading(false), 1500);
+
+    try {
+      const addResponse = await fetch('/api/webtorrent/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ magnetUri: movie.magnetLink }),
+      });
+
+      if (!addResponse.ok) {
+        const errorData = await addResponse.json().catch(() => ({ error: "Failed to add torrent to server." }));
+        throw new Error(errorData.error || "Server error adding torrent.");
+      }
+
+      const result = await addResponse.json();
+      const { torrentId, files, name: torrentName } = result;
+
+      if (!files || files.length === 0) {
+        throw new Error("No files found in the torrent.");
+      }
+
+      // Find the largest video file
+      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
+      const videoFiles = files.filter((file: { name: string; length: number }) => 
+        videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+      ).sort((a: { length: number }, b: { length: number }) => b.length - a.length);
+
+      if (videoFiles.length === 0) {
+        throw new Error("No playable video file found in the torrent.");
+      }
+
+      const largestVideoFile = videoFiles[0];
+      const filePath = largestVideoFile.path; // path is relative to torrent root
+      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(filePath)}`;
+      
+      setStreamUrl(newStreamUrl);
+      setStreamTitle(torrentName || movie.title); // Prefer torrent name if available
+      setIsStreamReady(true); // Mark stream as ready
+      setIsPlayerModalOpen(true); // Open the player modal
+      toast({
+        title: dictionary?.streamReadyTitle || "Stream Ready",
+        description: `${torrentName || movie.title} ${dictionary?.streamReadyDesc || "is ready to play."}`,
+      });
+
+    } catch (error: any) {
+      console.error("[MovieClientContent] Error preparing stream:", error);
+      toast({
+        title: dictionary?.streamErrorTitle || "Streaming Error",
+        description: error.message || (dictionary?.streamErrorDesc || "Could not prepare the stream. Please try again."),
+        variant: "destructive",
+      });
+      setIsPlayerModalOpen(false); // Ensure modal is closed on error
+    } finally {
+      setIsPlayLoading(false);
+    }
   };
 
   const handleDownloadMovie = async () => {
@@ -162,12 +223,15 @@ export function MovieClientContent({ movie, trailerKey, children, dictionary, lo
 
       <Dialog open={isPlayerModalOpen} onOpenChange={setIsPlayerModalOpen}>
         <DialogContent className="sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] p-0 border-0 bg-black/95 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
-          <DialogTitle className="sr-only">{streamTitle || (dictionary?.streamingVideoTitle || "Streaming Video")}</DialogTitle>
-          {/* VideoPlayer can show a "No source" message or be hidden if streamUrl is null */}
-          {/* <VideoPlayer src={streamUrl!} title={streamTitle || movie.title} /> */}
-           <div className="w-full h-full flex items-center justify-center bg-black text-white">
-             {isPlayLoading ? <Loader2Icon className="h-12 w-12 animate-spin" /> : (streamTitle ? `Video Player for: ${streamTitle} (Stubbed)` : "Video Player (Stubbed)")}
+          <DialogTitle className="sr-only">{streamTitle || movie.title}</DialogTitle>
+          {isStreamReady && streamUrl ? (
+            <VideoPlayer src={streamUrl} title={streamTitle || movie.title} />
+          ) : (
+           <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white">
+             <Loader2Icon className="h-12 w-12 animate-spin mb-4" />
+             <p>{dictionary?.loadingVideoStream || "Loading video stream..."}</p>
            </div>
+          )}
         </DialogContent>
       </Dialog>
 

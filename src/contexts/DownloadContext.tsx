@@ -219,7 +219,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         toast({ title: 'Error Cancelling', description: error.message, variant: 'destructive' });
       }
     },
-    [toast, setActiveTasks, refreshTaskStatus] // refreshTaskStatus might be redundant if item is removed, but kept for consistency or future use
+    [toast, setActiveTasks] 
   );
 
   const getTask = useCallback(

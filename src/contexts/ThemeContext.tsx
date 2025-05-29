@@ -33,9 +33,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   });
 
   useEffect(() => {
-    // Apply theme on initial client load
+    // Apply theme on initial client load and when theme state changes
     applyThemePreference(theme);
-  }, []); // Empty dependency array: run once on mount
+  }, [theme]); // Added theme to dependency array
 
   const setTheme = (newTheme: Theme) => {
     setThemeState(newTheme);

@@ -14,6 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Added
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, use } from "react"; 
 import { Loader2Icon, DownloadCloudIcon, YoutubeIcon, SearchIcon, ListMusicIcon, VideoIcon, FilmIcon } from "lucide-react"; 
@@ -133,7 +134,7 @@ interface YouTubeDownloaderPageProps {
 }
 
 export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps) {
-  const { locale } = use(props.params); 
+  const locale = props.params.locale; 
 
   const { toast } = useToast();
   const [isLoadingInfo, setIsLoadingInfo] = useState(false);
@@ -469,8 +470,8 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
             const successData = await downloadResponse.json();
              toast({
                 title: `Started: ${item.title.substring(0,30)}...`,
-                description: `Task ID: ${successData.taskId}`,
-                variant: "success"
+                description: `Task ID: ${successData.taskId}`
+                // variant: "success" // Removed, will use default
             });
           } else {
             errorCount++;
@@ -492,7 +493,7 @@ export default function YouTubeDownloaderPage(props: YouTubeDownloaderPageProps)
       toast({
         title: dictionary?.playlistDownloadCompleteTitle || "Playlist Download Attempt Finished",
         description: `${successCount} ${dictionary?.downloadsStarted || "downloads started"}, ${errorCount} ${dictionary?.errorsEncountered || "errors encountered"}.`,
-        variant: (errorCount > 0 && successCount === 0) ? "destructive" : (errorCount > 0 ? "default" : "success")
+        variant: (errorCount > 0 && successCount === 0) ? "destructive" : (errorCount > 0 ? "default" : "default")
       });
       setIsDownloading(false);
   };
@@ -684,10 +685,8 @@ useEffect(() => {
 
       {currentContent && (
         <Card className="animate-fade-in-up shadow-xl border-border/40 max-w-5xl mx-auto mt-8">
-            {'title' in currentContent && !('items' in currentContent) && (
-              <>
-                <CardHeader>
-            {'formats' in currentContent && currentContent.formats && ( // ApiVideoInfo
+            {/* Case 1: Single Video ('ApiVideoInfo') */}
+            {'title' in currentContent && !('items' in currentContent) && 'formats' in currentContent && currentContent.formats && (
               <>
                 <CardHeader>
                     <CardTitle className="text-xl flex items-center gap-2">
@@ -718,7 +717,8 @@ useEffect(() => {
               </>
             )}
 
-            {'videos' in currentContent && currentContent.videos && ( // ApiPlaylistInfo
+            {/* Case 2: Playlist ('ApiPlaylistInfo') */}
+            {'videos' in currentContent && currentContent.videos && (
                 <>
                     <CardHeader>
                         <CardTitle className="text-xl flex items-center gap-2">
@@ -754,7 +754,7 @@ useEffect(() => {
                             </Button>
                             <div className="flex items-center space-x-2">
                                 <Checkbox id="select-all-playlist"
-                                    checked={currentContent.items.length > 0 && currentContent.items.every(item => playlistItemsSelection[item.id])}
+                                    checked={currentContent.videos.length > 0 && currentContent.videos.every(item => playlistItemsSelection[item.id])}
                                     onCheckedChange={toggleAllPlaylistItems} />
                                 <FormLabel htmlFor="select-all-playlist" className="text-sm font-medium">{dictionary.selectAllLabel}</FormLabel>
                             </div>

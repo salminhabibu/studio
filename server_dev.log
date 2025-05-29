@@ -1,0 +1,9 @@
+
+> nextn@0.1.0 server:dev
+> tsx watch src/server/index.ts
+
+[Server Config] Using default Aria2 secret token. Please change 'my_secret_token' in your .env file for production security.
+[Server API] ChillyMovies Backend Server listening on http://localhost:3001
+[Server API] Running in UI Template Mode. Download/streaming functionalities are stubbed on the frontend.
+[Server API] WARNING: BACKEND_API_KEY is not set. This is less critical for a UI template but remember to set it for future backend features.
+[Server API] SIGTERM signal received: closing HTTP server

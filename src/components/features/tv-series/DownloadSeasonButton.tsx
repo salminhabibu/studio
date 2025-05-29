@@ -3,8 +3,9 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ServerIcon, Loader2Icon, ChevronDown } from "lucide-react"; // Added ChevronDown
+import { ServerIcon, Loader2Icon, ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { getTvSeriesMagnet } from "@/lib/torrentProvider"; // Import for Aria2 path
 import {
   Select,
   SelectContent,
@@ -37,53 +38,80 @@ export function DownloadSeasonButton({
   const handleDownloadSeason = async (e: React.MouseEvent | React.KeyboardEvent) => {
     e.stopPropagation();
     setIsLoading(true);
-    const taskDisplayName = `${seriesTitle} - Season ${seasonNumber} (${seasonName})`;
+    const taskDisplayName = `${seriesTitle} - Season ${seasonNumber} (${seasonName}) - ${selectedQuality}`;
     console.log(
-      `[DownloadSeasonButton] Initiating server download for ${taskDisplayName} in ${selectedQuality}`
+      `[DownloadSeasonButton] Initiating server download for ${taskDisplayName}`
     );
 
     try {
-        const response = await fetch('/api/aria2/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name: taskDisplayName,
-                seriesTitle,
-                season: seasonNumber,
-                quality: selectedQuality,
-                type: 'tv_season_pack'
-            })
+      const magnetLink = await getTvSeriesMagnet(
+        seriesTitle,
+        seasonNumber,
+        undefined, // No episode number for season pack
+        selectedQuality
+      );
+
+      if (!magnetLink) {
+        toast({
+          title: "Source Not Found",
+          description: `Could not find a downloadable source for Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}).`,
+          variant: "destructive",
         });
-        const result = await response.json();
-        if (response.ok && result.taskId) {
-            toast({
-                title: "Sent to Server Download",
-                description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.`
-            });
-
-            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
-            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
-            const newTask: ConceptualAria2Task = {
-                taskId: result.taskId,
-                name: result.taskName || taskDisplayName,
-                quality: selectedQuality,
-                addedTime: Date.now(),
-                sourceUrlOrIdentifier: `${seriesTitle} S${String(seasonNumber).padStart(2,'0')}`,
-                type: 'tv_season_pack',
-            };
-            if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
-                conceptualTasks.push(newTask);
-                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
-            }
-        } else {
-            toast({ title: "Server Download Error", description: result.error || "Failed to start season download on server.", variant: "destructive" });
-        }
-
-    } catch (error) {
-        console.error("[DownloadSeasonButton] Error calling Aria2 add API for season:", error);
-        toast({ title: "Server API Error", description: "Could not communicate with download server for season.", variant: "destructive" });
-    } finally {
         setIsLoading(false);
+        return;
+      }
+
+      const payload = {
+        title: taskDisplayName,
+        type: 'tvSeason', // Corrected type
+        source: magnetLink,
+        metadata: {
+          tmdbId: seriesId.toString(),
+          seriesTitle: seriesTitle,
+          seasonNumber: seasonNumber,
+          fileName: `${taskDisplayName}.mkv`, // Example filename
+          selectedQuality: selectedQuality,
+        },
+      };
+
+      const response = await fetch('/api/aria2/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+
+      if (response.ok && (result.gid || result.taskId)) {
+        const newTaskId = result.gid || result.taskId;
+        toast({
+          title: "Sent to Server Download",
+          description: `Season ${seasonNumber} of ${seriesTitle} (${selectedQuality}) sent to server. Task ID: ${newTaskId}. Check Downloads page.`,
+        });
+
+        const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+        const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+        const newTask: ConceptualAria2Task = {
+          taskId: newTaskId,
+          name: taskDisplayName,
+          quality: selectedQuality,
+          addedTime: Date.now(),
+          sourceUrlOrIdentifier: magnetLink, // Store the magnet link
+          type: 'tv_season_pack', // This type is for ConceptualAria2Task
+          seriesTmdbId: seriesId.toString(),
+          seasonNumber: seasonNumber,
+        };
+        if (!conceptualTasks.find(task => task.taskId === newTaskId)) {
+          conceptualTasks.push(newTask);
+          localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+        }
+      } else {
+        toast({ title: "Server Download Error", description: result.error || "Failed to start season download on server.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("[DownloadSeasonButton] Error calling Aria2 add API for season:", error);
+      toast({ title: "Server API Error", description: "Could not communicate with download server for season.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
     }
   };
 

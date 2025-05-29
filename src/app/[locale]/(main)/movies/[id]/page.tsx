@@ -115,7 +115,7 @@ async function MovieDetailsContent({ id, locale }: { id: string; locale: Locale 
 
   return (
     <div className="container mx-auto py-8 px-4 md:px-0">
-      <MovieClientContent movie={movie} trailerKey={trailerKey} dictionary={t.clientContent}>
+      <MovieClientContent movie={movie} trailerKey={trailerKey} dictionary={t.clientContent} locale={locale}>
         <div className="grid md:grid-cols-12 gap-8">
           <div className="md:col-span-4 lg:col-span-3">
             <MovieDownloadCard 

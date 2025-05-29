@@ -76,7 +76,7 @@ interface SettingsPageProps {
 }
 
 export default function SettingsPage(props: SettingsPageProps) {
-  const { locale } = use(props.params); 
+  const locale = props.params.locale; 
 
   const [mounted, setMounted] = useState(false);
   const [selectedPrimaryAccentHex, setSelectedPrimaryAccentHex] = useState<string>(DEFAULT_PRIMARY_ACCENT_COLOR_OPTION.hex);

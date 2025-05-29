@@ -24,7 +24,7 @@ export default function MainLayout({
 }: MainLayoutProps) {
   const pathname = usePathname(); 
   const router = useRouter(); // Initialize router
-  const { locale } = use(params); 
+  const locale = params.locale; 
 
   const [dictionary, setDictionary] = useState<any>(null);
 

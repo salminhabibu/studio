@@ -44,21 +44,21 @@ export const WebTorrentProvider: React.FC<WebTorrentProviderProps> = ({ children
     setTimeout(() => setIsClientReady(true), 500);
   }, []);
 
-  const stubFunction = useCallback(async (actionName: string, ...args: any[]) => {
+  const stubFunction = useCallback(async (actionName: string, ...args: any[]): Promise<void> => { // Explicitly Promise<void>
     console.log(`[WebTorrentProvider] Stubbed action "${actionName}" called with args:`, args);
     // toast({ title: "Action (Stubbed)", description: `${actionName} is a stub in this UI template.`});
-    return null; // Or appropriate stubbed return value
+    // No explicit return value for Promise<void>
   }, []);
 
   const value: WebTorrentContextTypeStub = {
     torrents: [], // Empty for template
     history: [],  // Empty for template
-    addTorrent: (...args) => stubFunction('addTorrent', ...args) as Promise<Torrent | null>,
-    removeTorrent: (...args) => stubFunction('removeTorrent', ...args) as Promise<void>,
+    addTorrent: async (...args) => { await stubFunction('addTorrent', ...args); return null; }, // Keep as Promise<Torrent | null>
+    removeTorrent: (...args) => stubFunction('removeTorrent', ...args), // Now matches Promise<void>
     pauseTorrent: (...args) => { stubFunction('pauseTorrent', ...args); },
     resumeTorrent: (...args) => { stubFunction('resumeTorrent', ...args); },
     getTorrentInstance: (...args) => { stubFunction('getTorrentInstance', ...args); return undefined; },
-    getLargestFileForStreaming: (...args) => stubFunction('getLargestFileForStreaming', ...args) as Promise<any>,
+    getLargestFileForStreaming: async (...args) => { await stubFunction('getLargestFileForStreaming', ...args); return null; }, // Keep as Promise<any> or specific type
     clearDownloadHistory: () => { stubFunction('clearDownloadHistory'); },
     removeDownloadFromHistory: (...args) => { stubFunction('removeDownloadFromHistory', ...args); },
     isClientReady: isClientReady,

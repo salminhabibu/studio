@@ -1,5 +1,5 @@
 // src/types/tmdb.ts
-import type { TVEpisodeTorrentResultItem } from './torrent'; // Import the new type
+import type { TorrentFindResultItem, TVEpisodeTorrentResultItem } from './torrent'; // Import the new type & TorrentFindResultItem
 
 export interface TMDBGenre {
   id: number;
@@ -22,7 +22,7 @@ export interface TMDBBaseMovie {
   vote_average: number;
   genre_ids?: number[]; // Present in list views
   overview: string;
-  media_type?: 'movie'; // Added for multi-search
+  media_type: 'movie'; // Made non-optional
 }
 
 export interface TMDBMovie extends TMDBBaseMovie {
@@ -37,6 +37,7 @@ export interface TMDBMovie extends TMDBBaseMovie {
     results: TMDBVideo[];
   };
   imdb_id?: string;
+  homepage?: string | null; // Added homepage
   magnetLink?: string; // Added for consistency
   torrentQuality?: string; // Added for YTS torrent quality
 }
@@ -57,7 +58,7 @@ export interface TMDBBaseTVSeries {
   vote_average: number;
   genre_ids?: number[]; // Present in list views
   overview: string;
-  media_type?: 'tv'; // Added for multi-search
+  media_type: 'tv'; // Made non-optional
 }
 
 export interface TMDBEpisode {
@@ -70,7 +71,7 @@ export interface TMDBEpisode {
   vote_average: number;
   season_number: number;
   runtime: number | null;
-  torrentOptions?: TVEpisodeTorrentResultItem[]; // Replaces magnetLink and torrentQuality
+  torrentOptions?: TorrentFindResultItem[]; // Changed from TVEpisodeTorrentResultItem
 }
 
 export interface TMDBSeason {
@@ -94,6 +95,7 @@ export interface TMDBTVSeries extends TMDBBaseTVSeries {
   production_companies: TMDBProductionCompany[];
   created_by?: { id: number; name: string; profile_path: string | null }[];
   status?: string;
+  homepage?: string | null; // Added homepage
   videos?: {
     results: TMDBVideo[];
   };

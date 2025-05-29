@@ -5,7 +5,8 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { DownloadIcon, Loader2Icon, ServerIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getEpisodeMagnetLink } from "@/lib/tmdb"; 
+import { getEpisodeMagnetLink } from "@/lib/tmdb"; // This is for WebTorrent path, keep if WebTorrent is to be re-enabled
+import { getTvSeriesMagnet } from "@/lib/torrentProvider"; // Import for Aria2 path
 import { useWebTorrent } from "@/contexts/WebTorrentContext"; 
 import {
   Select,
@@ -85,52 +86,80 @@ export function DownloadEpisodeButton({
 
   const handleAria2Download = async () => {
     setIsLoadingAria2(true);
-    const taskDisplayName = `${seriesTitle} - ${episodeIdString} - ${episodeName}`;
-    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${taskDisplayName} (Quality: ${selectedAriaQuality})`);
+    const taskDisplayName = `${seriesTitle} - ${episodeIdString} - ${episodeName} (${selectedAriaQuality})`;
+    console.log(`[DownloadEpisodeButton] Initiating Aria2 download for ${taskDisplayName}`);
     
     try {
-        const response = await fetch('/api/aria2/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                name: taskDisplayName,
-                seriesTitle, 
-                season: seasonNumber,
-                episode: episodeNumber,
-                quality: selectedAriaQuality,
-                type: 'tv_episode'
-            })
-        });
-        const result = await response.json();
+      const magnetLink = await getTvSeriesMagnet(
+        seriesTitle,
+        seasonNumber,
+        episodeNumber,
+        selectedAriaQuality // Pass the quality string (e.g., "1080p (FHD)")
+      );
 
-        if (response.ok && result.taskId) {
-            toast({ 
-                title: "Sent to Server Download", 
-                description: `${episodeName} (${selectedAriaQuality}) sent to server. Task ID: ${result.taskId}. Check Downloads page.` 
-            });
-            
-            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
-            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
-            const newTask: ConceptualAria2Task = {
-                taskId: result.taskId,
-                name: result.taskName || taskDisplayName,
-                quality: selectedAriaQuality,
-                addedTime: Date.now(),
-                sourceUrlOrIdentifier: `${seriesTitle} S${String(seasonNumber).padStart(2,'0')}E${String(episodeNumber).padStart(2,'0')}`,
-                type: 'tv_episode',
-            };
-            if (!conceptualTasks.find(task => task.taskId === result.taskId)) {
-                conceptualTasks.push(newTask);
-                localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
-            }
-        } else {
-            toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
-        }
-    } catch (error) {
-        console.error("[DownloadEpisodeButton] Error calling Aria2 add API:", error);
-        toast({ title: "Server API Error", description: "Could not communicate with download server.", variant: "destructive" });
-    } finally {
+      if (!magnetLink) {
+        toast({
+          title: "Source Not Found",
+          description: `Could not find a downloadable source for ${episodeName} (${selectedAriaQuality}).`,
+          variant: "destructive",
+        });
         setIsLoadingAria2(false);
+        return;
+      }
+
+      const payload = {
+        title: taskDisplayName,
+        type: 'tvEpisode', // Corrected type
+        source: magnetLink,
+        metadata: {
+          tmdbId: seriesId.toString(),
+          seriesTitle: seriesTitle,
+          seasonNumber: seasonNumber,
+          episodeNumber: episodeNumber,
+          fileName: `${taskDisplayName}.mkv`, // Example filename
+          selectedQuality: selectedAriaQuality,
+        },
+      };
+
+      const response = await fetch('/api/aria2/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+
+      if (response.ok && (result.gid || result.taskId)) {
+        const newTaskId = result.gid || result.taskId;
+        toast({
+          title: "Sent to Server Download",
+          description: `${episodeName} (${selectedAriaQuality}) sent to server. Task ID: ${newTaskId}. Check Downloads page.`,
+        });
+
+        const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+        const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+        const newTask: ConceptualAria2Task = {
+          taskId: newTaskId,
+          name: taskDisplayName, // Use the same name as title for consistency
+          quality: selectedAriaQuality,
+          addedTime: Date.now(),
+          sourceUrlOrIdentifier: magnetLink, // Store the magnet link
+          type: 'tv_episode', // This type is for ConceptualAria2Task
+          seriesTmdbId: seriesId.toString(),
+          seasonNumber: seasonNumber,
+          episodeNumber: episodeNumber,
+        };
+        if (!conceptualTasks.find(task => task.taskId === newTaskId)) {
+          conceptualTasks.push(newTask);
+          localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
+        }
+      } else {
+        toast({ title: "Server Download Error", description: result.error || "Failed to start server download.", variant: "destructive" });
+      }
+    } catch (error) {
+      console.error("[DownloadEpisodeButton] Error calling Aria2 add API:", error);
+      toast({ title: "Server API Error", description: "Could not communicate with download server.", variant: "destructive" });
+    } finally {
+      setIsLoadingAria2(false);
     }
   };
   

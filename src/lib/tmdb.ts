@@ -85,27 +85,57 @@ export async function getTvGenres(): Promise<{ genres: TMDBGenre[] }> {
 }
 
 export async function discoverMovies(page: number = 1, filters: TMDBDiscoverFilters = {}): Promise<TMDBPaginatedResponse<TMDBBaseMovie>> {
-  const params: Record<string, string | number | boolean> = { page, sort_by: filters.sort_by || 'popularity.desc', ...filters };
-  if (filters.with_genres && Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
-    params.with_genres = filters.with_genres.join(',');
-  } else if (typeof filters.with_genres === 'string' && filters.with_genres) {
-     params.with_genres = filters.with_genres;
-  } else {
-    delete params.with_genres; 
+  const apiParams: Record<string, string | number | boolean> = {
+    page,
+    sort_by: filters.sort_by || 'popularity.desc',
+  };
+
+  if (filters.with_genres) {
+    if (Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
+      apiParams.with_genres = filters.with_genres.join(',');
+    } else if (typeof filters.with_genres === 'string' && filters.with_genres) {
+      apiParams.with_genres = filters.with_genres;
+    }
   }
-  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseMovie>>('discover/movie', params);
+
+  // Add other filter properties, ensuring they are of the correct type
+  for (const key of Object.keys(filters) as Array<keyof TMDBDiscoverFilters>) {
+    if (key !== 'with_genres' && key !== 'sort_by' && filters[key] !== undefined) {
+      const value = filters[key];
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        apiParams[key] = value;
+      }
+      // If other array types were possible in TMDBDiscoverFilters, handle them here
+    }
+  }
+
+  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseMovie>>('discover/movie', apiParams);
 }
 
 export async function discoverTvSeries(page: number = 1, filters: TMDBDiscoverFilters = {}): Promise<TMDBPaginatedResponse<TMDBBaseTVSeries>> {
-  const params: Record<string, string | number | boolean> = { page, sort_by: filters.sort_by || 'popularity.desc', ...filters };
-   if (filters.with_genres && Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
-    params.with_genres = filters.with_genres.join(',');
-  } else if (typeof filters.with_genres === 'string' && filters.with_genres) {
-     params.with_genres = filters.with_genres;
-  } else {
-    delete params.with_genres;
+  const apiParams: Record<string, string | number | boolean> = {
+    page,
+    sort_by: filters.sort_by || 'popularity.desc',
+  };
+
+  if (filters.with_genres) {
+    if (Array.isArray(filters.with_genres) && filters.with_genres.length > 0) {
+      apiParams.with_genres = filters.with_genres.join(',');
+    } else if (typeof filters.with_genres === 'string' && filters.with_genres) {
+      apiParams.with_genres = filters.with_genres;
+    }
   }
-  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseTVSeries>>('discover/tv', params);
+  
+  for (const key of Object.keys(filters) as Array<keyof TMDBDiscoverFilters>) {
+    if (key !== 'with_genres' && key !== 'sort_by' && filters[key] !== undefined) {
+      const value = filters[key];
+      if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        apiParams[key] = value;
+      }
+    }
+  }
+
+  return fetchTMDB<TMDBPaginatedResponse<TMDBBaseTVSeries>>('discover/tv', apiParams);
 }
 
 
@@ -202,6 +232,17 @@ export async function getTvSeasonDetails(tvId: number | string, seasonNumber: nu
 }
 
 // getEpisodeTorrentOptions function has been removed as it's no longer used.
+
+// Stub function to satisfy DownloadEpisodeButton.tsx, actual implementation needed for WebTorrent downloads.
+export async function getEpisodeMagnetLink(
+  seriesTitle: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  qualityPreference: string
+): Promise<string | null> {
+  console.warn(`[getEpisodeMagnetLink] STUB: Called for ${seriesTitle} S${seasonNumber}E${episodeNumber} (${qualityPreference}). Returning null.`);
+  return null;
+}
 
 export async function searchMulti(query: string, page: number = 1): Promise<TMDBMultiPaginatedResponse> {
   if (!query.trim()) {

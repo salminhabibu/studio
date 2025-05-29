@@ -9,6 +9,9 @@ export interface ConceptualAria2Task {
   addedTime: number; // Timestamp when the task was conceptualized.
   sourceUrlOrIdentifier: string; // Magnet link, IMDB ID, etc.
   type: 'magnet' | 'imdb_id' | 'tv_episode' | 'tv_season_pack' | 'tv_season_pack_all'; // Type of source.
+  seriesTmdbId?: string; // Optional TMDB ID for series context
+  seasonNumber?: number; // Optional season number
+  episodeNumber?: number; // Optional episode number
 }
 
 // Aria2DownloadItemDisplay matches the structure returned by an Aria2 API (e.g., /api/aria2/status/[taskId])

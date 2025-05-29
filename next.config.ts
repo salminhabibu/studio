@@ -3,10 +3,10 @@ import type {NextConfig} from 'next';
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: true, // TODO: Reverted due to persistent tool issues blocking TS fixes in YouTube API routes (play-dl types). Revisit and set to false once resolved.
   },
   eslint: {
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
   images: {
     remotePatterns: [

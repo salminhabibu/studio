@@ -191,9 +191,7 @@ export function AppSidebar() {
           "flex items-center gap-2 pt-1",
           open || isMobile ? "justify-start" : "justify-center group-data-[collapsible=icon]:py-2"
         )}>
-          <LanguagesIcon className="h-5 w-5 text-sidebar-foreground flex-shrink-0" 
-            title={t('language', 'Language')}
-          />
+          <LanguagesIcon className="h-5 w-5 text-sidebar-foreground flex-shrink-0" />
           <div className={cn("flex-grow", open || isMobile ? "block" : "group-data-[collapsible=icon]:hidden")}>
             <Select 
               defaultValue={currentLocale} 
