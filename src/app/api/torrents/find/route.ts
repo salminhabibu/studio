@@ -1,7 +1,7 @@
 // src/app/api/torrents/find/route.ts
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import TorrentSearchApi from 'torrent-search-api';
+import TorrentSearchApi, { type Torrent } from 'torrent-search-api'; // Import Torrent type
 
 // Enable providers
 TorrentSearchApi.enableProvider('1337x');
@@ -78,6 +78,13 @@ export interface TorrentFindResponse {
   error?: string; // Error message if the search fails
 }
 
+// Define an extended interface for torrents to include optional seeds and peers
+interface ExtendedTorrent extends Torrent { // Torrent type is imported from 'torrent-search-api'
+  seeds?: number;
+  peers?: number;
+  // Other properties from the Torrent type like title, magnet, provider, size, desc are implicitly included
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -127,19 +134,25 @@ export async function POST(request: Request) {
 
       if (rawResults && rawResults.length > 0) {
         const processedTorrents: TorrentFindResultItem[] = rawResults
-          .filter(torrent => torrent.magnet && torrent.title && torrent.seeds && torrent.seeds >= MIN_SEEDERS)
-          .map(torrent => ({
-            magnetLink: torrent.magnet!,
-            torrentQuality: inferQualityFromTitle(torrent.title),
-            source: torrent.provider!,
-            fileName: torrent.title!,
-            size: torrent.size,
-            seeds: torrent.seeds,
-            peers: torrent.peers,
-            // Ensure desc is a string and looks like a URL. Some providers might not give a valid URL.
-            detailsUrl: (typeof torrent.desc === 'string' && torrent.desc.startsWith('http')) ? torrent.desc : undefined,
-          }))
-          .sort((a, b) => (b.seeds ?? 0) - (a.seeds ?? 0));
+          .filter(torrentRaw => {
+            const torrent = torrentRaw as ExtendedTorrent; // Cast to access potential seeds/peers
+            return torrent.magnet && torrent.title && torrent.seeds && torrent.seeds >= MIN_SEEDERS;
+          })
+          .map(torrentRaw => {
+            const torrent = torrentRaw as ExtendedTorrent; // Cast to access potential seeds/peers
+            return {
+              magnetLink: torrent.magnet!,
+              torrentQuality: inferQualityFromTitle(torrent.title),
+              source: torrent.provider!,
+              fileName: torrent.title!,
+              size: torrent.size,
+              seeds: torrent.seeds,
+              peers: torrent.peers,
+              // Ensure desc is a string and looks like a URL. Some providers might not give a valid URL.
+              detailsUrl: (typeof torrent.desc === 'string' && torrent.desc.startsWith('http')) ? torrent.desc : undefined,
+            };
+          })
+          .sort((a, b) => (b.seeds ?? 0) - (a.seeds ?? 0)); // Assumes seeds is part of TorrentFindResultItem
 
         const finalResults = processedTorrents.slice(0, MAX_RESULTS);
         return NextResponse.json({ results: finalResults }, { status: 200 });

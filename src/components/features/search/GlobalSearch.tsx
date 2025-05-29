@@ -113,7 +113,7 @@ const GlobalSearch = () => {
 
           {!isLoading && !error && results.length === 0 && debouncedQuery && (
             <div className="p-4 text-muted-foreground text-center">
-              No results found for "{debouncedQuery}".
+              {`No results found for "${debouncedQuery}".`}
             </div>
           )}
 
@@ -133,14 +133,14 @@ const GlobalSearch = () => {
                       <div className="relative w-16 h-24 mr-3 flex-shrink-0">
                         <Image
                           src={item.poster_path ? `https://image.tmdb.org/t/p/w200${item.poster_path}` : "/images/placeholder-poster.png"}
-                          alt={item.title || item.name || "Search result poster"}
+                          alt={(item.media_type === 'movie' ? item.title : item.name) || "Search result poster"}
                           fill
                           sizes="4rem" // More specific size for the small poster
                           className="rounded object-cover"
                         />
                       </div>
                       <div className="flex-grow">
-                        <h3 className="font-semibold text-sm truncate">{item.title || item.name}</h3>
+                        <h3 className="font-semibold text-sm truncate">{(item.media_type === 'movie' ? item.title : item.name)}</h3>
                         <p className="text-xs text-muted-foreground capitalize">
                           {item.media_type === "movie" ? "Movie" : "TV Show"}
                         </p>

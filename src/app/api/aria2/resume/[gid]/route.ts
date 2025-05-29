@@ -1,6 +1,6 @@
 // src/app/api/aria2/resume/[gid]/route.ts
 import { NextResponse } from 'next/server';
-import { aria2Client } from '@/lib/aria2Client';
+import aria2Client from '@/lib/aria2Client'; // Changed to default import
 
 export async function POST(
   request: Request,
@@ -12,7 +12,7 @@ export async function POST(
   }
 
   try {
-    await aria2Client.call('aria2.unpause', [gid]);
+    await aria2Client.unpause(gid); // Changed to use specific method
     return NextResponse.json({ message: `Download ${gid} resumed successfully` });
   } catch (error: any) {
     console.error(`Error resuming download ${gid}:`, error);

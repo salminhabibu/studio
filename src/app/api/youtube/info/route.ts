@@ -1,6 +1,6 @@
 // src/app/api/youtube/info/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import play from 'play-dl';
+import play, { type YouTubeVideo } from 'play-dl'; // Removed FormatInfo, kept YouTubeVideo as type import
 import { smartErrorMessages, SmartErrorMessagesOutput } from '@/ai/flows/smart-error-messages';
 
 // Define interfaces for our response structure
@@ -85,17 +85,19 @@ export async function POST(request: NextRequest) {
       return handleApiError(url, 'Invalid or unsupported YouTube URL.', 400);
     }
 
-    if (validationResult === 'video') {
-      const videoData = await play.video_info(url);
-      if (!videoData || !videoData.video_details) {
-        return handleApiError(url, 'Could not retrieve video information.', 404);
+    if (validationResult === 'yt_video') { // Changed from 'video'
+      const videoData = await play.video_info(url) as any; // TODO: Revisit play-dl types
+      if (!videoData || !(videoData as any).video_details) { // Check video_details existence using 'as any'
+        return handleApiError(url, 'Could not retrieve video information (no details).', 404);
       }
 
-      const details = videoData.video_details;
+      const details = (videoData as any).video_details; // TODO: Revisit play-dl types for video_details
       const videoFormats: VideoFormat[] = [];
       const audioFormats: VideoFormat[] = [];
 
-      videoData.format.forEach(fmt => {
+      // Use 'any' for fmt due to issues with FormatInfo import/type resolution
+      // Access formats safely
+      (videoData as any).formats?.forEach((fmt: any) => { // TODO: Revisit play-dl types for formats
         const container = fmt.mimeType?.split(';')[0].split('/')[1]?.toLowerCase();
         if (!container || !fmt.itag) return; // Essential info missing
 
@@ -134,24 +136,24 @@ export async function POST(request: NextRequest) {
       });
       
       // Sort video formats: primarily by resolution (higher is better), secondarily by bitrate (higher is better)
-      videoFormats.sort((a, b) => {
+      videoFormats.sort((a: any, b: any) => { // TODO: Revisit types for sort comparison
         const qualityA = parseInt(a.qualityLabel || "0"); // "720p" -> 720
         const qualityB = parseInt(b.qualityLabel || "0");
         if (qualityB !== qualityA) return qualityB - qualityA;
         return (b.bitrate || 0) - (a.bitrate || 0);
       });
       // Sort audio formats by audioBitrate (higher is better)
-      audioFormats.sort((a, b) => (b.audioBitrate || 0) - (a.audioBitrate || 0));
+      audioFormats.sort((a: any, b: any) => (b.audioBitrate || 0) - (a.audioBitrate || 0)); // TODO: Revisit types for sort comparison
 
       const videoInfo: VideoInfo = {
-        id: details.id!,
+        id: details.id!, 
         title: details.title!,
-        thumbnail: details.thumbnails?.sort((a,b) => b.width - a.width)[0]?.url, // Highest quality
+        thumbnail: details.thumbnails?.sort((a: any,b: any) => b.width - a.width)[0]?.url, // Highest quality // TODO: Revisit types for sort comparison
         duration: details.durationInSec,
         author: {
           name: details.channel?.name || 'Unknown Author',
           url: details.channel?.url,
-          channelID: details.channel?.id,
+          channelID: details.channel?.id, 
         },
         formats: {
           video: videoFormats,
@@ -160,7 +162,7 @@ export async function POST(request: NextRequest) {
       };
       return NextResponse.json({ type: 'video', videoInfo });
 
-    } else if (validationResult === 'playlist') {
+    } else if (validationResult === 'yt_playlist') { // Changed from 'playlist'
       // Fetch full playlist data, including all video entries.
       // { incomplete: false } is default, but being explicit for clarity.
       const playlistData = await play.playlist_info(url, { incomplete: false }); 
@@ -210,8 +212,8 @@ export async function POST(request: NextRequest) {
     // play-dl might throw errors with messages like "Could not find ..." for invalid IDs or malformed URLs
     if (errorMessage.includes("could not find") || 
         errorMessage.includes("invalid url") ||
-        errorMessage.includes("no result") || // Common for bad searches/IDs
-        validationResult === null) { // Explicitly check if validation failed at the start
+        errorMessage.includes("no result")) { // Common for bad searches/IDs
+        // validationResult === null check removed as it's out of scope
         return handleApiError(url, 'Invalid or non-existent YouTube URL.', 400);
     }
     // Generic fallback after specific checks

@@ -97,36 +97,50 @@ export function DownloadAllSeasonsWithOptionsButton({
     const taskDisplayName = selectedTorrent.fileName || `${seriesTitle} - (${selectedTorrent.torrentQuality || 'Series Pack'})`;
     
     try {
-        const response = await fetch('/api/aria2/add', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                uri: selectedTorrent.magnetLink,
-                options: { dir: `tv-series/${seriesTitle}` }, 
-                name: taskDisplayName,
-            })
+      const payload = {
+        title: taskDisplayName,
+        type: 'tvSeason', // Using 'tvSeason' as a general type for "all seasons" pack. 
+                           // downloadManager will use seriesTitle and a generic season "pack" name if seasonNumber is not in metadata.
+                           // Alternatively, a new type 'tvSeriesPack' could be handled in downloadManager.
+        source: selectedTorrent.magnetLink,
+        metadata: {
+          tmdbId: String(seriesId),
+          seriesTitle: seriesTitle,
+          fileName: taskDisplayName, // Or a more structured name from selectedTorrent.fileName
+          selectedQuality: selectedTorrent.torrentQuality || "Unknown",
+          // seasonNumber: 0, // Could use a placeholder like 0 or -1 for "all seasons" if type 'tvSeason' strictly needs it in backend
+        },
+        // destinationPath: `tv-series/${seriesTitle}` // Optional: let downloadManager handle path construction
+      };
+
+      const response = await fetch('/api/aria2/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json();
+
+      if (response.ok && (result.gid || result.taskId)) {
+        const newTaskId = result.gid || result.taskId;
+        toast({
+          title: t.successTitle || "Download Started",
+          description: `${taskDisplayName} ${t.successDesc || "sent to Aria2. GID:"} ${newTaskId}. ${t.checkDownloadsPage || "Check Downloads page."}`
         });
-        const result = await response.json();
-        if (response.ok && result.gid) { // Expect 'gid' from Aria2
-            toast({ 
-                title: t.successTitle || "Download Started", 
-                description: `${taskDisplayName} ${t.successDesc || "sent to Aria2. GID:"} ${result.gid}. ${t.checkDownloadsPage || "Check Downloads page."}` 
-            });
-            
-            const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
-            const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
-            const newTask: ConceptualAria2Task = {
-                taskId: result.gid,
-                name: taskDisplayName,
-                quality: selectedTorrent.torrentQuality || "Unknown",
-                addedTime: Date.now(),
-                sourceUrlOrIdentifier: selectedTorrent.magnetLink,
-                type: 'tv_series_pack', // Distinguish from season_pack or episode
-                seriesTmdbId: String(seriesId),
-                // seasonNumber can be omitted or set to a special value (e.g., 0 or -1) for full series packs
-            };
-            if (!conceptualTasks.find(task => task.taskId === result.gid)) {
-                conceptualTasks.push(newTask);
+
+        const conceptualTasksString = localStorage.getItem('chillymovies-aria2-tasks');
+        const conceptualTasks: ConceptualAria2Task[] = conceptualTasksString ? JSON.parse(conceptualTasksString) : [];
+        const newTask: ConceptualAria2Task = {
+          taskId: newTaskId,
+          name: taskDisplayName,
+          quality: selectedTorrent.torrentQuality || "Unknown",
+          addedTime: Date.now(),
+          sourceUrlOrIdentifier: selectedTorrent.magnetLink,
+          type: 'tv_season_pack_all', 
+          seriesTmdbId: String(seriesId),
+          // seasonNumber: payload.metadata.seasonNumber, // If added to payload
+        };
+        if (!conceptualTasks.find(task => task.taskId === newTaskId)) {
+          conceptualTasks.push(newTask);
                 localStorage.setItem('chillymovies-aria2-tasks', JSON.stringify(conceptualTasks));
             }
         } else {

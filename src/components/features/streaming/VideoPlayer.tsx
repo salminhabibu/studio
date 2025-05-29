@@ -128,15 +128,15 @@ export function VideoPlayer({ src, title, onEnded, initialPlaybackPosition, onTi
     }
   };
 
-  const handleMouseMove = () => {
+  const handleMouseMove = useCallback(() => {
     setShowControls(true);
     if (controlsTimeoutRef.current) {
       clearTimeout(controlsTimeoutRef.current);
     }
     controlsTimeoutRef.current = setTimeout(() => {
-      if (isPlaying) setShowControls(false);
+      if (isPlaying) setShowControls(false); // isPlaying is a dependency for this logic
     }, 3000);
-  };
+  }, [isPlaying]); // Added isPlaying as a dependency for useCallback
 
   const handleMouseLeave = () => {
     if (isPlaying && controlsTimeoutRef.current) {
@@ -192,7 +192,7 @@ export function VideoPlayer({ src, title, onEnded, initialPlaybackPosition, onTi
        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current);
        setShowControls(true); // Always show controls when paused
     }
-  }, [isPlaying]);
+  }, [isPlaying, handleMouseMove]);
 
   const VolumeIcon = isMuted ? VolumeXIcon : volume > 0.5 ? Volume2Icon : volume > 0 ? Volume1Icon : VolumeXIcon;
 
@@ -234,7 +234,7 @@ export function VideoPlayer({ src, title, onEnded, initialPlaybackPosition, onTi
           step={1}
           onValueChange={handleSeek}
           className="w-full h-2 cursor-pointer group/slider"
-          indicatorClassName="bg-primary group-hover/slider:bg-red-400"
+          // indicatorClassName="bg-primary group-hover/slider:bg-red-400" // Removed invalid prop
           aria-label="Video progress"
         />
         

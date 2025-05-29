@@ -8,11 +8,14 @@ function getLocaleFromRequest(request: NextRequest): string {
   const negotiatorHeaders: Record<string, string> = {};
   request.headers.forEach((value, key) => (negotiatorHeaders[key] = value));
 
+  // Use spread operator to convert readonly array to mutable string[]
+  const localesAsStrings: string[] = [...i18n.locales];
+
   const languages = new Negotiator({ headers: negotiatorHeaders }).languages(
-    i18n.locales as string[]
+    localesAsStrings
   );
 
-  return matchLocale(languages, i18n.locales as string[], i18n.defaultLocale);
+  return matchLocale(languages, localesAsStrings, i18n.defaultLocale);
 }
 
 export function middleware(request: NextRequest) {

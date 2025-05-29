@@ -218,7 +218,7 @@ export default function DownloadsPage(/*{ params: { locale } }: { params: { loca
                 </CardContent>
                 <CardFooter className="flex justify-end flex-wrap gap-2 pt-3 border-t bg-slate-50/50 dark:bg-slate-800/20 p-3">
                   {task.status === 'downloading' && (
-                    <Button variant="outline" size="xs" onClick={async () => {
+                    <Button variant="outline" size="sm" onClick={async () => {
                       setLoadingStates(prev => ({ ...prev, [`pause-${task.id}`]: true }));
                       await pauseDownload(task.id);
                       setLoadingStates(prev => ({ ...prev, [`pause-${task.id}`]: false }));
@@ -228,7 +228,7 @@ export default function DownloadsPage(/*{ params: { locale } }: { params: { loca
                     </Button>
                   )}
                   {task.status === 'paused' && (
-                    <Button variant="outline" size="xs" onClick={async () => {
+                    <Button variant="outline" size="sm" onClick={async () => {
                       setLoadingStates(prev => ({ ...prev, [`resume-${task.id}`]: true }));
                       await resumeDownload(task.id);
                       setLoadingStates(prev => ({ ...prev, [`resume-${task.id}`]: false }));
@@ -238,7 +238,7 @@ export default function DownloadsPage(/*{ params: { locale } }: { params: { loca
                     </Button>
                   )}
                   {['downloading', 'paused', 'waiting', 'error'].includes(task.status) && (
-                    <Button variant="destructive" size="xs" onClick={async () => {
+                    <Button variant="destructive" size="sm" onClick={async () => {
                       setLoadingStates(prev => ({ ...prev, [`cancel-${task.id}`]: true }));
                       await cancelDownload(task.id);
                       // No need to setLoading false here if task is removed from list by cancelDownload
@@ -248,11 +248,11 @@ export default function DownloadsPage(/*{ params: { locale } }: { params: { loca
                     </Button>
                   )}
                   {task.status === 'downloading' && ( // Simulate Progress button (can be removed)
-                    <Button variant="outline" size="xs" onClick={() => _simulateProgress(task.id)} className="hidden sm:flex">
+                    <Button variant="outline" size="sm" onClick={() => _simulateProgress(task.id)} className="hidden sm:flex">
                       Simulate Progress
                     </Button>
                   )}
-                  <Button variant="ghost" size="xs" onClick={() => refreshTaskStatus(task.id)} disabled={Object.values(loadingStates).some(s => s)}>
+                  <Button variant="ghost" size="sm" onClick={() => refreshTaskStatus(task.id)} disabled={Object.values(loadingStates).some(s => s)}>
                     Refresh
                   </Button>
                 </CardFooter>

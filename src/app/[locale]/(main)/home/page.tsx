@@ -9,7 +9,10 @@ import { RecommendedItemCard } from '@/components/features/common/RecommendedIte
 import { Loader2Icon, FilmIcon, Tv2Icon } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import type { Locale } from '@/config/i18n.config';
-import { getDictionary } from '@/lib/getDictionary'; 
+import { getDictionary } from '@/lib/getDictionary';
+
+// ValidHeroItem interface is removed as we will now construct HeroItem directly
+// and filter based on essential properties for display.
 
 const SESSION_STORAGE_KEY_PREFIX = "chillymovies";
 const HOME_STATE_KEY = `${SESSION_STORAGE_KEY_PREFIX}-home-page-state`;
@@ -30,7 +33,7 @@ interface HomePageProps {
 }
 
 export default function HomePage(props: HomePageProps) {
-  const { locale } = use(props.params); 
+  const locale = props.params.locale; 
 
   const [heroItems, setHeroItems] = useState<HeroItem[]>([]);
   const [popularMovies, setPopularMovies] = useState<TMDBBaseMovie[]>([]);
@@ -72,17 +75,34 @@ export default function HomePage(props: HomePageProps) {
       const moviesData = await getPopularMovies(1); 
       const potentialHeroMovies = moviesData.results.filter(movie => movie.backdrop_path).slice(0, 10);
       
-      const heroItemsDataPromises = potentialHeroMovies.map(async (movie) => {
+      const heroItemsDataPromises = potentialHeroMovies.map(async (movie): Promise<HeroItem | null> => {
         try {
-          const movieDetails = await getMovieDetails(movie.id);
+          const movieDetails = await getMovieDetails(movie.id); // This is TMDBMovie & { magnetLink?, torrentQuality? }
           const videos: TMDBVideo[] = movieDetails.videos?.results || [];
           const officialTrailer = videos.find(v => v.site === "YouTube" && v.type === "Trailer" && v.official) || videos.find(v => v.site === "YouTube" && v.type === "Trailer");
-          return officialTrailer?.key ? { movie: movieDetails, trailerKey: officialTrailer.key } : null;
-        } catch (e) { return null; }
+          
+          // Construct HeroItem, trailerKey can be null
+          return { 
+            movie: movieDetails, // movieDetails is compatible with TMDBMovie
+            trailerKey: officialTrailer?.key || null 
+          };
+        } catch (e) { 
+          console.error(`Failed to process movie ${movie.id} for hero section:`, e);
+          return null; 
+        }
       });
       
-      const resolvedItems = (await Promise.all(heroItemsDataPromises)).filter((item): item is HeroItem => item !== null);
-      setHeroItems(resolvedItems.slice(0, 5));
+      const potentialHeroItems = (await Promise.all(heroItemsDataPromises));
+      
+      // Filter for items that are not null and have essential display properties
+      const validHeroItems: HeroItem[] = potentialHeroItems.filter(
+        (item): item is HeroItem => 
+          item !== null &&
+          item.movie && // Movie object must exist
+          typeof item.movie.backdrop_path === 'string' && // Backdrop must exist for HeroSection display
+          typeof item.movie.title === 'string' // Title must exist for HeroSection display
+      );
+      setHeroItems(validHeroItems.slice(0, 5));
     } catch (error) {
       console.error("Failed to fetch hero content:", error);
     } finally {

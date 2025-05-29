@@ -1,7 +1,8 @@
 // src/app/api/youtube/download/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import play, { YouTubeVideo } from 'play-dl';
-import aria2Client from '@/lib/aria2Client'; // Assuming this path is correct
+import play, { type YouTubeVideo } from 'play-dl'; // Removed FormatInfo
+import downloadManager from '@/services/downloadManager'; // Import downloadManager
+import type { DownloadTaskCreationData } from '@/types/download'; // For type safety
 
 interface DownloadRequestBody {
   videoId: string;
@@ -30,12 +31,12 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Get Downloadable Stream/URL
-    let videoData: YouTubeVideo;
+    let videoDataTyped: any; // Use any for videoDataTyped initially
     try {
       const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
-      videoData = await play.video_info(youtubeUrl);
+      videoDataTyped = await play.video_info(youtubeUrl) as any; // TODO: Revisit play-dl types
       // play.video_info throws an error if video not found or other issues occur,
-      // so a !videoData check is usually redundant if the call completes without throwing.
+      // so a !videoDataTyped check is usually redundant if the call completes without throwing.
     } catch (err: any) {
       console.error(`Play-DL: Failed to fetch video info for ${videoId}. Error: ${err.message}`, err);
       const errMsg = err.message?.toLowerCase() || "";
@@ -45,44 +46,54 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Failed to retrieve video information for ${videoId}. Please check the video ID and try again.` }, { status: 500 });
     }
 
-    const format = videoData.format.find(f => f.itag === itag);
+    // Ensure videoDataTyped is treated as YouTubeVideo which should have .formats
+    // The 'formats' property should exist on the YouTubeVideo type from play-dl
+    const format = (videoDataTyped as any).formats?.find((f: any) => f.itag === itag); // TODO: Revisit play-dl types for formats
 
     if (!format || !format.url) {
       return NextResponse.json({ error: `Requested format (itag ${itag}) for video ${videoId} is not available or does not have a direct download URL.` }, { status: 404 });
     }
     const downloadUrl = format.url;
+    const qualityLabel = format.qualityLabel || format.audioBitrate?.toString()+"kbps" || "Unknown";
 
-    // 3. Interface with Aria2
+    // 3. Use DownloadManager to add the task
     try {
-      const aria2Options = {
-        out: fileName,
-        // Additional metadata can be passed if aria2c is configured for it, e.g.
-        // header: [`Cookie: ...`],
-        // 'user-agent': '...',
-        // Refer to Aria2c documentation for --header, --user-agent, etc.
-        // and how they translate to RPC options if `aria2Client` supports generic options.
-        // The `title` could be part of `out` or a specific metadata option if supported.
+      const taskData: DownloadTaskCreationData = {
+        title: title, // Use the original title passed from client, downloadManager will sanitize for path
+        type: 'youtube',
+        source: downloadUrl,
+        metadata: {
+          youtubeVideoId: videoId,
+          originalTitle: title, // Keep original title for display if needed
+          itag: itag,
+          selectedQualityLabel: qualityLabel, // Store the quality label
+          fileName: fileName, // downloadManager will use this for the 'out' option
+        },
+        // destinationPath is not set, downloadManager will handle it.
       };
 
-      const gid = await aria2Client.addUri(downloadUrl, aria2Options);
-      
-      if (!gid) { // Should ideally not happen if addUri throws on failure or always returns GID.
-        console.error(`Aria2 client returned no GID for ${videoId}, itag ${itag}. URL: ${downloadUrl}`);
-        return NextResponse.json({ error: 'Failed to add download to Aria2 queue: No GID returned from Aria2.' }, { status: 500 });
+      const newTask = await downloadManager.addTask(taskData);
+
+      if (newTask && newTask.id) {
+        // Consistent response with /api/aria2/add
+        return NextResponse.json({ 
+          taskId: newTask.id, 
+          status: newTask.status, 
+          message: 'YouTube download successfully added to queue via DownloadManager.' 
+        }, { status: 201 });
+      } else {
+        console.error(`DownloadManager failed to create task for YouTube video ${videoId}, itag ${itag}.`);
+        return NextResponse.json({ error: 'Failed to create download task via DownloadManager.' }, { status: 500 });
       }
-      
-      // 4. Format Response (Success)
-      return NextResponse.json({ message: 'Download successfully added to Aria2 queue.', taskId: gid });
 
     } catch (err: any) {
-      console.error(`Aria2 client error while adding URI for video ${videoId} (itag ${itag}). URL: ${downloadUrl}. Error: ${err.message}`, err);
-      // Check if the error message from aria2Client is useful or use a generic one
-      const aria2ErrorMessage = err.message || 'An unknown error occurred with the download manager.';
-      return NextResponse.json({ error: `Download manager operation failed: ${aria2ErrorMessage}` }, { status: 500 });
+      console.error(`Error adding YouTube download via DownloadManager for video ${videoId} (itag ${itag}). URL: ${downloadUrl}. Error: ${err.message}`, err);
+      const errorMessage = err.message || 'An unknown error occurred with the download manager.';
+      return NextResponse.json({ error: `Download manager operation failed: ${errorMessage}` }, { status: 500 });
     }
 
   } catch (error: any) {
-    console.error(`Unexpected error processing download request for videoId ${videoId}, itag ${itag}: ${error.message}`, error);
+    console.error(`Unexpected error processing download request: ${error.message}`, error); // Removed videoId and itag from log
     if (error instanceof SyntaxError) { // JSON parsing error
         return NextResponse.json({ error: 'Invalid JSON payload. Please ensure the request body is correctly formatted.' }, { status: 400 });
     }

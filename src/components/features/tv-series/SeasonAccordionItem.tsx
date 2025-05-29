@@ -23,9 +23,10 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect, useState, useMemo } from "react"; // Added useMemo
+import { useEffect, useState, useMemo } from "react"; 
 import type { Locale } from "@/config/i18n.config";
-import { ConceptualAria2Task } from "@/types/download"; 
+import { ConceptualAria2Task } from "@/types/download";
+import { VideoPlayer } from "@/components/features/streaming/VideoPlayer"; // Added for streaming
 
 // Extended TMDBEpisode to include torrentOptions (as expected from page.tsx)
 interface EpisodeWithTorrents extends TMDBEpisode {
@@ -69,6 +70,12 @@ export function SeasonAccordionItem({
   const [selectedTorrentInDialog, setSelectedTorrentInDialog] = useState<TVEpisodeTorrentResultItem | null>(null);
   const [isEpisodeDownloadLoading, setIsEpisodeDownloadLoading] = useState(false);
 
+  // State for episode streaming
+  const [isEpisodeStreamLoading, setIsEpisodeStreamLoading] = useState(false);
+  const [episodeStreamUrl, setEpisodeStreamUrl] = useState<string | null>(null);
+  const [episodeStreamTitle, setEpisodeStreamTitle] = useState<string>("");
+  const [isEpisodePlayerModalOpen, setIsEpisodePlayerModalOpen] = useState(false);
+
   // useEffect for fetching episodes is removed as episodes are now passed in `season.episodes`
 
   const handlePlaySeason = (e: React.MouseEvent) => {
@@ -80,12 +87,78 @@ export function SeasonAccordionItem({
     });
   };
   
-  const handlePlayEpisode = (episode: EpisodeWithTorrents, e: React.MouseEvent) => {
+  const handlePlayEpisode = async (episode: EpisodeWithTorrents, e: React.MouseEvent) => {
     e.stopPropagation();
-     toast({
-      title: dictionary?.toastPlaybackStubTitle || "Playback (Stubbed)",
-      description: `${dictionary?.toastPlayingEpisodeStubDesc || "Playing episode"} S${episode.season_number}E${episode.episode_number} - "${episode.name}" (${episode.torrentOptions?.[0]?.torrentQuality || 'Any'}). ${dictionary?.featureToImplement || "Feature to be fully implemented."}`,
+    const episodeMagnetLink = episode.torrentOptions?.[0]?.magnetLink;
+
+    if (!episodeMagnetLink) {
+      toast({
+        title: dictionary?.noStreamSourceTitle || "Streaming Source Error",
+        description: dictionary?.noStreamSourceDescEpisode || `No magnet link available for S${episode.season_number}E${episode.episode_number} to start streaming.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsEpisodeStreamLoading(true);
+    setEpisodeStreamUrl(null);
+    setEpisodeStreamTitle(`${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`);
+    toast({
+      title: dictionary?.preparingStreamTitle || "Preparing Stream",
+      description: dictionary?.preparingStreamDescEpisode || `Please wait for S${episode.season_number}E${episode.episode_number} stream...`,
     });
+
+    try {
+      const addResponse = await fetch('/api/webtorrent/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ magnetUri: episodeMagnetLink }),
+      });
+
+      if (!addResponse.ok) {
+        const errorData = await addResponse.json().catch(() => ({ error: "Failed to add torrent to server." }));
+        throw new Error(errorData.error || "Server error adding torrent.");
+      }
+
+      const result = await addResponse.json();
+      const { torrentId, files, name: torrentName } = result;
+
+      if (!files || files.length === 0) {
+        throw new Error("No files found in the torrent.");
+      }
+
+      const videoExtensions = ['.mp4', '.mkv', '.webm', '.avi', '.mov'];
+      const videoFiles = files.filter((file: { name: string; length: number }) =>
+        videoExtensions.some(ext => file.name.toLowerCase().endsWith(ext))
+      ).sort((a: { length: number }, b: { length: number }) => b.length - a.length);
+
+      if (videoFiles.length === 0) {
+        throw new Error("No playable video file found in the torrent for this episode.");
+      }
+
+      const largestVideoFile = videoFiles[0];
+      const filePath = largestVideoFile.path;
+      const newStreamUrl = `/api/webtorrent/stream/${torrentId}/${encodeURIComponent(filePath)}`;
+      
+      setEpisodeStreamUrl(newStreamUrl);
+      setEpisodeStreamTitle(torrentName || `${seriesTitle} - S${String(episode.season_number).padStart(2, '0')}E${String(episode.episode_number).padStart(2, '0')} - ${episode.name}`);
+      setIsEpisodePlayerModalOpen(true);
+      toast({
+        title: dictionary?.streamReadyTitle || "Stream Ready",
+        description: `${episode.name} ${dictionary?.streamReadyDesc || "is ready to play."}`,
+      });
+
+    } catch (error: any) {
+      console.error("[SeasonAccordionItem] Error preparing episode stream:", error);
+      toast({
+        title: dictionary?.streamErrorTitle || "Streaming Error",
+        description: error.message || (dictionary?.streamErrorDescEpisode || "Could not prepare the episode stream."),
+        variant: "destructive",
+      });
+      setIsEpisodePlayerModalOpen(false);
+    } finally {
+      setIsEpisodeStreamLoading(false);
+    }
   };
 
   const handleOpenEpisodeDownloadDialog = (episode: EpisodeWithTorrents, e: React.MouseEvent) => {
@@ -160,7 +233,7 @@ export function SeasonAccordionItem({
   };
 
   // Updated logic for season pack download
-  const findBestSeasonPackTorrent = (quality: string): TorrentFindResultItem | null => {
+  const findBestSeasonPackTorrent = useCallback((quality: string): TorrentFindResultItem | null => {
     const qualityLower = quality.toLowerCase();
     let filtered = seasonPackTorrentOptions;
 
@@ -173,9 +246,9 @@ export function SeasonAccordionItem({
     }
 
     return filtered.sort((a, b) => (b.seeds ?? 0) - (a.seeds ?? 0))[0] || null;
-  };
+  }, [seasonPackTorrentOptions]); // findBestSeasonPackTorrent depends on seasonPackTorrentOptions
   
-  const torrentForSeasonDownload = useMemo(() => findBestSeasonPackTorrent(selectedQualityForSeason), [selectedQualityForSeason, seasonPackTorrentOptions]);
+  const torrentForSeasonDownload = useMemo(() => findBestSeasonPackTorrent(selectedQualityForSeason), [selectedQualityForSeason, findBestSeasonPackTorrent]);
   const isSeasonDownloadPossible = !!torrentForSeasonDownload;
 
   const handleDownloadSeason = async (e: React.MouseEvent) => {
@@ -418,6 +491,21 @@ export function SeasonAccordionItem({
           ))}
         </div>
       </AccordionPrimitive.Content>
+
+      {/* Dialog for Episode Video Player */}
+      <Dialog open={isEpisodePlayerModalOpen} onOpenChange={setIsEpisodePlayerModalOpen}>
+        <DialogContent className="sm:max-w-[90vw] md:max-w-[85vw] lg:max-w-[80vw] xl:max-w-[75vw] p-0 border-0 bg-black/95 backdrop-blur-md aspect-video rounded-lg overflow-hidden">
+          <DialogTitle className="sr-only">{episodeStreamTitle}</DialogTitle>
+          {episodeStreamUrl ? (
+            <VideoPlayer src={episodeStreamUrl} title={episodeStreamTitle} />
+          ) : (
+           <div className="w-full h-full flex flex-col items-center justify-center bg-black text-white">
+             <Loader2Icon className="h-12 w-12 animate-spin mb-4" />
+             <p>{dictionary?.loadingVideoStream || "Loading video stream..."}</p>
+           </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </AccordionPrimitive.Item>
   );
 }

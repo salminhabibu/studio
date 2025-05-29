@@ -12,15 +12,15 @@ type DictionaryLoader = () => Promise<{ default: Dictionary }>;
 
 // Explicitly type the dictionaries object
 const dictionaries: Record<Locale, DictionaryLoader> = {
-  en: () => import('@/dictionaries/en.json') as unknown as DictionaryLoader,
-  sw: () => import('@/dictionaries/sw.json') as unknown as DictionaryLoader,
+  en: () => import('@/dictionaries/en.json'),
+  sw: () => import('@/dictionaries/sw.json'),
 };
 
 export const getDictionary = async (locale: Locale): Promise<Dictionary> => {
   const loader = dictionaries[locale] || dictionaries[i18n.defaultLocale];
   try {
-    const module = await loader();
-    return module.default;
+    const loadedModule = await loader();
+    return loadedModule.default;
   } catch (error) {
     console.error(`Error loading dictionary for locale "${locale}":`, error);
     // Fallback to default locale dictionary in case of an error

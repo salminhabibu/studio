@@ -1,6 +1,6 @@
 // src/app/api/aria2/remove/[gid]/route.ts
 import { NextResponse } from 'next/server';
-import { aria2Client } from '@/lib/aria2Client';
+import aria2Client from '@/lib/aria2Client'; // Changed to default import
 
 export async function POST(
   request: Request,
@@ -15,7 +15,7 @@ export async function POST(
     // For active downloads, aria2.forceRemove or aria2.remove can be used.
     // aria2.remove might wait for active pieces to finish.
     // aria2.forceRemove removes it immediately. Let's use forceRemove for a "cancel" behavior.
-    await aria2Client.call('aria2.forceRemove', [gid]); 
+    await aria2Client.remove(gid); // Changed to use specific method
     // If you want to remove completed/error downloads from history, use 'aria2.removeDownloadResult'.
     // However, for cancelling an active download, 'forceRemove' or 'remove' is appropriate.
     return NextResponse.json({ message: `Download ${gid} removed successfully` });
